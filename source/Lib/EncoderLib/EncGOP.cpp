@@ -2017,6 +2017,7 @@ void EncGOP::compressGOP( int iPOCLast, int iNumPicRcvd, PicList& rcListPic,
       m_pcCfg->setEncodedFlag( iGOPid, false );
     }
   }
+  // This for goes over all frames in a GOP
   for( int iGOPid = picIdInGOP; iGOPid <= picIdInGOP; iGOPid++ )
   {
     // reset flag indicating whether pictures have been encoded
@@ -2820,6 +2821,8 @@ void EncGOP::compressGOP( int iPOCLast, int iNumPicRcvd, PicList& rcListPic,
 
       for(uint32_t sliceIdx = 0; sliceIdx < pcPic->cs->pps->getNumSlicesInPic(); sliceIdx++ )
       {
+        // The encoding of one slice starts here. In case there is a single slice
+        // in current frame, then the entire frame is encoded
         pcSlice->setSliceMap( pcPic->cs->pps->getSliceMap( sliceIdx ) );
         if( pcPic->cs->pps->getRectSliceFlag() )
         {

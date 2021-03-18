@@ -625,7 +625,9 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
     m_bestBcwCost[0] = m_bestBcwCost[1] = std::numeric_limits<double>::max();
     m_bestBcwIdx[0] = m_bestBcwIdx[1] = -1;
   }
-  do
+  // It seems like this loop performs the encoding of current CU. Each iteration 
+  // tests a different mode (intra, inter, affine, etc)
+  do    
   {
     for (int i = compBegin; i < (compBegin + numComp); i++)
     {

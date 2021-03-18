@@ -53,6 +53,7 @@
 #include <math.h>
 #include <limits>
 
+#include "../../App/EncoderApp/storchmain.h"
 
  //! \ingroup EncoderLib
  //! \{
@@ -3462,7 +3463,11 @@ void InterSearch::xMotionEstimation(PredictionUnit& pu, PelUnitBuf& origBuf, Ref
     {
       xSetSearchRange(pu, bestInitMv, iSrchRng, cStruct.searchRange, cStruct);
     }
+    // Here it invokes full search ME. Probe execution time.
+    storch::startFullSearch();    
     xPatternSearch( cStruct, rcMv, ruiCost);
+    storch::finishFullSearch();
+    
   }
   else if( bQTBTMV2 )
   {

@@ -47,6 +47,8 @@
 
 #include <math.h>
 
+#include "../../App/EncoderApp/storchmain.h"
+
 //! \ingroup EncoderLib
 //! \{
 
@@ -1315,6 +1317,36 @@ void EncSlice::compressSlice( Picture* pcPic, const bool bCompressEntireSlice, c
 
   Slice* const pcSlice    = pcPic->slices[getSliceSegmentIdx()];
 
+  
+  if(EXTRACT_FRAME){ // In case we want to extract the frames ...
+      storch::currPoc = pcSlice->getPic()->getPOC();
+      PelBuf originalFrame = pcSlice->getPic()->getOrigBuf(COMPONENT_Y);
+      int currPoc = pcSlice->getPOC();
+
+      // First extract the original current frame
+      storch::exportSamplesFrame(originalFrame, currPoc, EXT_ORIGINAL);
+
+      // In case current frame is past the first, there are reconstructed frames available
+      if(pcPic->getPOC()>0){ 
+          Picture *refPic;
+          PelBuf recFrame;
+          int recPoc;
+
+          // Goes over all reference lists and reference pictures
+          // And try to export all of them
+          for (int rlist = REF_PIC_LIST_0; rlist < NUM_REF_PIC_LIST_01; rlist++){
+            int n = pcSlice->getNumRefIdx((RefPicList)rlist); // Number of frames in the list
+            for (int idx = 0; idx < n; idx++){
+              refPic = pcSlice->getRefPic((RefPicList)rlist, idx);
+              recFrame = refPic->getRecoBuf(COMPONENT_Y,false); // This false is for "warped", available only for 360
+              recPoc = refPic->getPOC();
+
+              storch::exportSamplesFrame(recFrame, recPoc, EXT_RECONSTRUCTED);
+            }
+          }     
+      }       
+  }  
+  
   // initialize cost values - these are used by precompressSlice (they should be parameters).
   m_uiPicTotalBits  = 0;
   m_uiPicDist       = 0;
