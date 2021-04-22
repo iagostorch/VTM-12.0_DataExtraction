@@ -187,6 +187,9 @@ public:
   {
     m_mvPredictor = rcMv;
   }
+  
+  // Used to export the predictor for each block
+  Mv             getPredictor            ( )  { return m_mvPredictor; }
   void           setCostScale             ( int iCostScale )           { m_iCostScale = iCostScale; }
   Distortion     getCost                  ( uint32_t b )                   { return Distortion( m_motionLambda * b ); }
   // for ibc

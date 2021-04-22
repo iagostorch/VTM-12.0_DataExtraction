@@ -2122,6 +2122,9 @@ void PU::fillAffineMvpCand(PredictionUnit &pu, const RefPicList &eRefPicList, co
   Position posRT = pu.Y().topRight();
   Position posLB = pu.Y().bottomLeft();
 
+  // This set of if !func() statements implement the idea that, for a given direction (left or above neighbors), only the first available neighbor is added to the candidate list. This is discussed in the VTM description in T-2002.
+  // It tests the left neighbors in a giben order an only the first is added to the list, then tests the above neighbors and addsthe first available. This way, the list has at most 2 dandidates
+  
   // check left neighbor
   if ( !addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_BELOW_LEFT, affiAMVPInfo ) )
   {
@@ -2148,6 +2151,7 @@ void PU::fillAffineMvpCand(PredictionUnit &pu, const RefPicList &eRefPicList, co
     return;
   }
 
+  // The constructed MVs are generated after the translational MVs of neighboring blocks. This is also discussed in T-2002  
   // insert constructed affine candidates
   int cornerMVPattern = 0;
 
@@ -2155,6 +2159,7 @@ void PU::fillAffineMvpCand(PredictionUnit &pu, const RefPicList &eRefPicList, co
   AMVPInfo amvpInfo0;
   amvpInfo0.numCand = 0;
 
+  // The position of blocks A, B, ..., F is described in Fig 3 of document K-0337
   // A->C: Above Left, Above, Left
   addMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_ABOVE_LEFT, amvpInfo0 );
   if ( amvpInfo0.numCand < 1 )

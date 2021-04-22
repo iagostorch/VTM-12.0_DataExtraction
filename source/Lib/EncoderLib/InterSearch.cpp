@@ -54,6 +54,7 @@
 #include <limits>
 
 #include "../../App/EncoderApp/storchmain.h"
+int printTest=0;
 
  //! \ingroup EncoderLib
  //! \{
@@ -2274,7 +2275,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
 
   Mv           cMv[2];
   Mv           cMvBi[2];
-  Mv           cMvTemp[2][33];
+  Mv           cMvTemp[2][33]; // This 33 is the GOP size or maximum number of reference frames
   Mv           cMvHevcTemp[2][33];
   int          iNumPredDir = cs.slice->isInterP() ? 1 : 2;
 
@@ -2380,9 +2381,11 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
     if ( checkNonAffine )
     {
       //  Uni-directional prediction
+      // This loop goes over the two reference lists
       for ( int iRefList = 0; iRefList < iNumPredDir; iRefList++ )
       {
         RefPicList  eRefPicList = ( iRefList ? REF_PIC_LIST_1 : REF_PIC_LIST_0 );
+        // This loop goes over each frame for current reference list
         for (int iRefIdxTemp = 0; iRefIdxTemp < cs.slice->getNumRefIdx(eRefPicList); iRefIdxTemp++)
         {
           uiBitsTemp = uiMbBits[iRefList];
@@ -2424,6 +2427,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
             }
             else
             {
+              // It seems that it never enters this else statement
               xMotionEstimation( pu, origBuf, eRefPicList, cMvPred[iRefList][iRefIdxTemp], iRefIdxTemp, cMvTemp[iRefList][iRefIdxTemp], aaiMvpIdx[iRefList][iRefIdxTemp], uiBitsTemp, uiCostTemp, amvp[eRefPicList] );
             }
           }
@@ -2682,6 +2686,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
         cu.refIdxBi[0] = iRefIdxBi[0];
         cu.refIdxBi[1] = iRefIdxBi[1];
 
+        // This if is related to using the symmetric motion vector difference (SMVD)
         if ( cs.slice->getBiDirPred() && trySmvd )
         {
           Distortion symCost;
@@ -2929,6 +2934,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
                      ? uiCostBi
                      : ((uiCost[0] <= uiCost[1]) ? uiCost[0] : uiCost[1]);
     }
+    // This if decides if affine will be tested or not
     if (cu.Y().width > 8 && cu.Y().height > 8 && cu.slice->getSPS()->getUseAffine()
       && checkAffine
       && (bcwIdx == BCW_DEFAULT || m_affineModeSelected || !m_pcEncCfg->getUseBcwFast())
@@ -2956,9 +2962,10 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
 
       // do affine ME & Merge
       cu.affineType = AFFINEMODEL_4PARAM;
-      Mv acMvAffine4Para[2][33][3];
+      Mv acMvAffine4Para[2][33][3]; // 2 lists, 33 reference pics, 3 CPs. The same function computes affine for 4 and 6 CPs, thus the "extra" CP
       int refIdx4Para[2] = { -1, -1 };
 
+      // Here it invokes affine 
       xPredAffineInterSearch(pu, origBuf, puIdx, uiLastModeTemp, uiAffineCost, cMvHevcTemp, acMvAffine4Para, refIdx4Para, bcwIdx, enforceBcwPred,
         ((cu.slice->getSPS()->getUseBcw() == true) ? getWeightIdxBits(bcwIdx) : 0));
 
@@ -2969,6 +2976,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
 
       if ( cu.slice->getSPS()->getUseAffineType() )
       {
+        // This threshold is used to avoid 6 parameters affine when it is not likely to produce a better result
         if ( uiAffineCost < uiHevcCost * 1.05 ) ///< condition for 6 parameter affine ME
         {
           // save 4 parameter results
@@ -2976,6 +2984,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
           int bestMvpIdx[2], bestMvpNum[2], bestRefIdx[2];
           uint8_t bestInterDir;
 
+          // Backup of the results achieved with 4 parameters
           bestInterDir = pu.interDir;
           bestRefIdx[0] = pu.refIdx[0];
           bestRefIdx[1] = pu.refIdx[1];
@@ -2984,6 +2993,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
           bestMvpNum[0] = pu.mvpNum[0];
           bestMvpNum[1] = pu.mvpNum[1];
 
+          // I believe it has 3 elements in 2nd dimension because the same attribute is used for 2 and 3 CPs
           for ( int refList = 0; refList < 2; refList++ )
           {
             bestMv[refList][0] = pu.mvAffi[refList][0];
@@ -2997,6 +3007,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
           refIdx4Para[0] = bestRefIdx[0];
           refIdx4Para[1] = bestRefIdx[1];
 
+          // Here it starts the initialization for 6 parameters affine
           Distortion uiAffine6Cost = std::numeric_limits<Distortion>::max();
           cu.affineType = AFFINEMODEL_6PARAM;
           xPredAffineInterSearch(pu, origBuf, puIdx, uiLastModeTemp, uiAffine6Cost, cMvHevcTemp, acMvAffine4Para, refIdx4Para, bcwIdx, enforceBcwPred,
@@ -3303,13 +3314,16 @@ Distortion InterSearch::xGetTemplateCost( const PredictionUnit& pu,
 
 Distortion InterSearch::xGetAffineTemplateCost( PredictionUnit& pu, PelUnitBuf& origBuf, PelUnitBuf& predBuf, Mv acMvCand[3], int iMVPIdx, int iMVPNum, RefPicList eRefPicList, int iRefIdx )
 {
+
+  // acMvCand is the MV that will be tested now
+    
   Distortion uiCost = std::numeric_limits<Distortion>::max();
 
   const Picture* picRef = pu.cu->slice->getRefPic( eRefPicList, iRefIdx );
 
   // prediction pattern
   const bool bi = pu.cu->slice->testWeightPred() && pu.cu->slice->getSliceType()==P_SLICE;
-  Mv mv[3];
+  Mv mv[3]; // it has the 3 CPMVs
   memcpy(mv, acMvCand, sizeof(mv));
   m_iRefListIdx = eRefPicList;
   xPredAffineBlk(COMPONENT_Y, pu, picRef, mv, predBuf, bi, pu.cu->slice->clpRng(COMPONENT_Y));
@@ -3367,6 +3381,7 @@ void InterSearch::xMotionEstimation(PredictionUnit& pu, PelUnitBuf& origBuf, Ref
   m_lumaClpRng = pu.cs->slice->clpRng( COMPONENT_Y );
 
   bool wrap =  pu.cu->slice->getRefPic(eRefPicList, iRefIdxPred)->isWrapAroundEnabled( pu.cs->pps );
+  // Buf holds the reconstructed samples of reference frame, such as in the decoder
   CPelBuf buf = pu.cu->slice->getRefPic(eRefPicList, iRefIdxPred)->getRecoBuf(pu.blocks[COMPONENT_Y], wrap);
 
   IntTZSearchStruct cStruct;
@@ -3399,6 +3414,8 @@ void InterSearch::xMotionEstimation(PredictionUnit& pu, PelUnitBuf& origBuf, Ref
     }
   }
 
+  // At this point, the predicted MV has 1/4 pixel precision. The encoder changes
+  // it to integer precision before ME
   Mv predQuarter = rcMvPred;
   predQuarter.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
   m_pcRdCost->setPredictor( predQuarter );
@@ -3419,7 +3436,7 @@ void InterSearch::xMotionEstimation(PredictionUnit& pu, PelUnitBuf& origBuf, Ref
 
     Mv bestInitMv = (bBi ? rcMv : rcMvPred);
     Mv cTmpMv = bestInitMv;
-
+    
     clipMv( cTmpMv, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps );
     cTmpMv.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_INT);
     m_cDistParam.cur.buf = cStruct.piRefY + (cTmpMv.ver * cStruct.iRefStride) + cTmpMv.hor;
@@ -3459,10 +3476,13 @@ void InterSearch::xMotionEstimation(PredictionUnit& pu, PelUnitBuf& origBuf, Ref
       }
     }
 
+    // Always enter this IF and set the search range. bestInitMv is the predicted
+    // MV adjusted for integer precision
     if( !bQTBTMV )
     {
       xSetSearchRange(pu, bestInitMv, iSrchRng, cStruct.searchRange, cStruct);
     }
+    
     // Here it invokes full search ME. Probe execution time.
     storch::startFullSearch();    
     xPatternSearch( cStruct, rcMv, ruiCost);
@@ -3610,21 +3630,27 @@ void InterSearch::xPatternSearch( IntTZSearchStruct&    cStruct,
   int         iBestX = 0;
   int         iBestY = 0;
 
+  // cStruct.pcPatternKey holds the original samples
   //-- jclee for using the SAD function pointer
   m_pcRdCost->setDistParam( m_cDistParam, *cStruct.pcPatternKey, cStruct.piRefY, cStruct.iRefStride, m_lumaClpRng.bd, COMPONENT_Y, cStruct.subShiftMode );
-
+  
   const SearchRange& sr = cStruct.searchRange;
 
+  // Reference is set on the top of the search range: beginning + top*stride
   const Pel* piRef = cStruct.piRefY + (sr.top * cStruct.iRefStride);
+  
   for ( int y = sr.top; y <= sr.bottom; y++ )
   {
     for ( int x = sr.left; x <= sr.right; x++ )
     {
       //  find min. distortion position
-      m_cDistParam.cur.buf = piRef + x;
-
+      m_cDistParam.cur.buf = piRef + x; // On each iteration, the reference is shifted according to X component of MV
+                                        // The Y component is adjusted between the two nested loops (at the end)
+      
+      // Here the SAD is computed in a subsampled manner, skipping some rows and then scaling the result
       uiSad = m_cDistParam.distFunc( m_cDistParam );
 
+      // Here the cost is computed using the motion vector difference and lambda
       // motion cost
       uiSad += m_pcRdCost->getCostOfVectorWithPredictor( x, y, cStruct.imvShift );
 
@@ -3636,7 +3662,8 @@ void InterSearch::xPatternSearch( IntTZSearchStruct&    cStruct,
         m_cDistParam.maximumDistortionForEarlyExit = uiSad;
       }
     }
-    piRef += cStruct.iRefStride;
+    // On each iteration of the outer loop, the reference is shifted by the Y component of MV
+    piRef += cStruct.iRefStride; 
   }
   rcMv.set( iBestX, iBestY );
 
@@ -4562,7 +4589,7 @@ void InterSearch::xSymmetricMotionEstimation( PredictionUnit& pu, PelUnitBuf& or
 
 void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
                                           PelUnitBuf&           origBuf,
-                                          int                   puIdx,
+                                          int                   puIdx, // It seems like puIdx is always zero
                                           uint32_t&                 lastMode,
                                           Distortion&           affineCost,
                                           Mv                    hevcMv[2][33]
@@ -4594,7 +4621,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
   int       aaiMvpIdx[2][33];
   int       aaiMvpNum[2][33];
 
-  AffineAMVPInfo aacAffineAMVPInfo[2][33];
+  AffineAMVPInfo aacAffineAMVPInfo[2][33];  // Each aacAffineAMVPInfo stores the predictors for the three control points. 2 and 33 must be list 0 and 1, 33 reference frames (?)
   AffineAMVPInfo affiAMVPInfoTemp[2];
 
   int           iRefIdx[2]={0,0}; // If un-initialized, may cause SEGV in bi-directional prediction iterative stage.
@@ -4642,6 +4669,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
     pu.cu->BcwIdx = bcwIdx;
   }
 
+  // Affine is performed for all reference pictures
   // Uni-directional prediction
   for ( int iRefList = 0; iRefList < iNumPredDir; iRefList++ )
   {
@@ -4660,7 +4688,9 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         }
       }
 
-      // Do Affine AMVP
+      
+      // Do Affine AMVP. The candidates are stored in affiAMVPInfoTemp[eRefPicList], and the best predictors are retured in cMvPred
+      // For each reference frame, affiAMVPInfoTemp holds 2 structures (the two candidates), and each structure is composed of 2/3 MVs (in the CPs)
       xEstimateAffineAMVP( pu, affiAMVPInfoTemp[eRefPicList], origBuf, eRefPicList, iRefIdxTemp, cMvPred[iRefList][iRefIdxTemp], &biPDistTemp );
       if ( affineAmvrEnabled )
       {
@@ -4668,6 +4698,8 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       }
       aaiMvpIdx[iRefList][iRefIdxTemp] = pu.mvpIdx[eRefPicList];
       aaiMvpNum[iRefList][iRefIdxTemp] = pu.mvpNum[eRefPicList];;
+      
+      // This if copies the predictors of 2 CP to 3 CPs depending on "refIdx4Para[iRefList] != iRefIdxTemp" (?)
       if ( pu.cu->affineType == AFFINEMODEL_6PARAM && refIdx4Para[iRefList] != iRefIdxTemp )
       {
         xCopyAffineAMVPInfo( affiAMVPInfoTemp[eRefPicList], aacAffineAMVPInfo[iRefList][iRefIdxTemp] );
@@ -4682,6 +4714,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       }
       PelUnitBuf predBuf = m_tmpStorageLCU.getBuf( UnitAreaRelative(*pu.cu, pu) );
 
+      // Compute the cost for the predicted MVs. xGetAffineTemplateCost makes a call to xPredAffineBlk, which performs the prediction for a block
       Distortion uiCandCost = xGetAffineTemplateCost(pu, origBuf, predBuf, mvHevc, aaiMvpIdx[iRefList][iRefIdxTemp],
                                                      AMVP_MAX_NUM_CANDS, eRefPicList, iRefIdxTemp);
 
@@ -4836,7 +4869,8 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       if ( m_pcEncCfg->getFastMEForGenBLowDelayEnabled() && iRefList == 1 )   // list 1
       {
         if ( slice.getList1IdxToList0Idx( iRefIdxTemp ) >= 0 && (pu.cu->affineType != AFFINEMODEL_6PARAM || slice.getList1IdxToList0Idx( iRefIdxTemp ) == refIdx4Para[0]) )
-        {
+        { 
+          // Didn't understand this if...
           int iList1ToList0Idx = slice.getList1IdxToList0Idx( iRefIdxTemp );
           ::memcpy( cMvTemp[1][iRefIdxTemp], cMvTemp[0][iList1ToList0Idx], sizeof(Mv)*3 );
           uiCostTemp = uiCostTempL0[iList1ToList0Idx];
@@ -5070,6 +5104,8 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       iRefEnd   = slice.getNumRefIdx(eRefPicList) - 1;
       for ( int iRefIdxTemp = iRefStart; iRefIdxTemp <= iRefEnd; iRefIdxTemp++ )
       {
+        // These two IF statements are used to verify if the current reference frame should be tested or not
+        // The second one tests if the two reference frames are the same (which for bi-prediction makes no sense)
         if ( pu.cu->affineType == AFFINEMODEL_6PARAM && refIdx4Para[iRefList] != iRefIdxTemp )
         {
           continue;
@@ -5525,6 +5561,8 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   {
     iIterTime = bBi ? 5 : 7;
   }
+  // The previous lines performed MC using the predicted MV. Now it will use the gradient to
+  // perform ME and update the MVs in each iteration
   for ( int iter=0; iter<iIterTime; iter++ )    // iterate loop
   {
     memcpy( prevIterMv[iter], acMvTemp, sizeof( Mv ) * 3 );
@@ -5665,6 +5703,8 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
       }
     }
 
+    // The MV was updated recently based on the gradient. Now it performs the prediction
+    // with new MVs, and computes the error to uptade de MV again in next iteration
     xPredAffineBlk( COMPONENT_Y, pu, refPic, acMvTemp, predBuf, false, pu.cu->slice->clpRng( COMPONENT_Y ) );
 
     // get error
@@ -5695,8 +5735,11 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
       memcpy( acMv, acMvTemp, sizeof(Mv) * 3 );
       mvpIdx = bestMvpIdx;
     }
-  }
+  } // Exit MV optimization based on gradient
 
+  // I didn't completely understand the following code. It seems that a lambda function named "checkCPMVRdCost" is declared. It takes as input the MV of 3 CPs "ctrlPtMv[3]"
+  // performs the prediction for such MVs, and tests the new RD agains the best to swap when appropriate.
+  // This function is called multiple times after its declaration, testing some simplifications on the affine MVs
   auto checkCPMVRdCost = [&](Mv ctrlPtMv[3])
   {
     xPredAffineBlk(COMPONENT_Y, pu, refPic, ctrlPtMv, predBuf, false, pu.cu->slice->clpRng(COMPONENT_Y));
@@ -5716,6 +5759,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     }
   };
 
+  // Here it tests if affine is better than HEVC, and makes some simplifications and refinements
   const uint32_t mvShiftTable[3] = {MV_PRECISION_INTERNAL - MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL - MV_PRECISION_INTERNAL, MV_PRECISION_INTERNAL - MV_PRECISION_INT};
   const uint32_t mvShift = mvShiftTable[pu.cu->imv];
   if (uiCostBest <= AFFINE_ME_LIST_MVP_TH*m_hevcCost)
@@ -5724,10 +5768,14 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     Mv mvPredTmp[3] = { acMvPred[0], acMvPred[1], acMvPred[2] };
     Mv mvME[3];
     ::memcpy(mvME, acMv, sizeof(Mv) * 3);
-    Mv dMv = mvME[0] - mvPredTmp[0];
+    Mv dMv = mvME[0] - mvPredTmp[0]; // calcula a diferença, deltaMV0 = Best0 - Predito0
 
+    // mvNum is 2 or 3, depending on 4 or 6 params
     for (int j = 0; j < mvNum; j++)
     {
+      // Didn't understand this IF: for MV0, tests if BEST is different from PREDICTED..
+      // For MVs 1 and 2, tests of BEST is different from PREDICTED + deltaMV[0]
+      // The checkCPMVRdCost at the end changes the best MV if a better one is found
       if ((!j && mvME[j] != mvPredTmp[j]) || (j && mvME[j] != (mvPredTmp[j] + dMv)))
       {
         ::memcpy(acMvTemp, mvME, sizeof(Mv) * 3);
@@ -5743,6 +5791,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     }
 
     //keep the rotation/zoom;
+    // subtracts deltaMV[0] from the three MVs
     if (mvME[0] != mvPredTmp[0])
     {
       ::memcpy(acMvTemp, mvME, sizeof(Mv) * 3);
@@ -5756,29 +5805,36 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     }
 
     //keep the translation;
+    // tests if delta[1] and delta[2] are different from delta[0]
+    // then substitutes delta[1] and delta[2] by delta[0]
     if (pu.cu->affineType == AFFINEMODEL_6PARAM && mvME[1] != (mvPredTmp[1] + dMv) && mvME[2] != (mvPredTmp[2] + dMv))
     {
       ::memcpy(acMvTemp, mvME, sizeof(Mv) * 3);
-
+      
       acMvTemp[1] = mvPredTmp[1] + dMv;
       acMvTemp[2] = mvPredTmp[2] + dMv;
 
       checkCPMVRdCost(acMvTemp);
     }
 
+    // The following code performs a refinement over the best MV similar to TZS: search neighboring points and update the "center" of search range. When one iteration does not improve RD, stop refinement
     // 8 nearest neighbor search
     int testPos[8][2] = { { -1, 0 },{ 0, -1 },{ 0, 1 },{ 1, 0 },{ -1, -1 },{ -1, 1 },{ 1, 1 },{ 1, -1 } };
     const int maxSearchRound = (pu.cu->imv) ? 3 : ((m_pcEncCfg->getUseAffineAmvrEncOpt() && m_pcEncCfg->getIntraPeriod() == (uint32_t)-1) ? 2 : 3);
 
+    // This for represents the number of "rounds of optimization"
     for (int rnd = 0; rnd < maxSearchRound; rnd++)
     {
       bool modelChange = false;
       //search the model parameters with finear granularity;
+      // Here we will optimize one MV at a time (there are 2/3 depending on 4/6 params)
       for (int j = 0; j < mvNum; j++)
       {
         bool loopChange = false;
+        // These 2 iterations represent changing MV in only one axis, or both axis (0-3, or 4-7 in testPos)
         for (int iter = 0; iter < 2; iter++)
         {
+          // If the iteration 0 does not improve results, stop optimization
           if (iter == 1 && !loopChange)
           {
             break;
@@ -5787,6 +5843,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
           memcpy(centerMv, acMv, sizeof(Mv) * 3);
           memcpy(acMvTemp, acMv, sizeof(Mv) * 3);
 
+          // Here we evaluate 4 testPos, Which one (0-3 or 4-7) depend on iteration
           for (int i = ((iter == 0) ? 0 : 4); i < ((iter == 0) ? 4 : 8); i++)
           {
             acMvTemp[j].set(centerMv[j].getHor() + (testPos[i][0] << mvShift), centerMv[j].getVer() + (testPos[i][1] << mvShift));
@@ -5797,6 +5854,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
             bitsTemp += xCalcAffineMVBits(pu, acMvTemp, acMvPred);
             costTemp = (Distortion)(floor(fWeight * (double)costTemp) + (double)m_pcRdCost->getCost(bitsTemp));
 
+            // Update best MV when there is optimizaion, and signal that loopChange and modelChange improved results to allow further optimization
             if (costTemp < uiCostBest)
             {
               uiCostBest = costTemp;
@@ -5836,12 +5894,14 @@ void InterSearch::xEstimateAffineAMVP( PredictionUnit&  pu,
   int        iBestIdx = 0;
   Distortion uiBestCost = std::numeric_limits<Distortion>::max();
 
+  // This function fetches the inherited, constructed, zero MVs, ... based on section 3.4.4.1 and 3.4.4.2 of VTM 11 description (T-2002)
   // Fill the MV Candidates
   PU::fillAffineMvpCand( pu, eRefPicList, iRefIdx, affineAMVPInfo );
   CHECK( affineAMVPInfo.numCand == 0, "Assertion failed." );
 
   PelUnitBuf predBuf = m_tmpStorageLCU.getBuf( UnitAreaRelative(*pu.cu, pu) );
 
+  // This for loop tests all candidates to select the best candidate, i.e., finishes AMVP
   // initialize Mvp index & Mvp
   iBestIdx = 0;
   for( int i = 0 ; i < affineAMVPInfo.numCand; i++ )

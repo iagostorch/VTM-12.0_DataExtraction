@@ -893,7 +893,7 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
   // get affine sub-block width and height
   const int width  = pu.Y().width;
   const int height = pu.Y().height;
-  int blockWidth = AFFINE_MIN_BLOCK_SIZE;
+  int blockWidth = AFFINE_MIN_BLOCK_SIZE;   // these are always 4, since MVs are distributed in 4x4 blocks
   int blockHeight = AFFINE_MIN_BLOCK_SIZE;
 
   CHECK(blockWidth  > (width >> iScaleX ), "Sub Block width  > Block width");
@@ -902,21 +902,22 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
 
   const int cxWidth  = width  >> iScaleX;
   const int cxHeight = height >> iScaleY;
-  const int iHalfBW  = blockWidth  >> 1;
+  const int iHalfBW  = blockWidth  >> 1;    // these HALF sizes must be used to find the center position of each 4x4 block or perform ME in chroma blocks
   const int iHalfBH  = blockHeight >> 1;
 
+  // Here it computes the fixed part of the sub-blocks MV, considering only CPMV and block size. Sub-block position is considered later
   const int iBit = MAX_CU_DEPTH;
-  int iDMvHorX, iDMvHorY, iDMvVerX, iDMvVerY;
-  iDMvHorX = (mvRT - mvLT).getHor() << (iBit - floorLog2(cxWidth));
+  int iDMvHorX, iDMvHorY, iDMvVerX, iDMvVerY; //HorX and HorY will be multiplied by X later, but one is part of the horizontal (MVx) and other vertical (MVy) MV
+  iDMvHorX = (mvRT - mvLT).getHor() << (iBit - floorLog2(cxWidth)); // Computes the X and Y differences between HORIZONTALLY-neighboring CPs: RT and LT
   iDMvHorY = (mvRT - mvLT).getVer() << (iBit - floorLog2(cxWidth));
-  if ( pu.cu->affineType == AFFINEMODEL_6PARAM )
+  if ( pu.cu->affineType == AFFINEMODEL_6PARAM ) // If it is 6 params, compute the X and Y difference between vertically-neighboring CPs
   {
     iDMvVerX = (mvLB - mvLT).getHor() << (iBit - floorLog2(cxHeight));
     iDMvVerY = (mvLB - mvLT).getVer() << (iBit - floorLog2(cxHeight));
   }
   else
   {
-    iDMvVerX = -iDMvHorY;
+    iDMvVerX = -iDMvHorY; // If it is 4 params, there is not vertically-neighboring CPs. Then, estimate it based on horizontal neighbors LT and RT
     iDMvVerY = iDMvHorX;
   }
 
@@ -930,6 +931,7 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
   bool      wrapRef = false;
   const bool subblkMVSpreadOverLimit = isSubblockVectorSpreadOverLimit( iDMvHorX, iDMvHorY, iDMvVerX, iDMvVerY, pu.interDir );
 
+  // PROF is the affine prediction refinement with optical flow. It is performed after AME
   bool enablePROF = (sps.getUsePROF()) && (!m_skipPROF) && (compID == COMPONENT_Y);
   enablePROF &= (!pu.cs->picHeader->getProfDisabledFlag());
   enablePROF &= !((pu.cu->affineType == AFFINEMODEL_6PARAM && _mv[0] == _mv[1] && _mv[0] == _mv[2]) || (pu.cu->affineType == AFFINEMODEL_4PARAM && _mv[0] == _mv[1]));
@@ -1011,6 +1013,7 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
   int scaleXLuma = ::getComponentScaleX(COMPONENT_Y, chFmt);
   int scaleYLuma = ::getComponentScaleY(COMPONENT_Y, chFmt);
 
+  // Computes MVs useful for chroma. These are updated in sequence, where it tests if it's 4:4:4 or not
   if (genChromaMv && pu.chromaFormat != CHROMA_444)
   {
     CHECK(compID == COMPONENT_Y, "Chroma only subblock MV calculation should not apply to Luma");
@@ -1025,6 +1028,7 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
     const int halfBWLuma  = lumaBlockWidth >> 1;
     const int halfBHLuma  = lumaBlockHeight >> 1;
 
+    // Computes the fixed part of MVs, considering only CPMVs
     int dMvHorXLuma, dMvHorYLuma, dMvVerXLuma, dMvVerYLuma;
     dMvHorXLuma = (mvRT - mvLT).getHor() << (iBit - floorLog2(cxWidthLuma));
     dMvHorYLuma = (mvRT - mvLT).getVer() << (iBit - floorLog2(cxWidthLuma));
@@ -1041,6 +1045,7 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
 
     const bool subblkMVSpreadOverLimitLuma = isSubblockVectorSpreadOverLimit(dMvHorXLuma, dMvHorYLuma, dMvVerXLuma, dMvVerYLuma, pu.interDir);
 
+    // Here it computes the MV for each sub-block (probably)
     // get luma MV block by block
     for (int h = 0; h < cxHeightLuma; h += lumaBlockHeight)
     {
@@ -1068,6 +1073,8 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
       }
     }
   }
+  
+  // In the following nested for, it computes the MV for each sub-block based on its position
   // get prediction block by block
   for ( int h = 0; h < cxHeight; h += blockHeight )
   {
@@ -1075,8 +1082,11 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
     {
 
       int iMvScaleTmpHor, iMvScaleTmpVer;
+      // If we are computing MVs for LUMA or 4:4:4 chroma (that is, original block size)...
+      // Compute the MVs and store it in m_storedMv[ ]
       if (compID == COMPONENT_Y || pu.chromaFormat == CHROMA_444)
       {
+        // Combine pre-computed MVs with X and Y position to create sub-block MV
         if ( !subblkMVSpreadOverLimit )
         {
           iMvScaleTmpHor = iMvScaleHor + iDMvHorX * (iHalfBW + w) + iDMvVerX * (iHalfBH + h);
@@ -1087,6 +1097,7 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
           iMvScaleTmpHor = iMvScaleHor + iDMvHorX * ( cxWidth >> 1 ) + iDMvVerX * ( cxHeight >> 1 );
           iMvScaleTmpVer = iMvScaleVer + iDMvHorY * ( cxWidth >> 1 ) + iDMvVerY * ( cxHeight >> 1 );
         }
+        // Since we use fractional values in the MV computation, it is necessary to round them to an allowed precision
         roundAffineMv(iMvScaleTmpHor, iMvScaleTmpVer, shift);
         Mv tmpMv(iMvScaleTmpHor, iMvScaleTmpVer);
         tmpMv.clipToStorageBitDepth();
@@ -1094,7 +1105,7 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
         iMvScaleTmpVer = tmpMv.getVer();
 
         // clip and scale
-        if ( refPic->isWrapAroundEnabled( pu.cs->pps ) )
+        if ( refPic->isWrapAroundEnabled( pu.cs->pps ) ) // this is used for 360 video
         {
           m_storedMv[h / AFFINE_MIN_BLOCK_SIZE * MVBUFFER_SIZE + w / AFFINE_MIN_BLOCK_SIZE].set(iMvScaleTmpHor, iMvScaleTmpVer);
           Mv tmpMv(iMvScaleTmpHor, iMvScaleTmpVer);
@@ -1114,7 +1125,9 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
           }
         }
       }
-      else
+      else // If it is not 4:4:4....
+           // If this is the case, then some MVs are computed earlier (in this same function) and stored in m_storedMv[ ]
+          // In this case, there is few computation to be done here
       {
         Mv curMv = m_storedMv[((h << iScaleY) / AFFINE_MIN_BLOCK_SIZE) * MVBUFFER_SIZE + ((w << iScaleX) / AFFINE_MIN_BLOCK_SIZE)] +
           m_storedMv[((h << iScaleY) / AFFINE_MIN_BLOCK_SIZE + iScaleY)* MVBUFFER_SIZE + ((w << iScaleX) / AFFINE_MIN_BLOCK_SIZE + iScaleX)];
@@ -1134,16 +1147,18 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
         iMvScaleTmpHor = curMv.hor;
         iMvScaleTmpVer = curMv.ver;
       }
-
+      
+      // Never enters this IF
       if( xPredInterBlkRPR( scalingRatio, *pu.cs->pps, CompArea( compID, chFmt, pu.blocks[compID].offset( w, h ), Size( blockWidth, blockHeight ) ), refPic, Mv( iMvScaleTmpHor, iMvScaleTmpVer ), dstBuf.buf + w + h * dstBuf.stride, dstBuf.stride, bi, wrapRef, clpRng, 2 ) )
       {
         CHECK( enablePROF, "PROF should be disabled with RPR" );
       }
       else
-      {
+      { // Performs the actual prediction
         // get the MV in high precision
         int xFrac, yFrac, xInt, yInt;
 
+        // Split integer and fractional parts of MV (4 bits of fractional -> 1/16 pel) 
         if (isLuma(compID))
         {
           xInt  = iMvScaleTmpHor >> 4;
@@ -1158,34 +1173,39 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
           yInt  = (iMvScaleTmpVer << (1 - iScaleY)) >> 5;
           yFrac = (iMvScaleTmpVer << (1 - iScaleY)) & 31;
         }
-
+        
+        // Retrieve the reference block at the integer position pointed by the MV (xInt and yInt)
         const CPelBuf refBuf = refPic->getRecoBuf(
           CompArea(compID, chFmt, pu.blocks[compID].offset(xInt + w, yInt + h), pu.blocks[compID]), wrapRef);
 
         Pel *ref = (Pel *) refBuf.buf;
+        // This dstBuf is based on dstPic, one parameter of the function that holds the predicted pic. The w+h*stride is used to point to current sub-block inside the picture
         Pel *dst = dstBuf.buf + w + h * dstBuf.stride;
 
         int refStride = refBuf.stride;
         int dstStride = dstBuf.stride;
 
+        // This is original block size, 4x4
         int bw = blockWidth;
         int bh = blockHeight;
-
+        
+        // Sometimes PROF is enabled, sometimes it is not. Refer to Section 3.4.4.4 of T-2002. 
+        // It depends on whether the parent block used affine or not, and on some relations between the CPMVs
         if (enablePROF)
         {
           dst       = dstExtBuf.bufAt(PROF_BORDER_EXT_W, PROF_BORDER_EXT_H);
           dstStride = dstExtBuf.stride;
         }
 
-        if (yFrac == 0)
+        if (yFrac == 0) // If VERTICAL component IS NOT fracional, then it is not necessary to interpolate vertically. Perform horizontal interpolarion only.
         {
           m_if.filterHor(compID, (Pel *) ref, refStride, dst, dstStride, bw, bh, xFrac, isLast, clpRng);
         }
-        else if (xFrac == 0)
+        else if (xFrac == 0)  // If HORIZONTAL component IS NOT fractional and vertical component is fractional (yFrac!=0), then perform vertical interpolation only
         {
           m_if.filterVer(compID, (Pel *) ref, refStride, dst, dstStride, bw, bh, yFrac, true, isLast, clpRng);
         }
-        else
+        else // Both vertical and horizontal components are fractional, then perform interpolation in both directions
         {
           m_if.filterHor(compID, (Pel *) ref - ((vFilterSize >> 1) - 1) * refStride, refStride, tmpBuf.buf,
                          tmpBuf.stride, bw, bh + vFilterSize - 1, xFrac, false, clpRng);
@@ -1204,9 +1224,10 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
           const int dstOffset = (blockHeight + 1) * dstStride;
 
           const Pel *refPel = ref - (1 - yOffset) * refStride + xOffset - 1;
+          // This points to one row and one column before the actual dst block, that is, the above-left sample
           Pel *      dstPel = dst - dstStride - 1;
           for (int pw = 0; pw < blockWidth + 2; pw++)
-          {
+          {                                                                     // 1<<13
             dstPel[pw]             = leftShift_round(refPel[pw], shift) - (Pel) IF_INTERNAL_OFFS;
             dstPel[pw + dstOffset] = leftShift_round(refPel[pw + refOffset], shift) - (Pel) IF_INTERNAL_OFFS;
           }
