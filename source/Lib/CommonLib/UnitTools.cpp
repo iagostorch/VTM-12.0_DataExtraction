@@ -46,6 +46,14 @@
 #include <utility>
 #include <algorithm>
 
+#include "../../App/EncoderApp/storchmain.h"
+
+int inheritedCands=0;
+int constructedCands=0;
+int translationalCands=0;
+int temporalCands=0;
+int zeroMvCands=0;
+
 // CS tools
 
 
@@ -2121,23 +2129,51 @@ void PU::fillAffineMvpCand(PredictionUnit &pu, const RefPicList &eRefPicList, co
   Position posLT = pu.Y().topLeft();
   Position posRT = pu.Y().topRight();
   Position posLB = pu.Y().bottomLeft();
-
+ 
   // This set of if !func() statements implement the idea that, for a given direction (left or above neighbors), only the first available neighbor is added to the candidate list. This is discussed in the VTM description in T-2002.
   // It tests the left neighbors in a giben order an only the first is added to the list, then tests the above neighbors and addsthe first available. This way, the list has at most 2 dandidates
-  
+  // The original if/else structure was modified to allow counting when candidates are available, but the same candidates are added
   // check left neighbor
+  /*
   if ( !addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_BELOW_LEFT, affiAMVPInfo ) )
   {
     addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_LEFT, affiAMVPInfo );
   }
+  //*/
+  if ( addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_BELOW_LEFT, affiAMVPInfo ) )
+  {
+//      printf("    +1 inherited\n");
+      inheritedCands++;
+
+  }
+  else if(addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_LEFT, affiAMVPInfo )){
+//      printf("    +1 inherited\n");
+      inheritedCands++;
+  }
 
   // check above neighbor
+  /*
   if ( !addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE_RIGHT, affiAMVPInfo ) )
   {
     if ( !addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE, affiAMVPInfo ) )
     {
       addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_ABOVE_LEFT, affiAMVPInfo );
     }
+  }
+  //*/
+  
+  if ( addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE_RIGHT, affiAMVPInfo ) )
+  {
+//      printf("    +1 inherited\n");
+      inheritedCands++;
+  }
+  else if(addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE, affiAMVPInfo )){
+//      printf("    +1 inherited\n");
+      inheritedCands++;
+  }
+  else if(addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_ABOVE_LEFT, affiAMVPInfo )){
+//      printf("    +1 inherited\n");
+      inheritedCands++;
   }
 
   if ( affiAMVPInfo.numCand >= AMVP_MAX_NUM_CANDS )
@@ -2204,12 +2240,17 @@ void PU::fillAffineMvpCand(PredictionUnit &pu, const RefPicList &eRefPicList, co
   outputAffineMv[1].roundAffinePrecInternal2Amvr(pu.cu->imv);
   outputAffineMv[2].roundAffinePrecInternal2Amvr(pu.cu->imv);
 
+  // This IF tests if (1) the MV of three neighbors are available or (2) if it is 4 params affine and the MV of two neighbors are available
+  // i.e., we have the required information to construct MVs
   if ( cornerMVPattern == 7 || (cornerMVPattern == 3 && pu.cu->affineType == AFFINEMODEL_4PARAM) )
   {
     affiAMVPInfo.mvCandLT[affiAMVPInfo.numCand] = outputAffineMv[0];
     affiAMVPInfo.mvCandRT[affiAMVPInfo.numCand] = outputAffineMv[1];
     affiAMVPInfo.mvCandLB[affiAMVPInfo.numCand] = outputAffineMv[2];
     affiAMVPInfo.numCand++;
+//    printf("    +1 constructed\n");
+    constructedCands++;
+    
   }
 
   if ( affiAMVPInfo.numCand < 2 )
@@ -2223,6 +2264,8 @@ void PU::fillAffineMvpCand(PredictionUnit &pu, const RefPicList &eRefPicList, co
         affiAMVPInfo.mvCandRT[affiAMVPInfo.numCand] = outputAffineMv[i];
         affiAMVPInfo.mvCandLB[affiAMVPInfo.numCand] = outputAffineMv[i];
         affiAMVPInfo.numCand++;
+//        printf("    +1 translational\n");
+        translationalCands++;
       }
     }
 
@@ -2262,6 +2305,8 @@ void PU::fillAffineMvpCand(PredictionUnit &pu, const RefPicList &eRefPicList, co
         affiAMVPInfo.mvCandRT[affiAMVPInfo.numCand] = cColMv;
         affiAMVPInfo.mvCandLB[affiAMVPInfo.numCand] = cColMv;
         affiAMVPInfo.numCand++;
+//        printf("    +1 temporal\n");
+        temporalCands++;
       }
     }
 
@@ -2274,6 +2319,8 @@ void PU::fillAffineMvpCand(PredictionUnit &pu, const RefPicList &eRefPicList, co
         affiAMVPInfo.mvCandRT[affiAMVPInfo.numCand].setZero();
         affiAMVPInfo.mvCandLB[affiAMVPInfo.numCand].setZero();
         affiAMVPInfo.numCand++;
+//        printf("    +1 zero\n");
+        zeroMvCands++;
       }
     }
   }
@@ -3989,3 +4036,32 @@ bool allowLfnstWithMip(const Size& block)
 
 
 
+int PU::getAndResetInheritedCands(){
+    int ret = inheritedCands;
+    inheritedCands=0;
+    return ret;
+}
+
+int PU::getAndResetConstructedCands(){
+    int ret = constructedCands;
+    constructedCands=0;
+    return ret;
+}
+
+int PU::getAndResetTranslationalCands(){
+    int ret = translationalCands;
+    translationalCands=0;
+    return ret;
+}
+
+int PU::getAndResetTemporalCands(){
+    int ret = temporalCands;
+    temporalCands=0;
+    return ret;
+}
+
+int PU::getAndResetZeroMvCands(){
+    int ret = zeroMvCands;
+    zeroMvCands=0;
+    return ret;
+}

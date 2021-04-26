@@ -129,19 +129,20 @@ void AffineGradientSearch::xVerticalSobelFilter( Pel *const pPred, const int pre
   }
 }
 
+// Solves de system of equations to obtain the (a,b,c,d,e,f) coefficients to update the delta
 void AffineGradientSearch::xEqualCoeffComputer( Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride, int64_t( *pEqualCoeff )[7], int width, int height, bool b6Param )
 {
   int affineParamNum = b6Param ? 6 : 4;
 
-  for ( int j = 0; j != height; j++ )
+  for ( int j = 0; j != height; j++ ) // rows of the PU
   {
-    int cy = ((j >> 2) << 2) + 2;
-    for ( int k = 0; k != width; k++ )
+    int cy = ((j >> 2) << 2) + 2; // cy represents the center of the sub-block (4x4) of current sample. If sample is in y=11, cy=10 (the center of the third block: 2, 6, 10, 14, ...)
+    for ( int k = 0; k != width; k++ )  // colums of the PU
     {
-      int iC[6];
+      int iC[6]; 
 
-      int idx = j * derivateBufStride + k;
-      int cx = ((k >> 2) << 2) + 2;
+      int idx = j * derivateBufStride + k; // idx represents the absolute index inside the block
+      int cx = ((k >> 2) << 2) + 2;  // cx represents the center of the sub-block (4x4) of current sample. If sample is in x=4, cx=6 (the center of the second block: 2, 6, 10, 14, ...)
       if ( !b6Param )
       {
         iC[0] = ppDerivate[0][idx];
@@ -162,7 +163,9 @@ void AffineGradientSearch::xEqualCoeffComputer( Pel *pResidue, int residueStride
       {
         for ( int row = 0; row < affineParamNum; row++ )
         {
-          pEqualCoeff[col + 1][row] += (int64_t)iC[col] * iC[row];
+          // pEqualCoeff matrix holds the information for the entire current PU. In each iteration, iC changes because we have a different idx in ppDerivate
+          // In each iteration of the two outer loops, all parameters from from each (i,j) are used to update pEqualCoeff
+          pEqualCoeff[col + 1][row] += (int64_t)iC[col] * iC[row]; 
         }
         pEqualCoeff[col + 1][affineParamNum] += ((int64_t)iC[col] * pResidue[idx]) << 3;
       }

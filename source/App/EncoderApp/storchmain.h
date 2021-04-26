@@ -44,6 +44,12 @@ class storch {
     
 public:
     static int currPoc;
+    static int inheritedCand;
+    static int constructedCand;
+    static int translationalCand;
+    static int temporalCand;
+    static int zeroCand;
+    static int totalCand;
     
     storch();
     static void printSummary();
@@ -54,12 +60,28 @@ public:
     // Tracking execution time
     static void startFullSearch();
     static void finishFullSearch();
+    
+    static void startAffineAMVP();
+    static void finishAffineAMVP();
 
+    static void startAffineGradientME();
+    static void finishAffineGradientME();
+    
+    static void startAffineComplete(int params);
+    static void finishAffineComplete(int params);
+    
+    static void startAffineME();
+    static void finishAffineME();
+
+    static void startSimpRefAffineME();
+    static void finishSimpRefAffineME();
+
+    
     static int extractedFrames[EXT_NUM][500]; // Maks what frame were already extracted   
     
 private:   
-    static double fsTime;
-    static struct timeval fs1,fs2;
+    static double fsTime, affAMVPTime, affGradTime, aff4pTime, aff6pTime, affMeTime, simpRefAffMeTime;
+    static struct timeval fs1,fs2, aamvp1, aamvp2, ag1, ag2, a4p1, a4p2, a6p1, a6p2, affme1, affme2, sraffme1, sraffme2;
     
 };
 

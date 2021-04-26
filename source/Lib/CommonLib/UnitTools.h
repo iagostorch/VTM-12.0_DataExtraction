@@ -42,6 +42,7 @@
 #include "UnitPartitioner.h"
 #include "ContextModelling.h"
 #include "InterPrediction.h"
+#include "../../App/EncoderApp/storchmain.h"
 
 // CS tools
 namespace CS
@@ -178,6 +179,12 @@ namespace PU
   bool getDerivedBV(PredictionUnit &pu, const Mv& currentMv, Mv& derivedMv);
   bool checkDMVRCondition(const PredictionUnit& pu);
 
+  int getAndResetInheritedCands();
+  int getAndResetConstructedCands();
+  int getAndResetTranslationalCands();
+  int getAndResetTemporalCands();
+  int getAndResetZeroMvCands();
+  
 }
 
 // TU tools

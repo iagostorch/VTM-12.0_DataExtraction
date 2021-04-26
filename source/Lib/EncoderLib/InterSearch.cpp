@@ -53,8 +53,6 @@
 #include <math.h>
 #include <limits>
 
-#include "../../App/EncoderApp/storchmain.h"
-int printTest=0;
 
  //! \ingroup EncoderLib
  //! \{
@@ -2966,9 +2964,11 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
       int refIdx4Para[2] = { -1, -1 };
 
       // Here it invokes affine 
+      storch::startAffineComplete(4);
       xPredAffineInterSearch(pu, origBuf, puIdx, uiLastModeTemp, uiAffineCost, cMvHevcTemp, acMvAffine4Para, refIdx4Para, bcwIdx, enforceBcwPred,
         ((cu.slice->getSPS()->getUseBcw() == true) ? getWeightIdxBits(bcwIdx) : 0));
-
+      storch::finishAffineComplete(4);
+        
       if ( pu.cu->imv == 0 )
       {
         storeAffineMotion( pu.mvAffi, pu.refIdx, AFFINEMODEL_4PARAM, bcwIdx );
@@ -3010,9 +3010,11 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
           // Here it starts the initialization for 6 parameters affine
           Distortion uiAffine6Cost = std::numeric_limits<Distortion>::max();
           cu.affineType = AFFINEMODEL_6PARAM;
+          storch::startAffineComplete(6);
           xPredAffineInterSearch(pu, origBuf, puIdx, uiLastModeTemp, uiAffine6Cost, cMvHevcTemp, acMvAffine4Para, refIdx4Para, bcwIdx, enforceBcwPred,
             ((cu.slice->getSPS()->getUseBcw() == true) ? getWeightIdxBits(bcwIdx) : 0));
-
+          storch::finishAffineComplete(6);
+          
           if ( pu.cu->imv == 0 )
           {
             storeAffineMotion( pu.mvAffi, pu.refIdx, AFFINEMODEL_6PARAM, bcwIdx );
@@ -3482,7 +3484,7 @@ void InterSearch::xMotionEstimation(PredictionUnit& pu, PelUnitBuf& origBuf, Ref
     {
       xSetSearchRange(pu, bestInitMv, iSrchRng, cStruct.searchRange, cStruct);
     }
-    
+       
     // Here it invokes full search ME. Probe execution time.
     storch::startFullSearch();    
     xPatternSearch( cStruct, rcMv, ruiCost);
@@ -4691,7 +4693,9 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       
       // Do Affine AMVP. The candidates are stored in affiAMVPInfoTemp[eRefPicList], and the best predictors are retured in cMvPred
       // For each reference frame, affiAMVPInfoTemp holds 2 structures (the two candidates), and each structure is composed of 2/3 MVs (in the CPs)
+      storch::startAffineAMVP();
       xEstimateAffineAMVP( pu, affiAMVPInfoTemp[eRefPicList], origBuf, eRefPicList, iRefIdxTemp, cMvPred[iRefList][iRefIdxTemp], &biPDistTemp );
+      storch::finishAffineAMVP();
       if ( affineAmvrEnabled )
       {
         biPDistTemp += m_pcRdCost->getCost( xCalcAffineMVBits( pu, cMvPred[iRefList][iRefIdxTemp], cMvPred[iRefList][iRefIdxTemp] ) );
@@ -4883,16 +4887,20 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         }
         else
         {
+          storch::startAffineME();
           xAffineMotionEstimation( pu, origBuf, eRefPicList, cMvPred[iRefList][iRefIdxTemp], iRefIdxTemp, cMvTemp[iRefList][iRefIdxTemp], uiBitsTemp, uiCostTemp
                                    , aaiMvpIdx[iRefList][iRefIdxTemp], affiAMVPInfoTemp[eRefPicList]
           );
+          storch::finishAffineME();
         }
       }
       else
       {
+        storch::startAffineME();
         xAffineMotionEstimation( pu, origBuf, eRefPicList, cMvPred[iRefList][iRefIdxTemp], iRefIdxTemp, cMvTemp[iRefList][iRefIdxTemp], uiBitsTemp, uiCostTemp
                                  , aaiMvpIdx[iRefList][iRefIdxTemp], affiAMVPInfoTemp[eRefPicList]
         );
+        storch::finishAffineME();
       }
       if(pu.cu->cs->sps->getUseBcw() && pu.cu->BcwIdx == BCW_DEFAULT && pu.cu->slice->isInterB())
       {
@@ -5130,9 +5138,11 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         uiBitsTemp += m_auiMVPIdxCost[aaiMvpIdxBi[iRefList][iRefIdxTemp]][AMVP_MAX_NUM_CANDS];
 
         // call Affine ME
+        storch::startAffineME();
         xAffineMotionEstimation( pu, origBuf, eRefPicList, cMvPredBi[iRefList][iRefIdxTemp], iRefIdxTemp, cMvTemp[iRefList][iRefIdxTemp], uiBitsTemp, uiCostTemp,
                                  aaiMvpIdxBi[iRefList][iRefIdxTemp], aacAffineAMVPInfo[iRefList][iRefIdxTemp],
           true );
+        storch::finishAffineME();
         xCopyAffineAMVPInfo( aacAffineAMVPInfo[iRefList][iRefIdxTemp], affiAMVPInfoTemp[eRefPicList] );
         if ( pu.cu->imv != 2 || !m_pcEncCfg->getUseAffineAmvrEncOpt() )
         {
@@ -5563,6 +5573,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   }
   // The previous lines performed MC using the predicted MV. Now it will use the gradient to
   // perform ME and update the MVs in each iteration
+  storch::startAffineGradientME();
   for ( int iter=0; iter<iIterTime; iter++ )    // iterate loop
   {
     memcpy( prevIterMv[iter], acMvTemp, sizeof( Mv ) * 3 );
@@ -5572,13 +5583,13 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     // get Error Matrix
     Pel* pOrg  = pBuf->Y().buf;
     Pel* pPred = predBuf.Y().buf;
-    for ( int j=0; j< height; j++ )
+    for ( int j=0; j< height; j++ ) // height and width of current PU
     {
       for ( int i=0; i< width; i++ )
       {
-        piError[i + j * width] = pOrg[i] - pPred[i];
+        piError[i + j * width] = pOrg[i] - pPred[i];    // computes the error for each sample in the current PU
       }
-      pOrg  += bufStride;
+      pOrg  += bufStride; // skip to the next row of samples in the buffer
       pPred += predBufStride;
     }
 
@@ -5586,25 +5597,28 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     // -1 0 1
     // -2 0 2
     // -1 0 1
-    pPred = predBuf.Y().buf;
-    m_HorizontalSobelFilter( pPred, predBufStride, pdDerivate[0], width, width, height );
+    pPred = predBuf.Y().buf;  // pPred points to the beginning of the PU again
+    m_HorizontalSobelFilter( pPred, predBufStride, pdDerivate[0], width, width, height );  // pdDerivative[0] holds the horizontal gradient gX
 
     // sobel y direction
     // -1 -2 -1
     //  0  0  0
     //  1  2  1
-    m_VerticalSobelFilter( pPred, predBufStride, pdDerivate[1], width, width, height );
+    m_VerticalSobelFilter( pPred, predBufStride, pdDerivate[1], width, width, height );  // pdDerivative[1] holds the horizontal gradient gX
 
     // solve delta x and y
-    for ( int row = 0; row < iParaNum; row++ )
+    for ( int row = 0; row < iParaNum; row++ ) // paraNum is 5 and 7 for 4 params and 6 params, respec. paraNum=7 is described in eq (7) from doc L0260
     {
-      memset( &i64EqualCoeff[row][0], 0, iParaNum * sizeof( int64_t ) );
+      // set i64EqualCoeff to zero
+      memset( &i64EqualCoeff[row][0], 0, iParaNum * sizeof( int64_t ) ); // memset(dst, data, size)
     }
 
+    // Starts the computation of the (a,b,c,d,e,f) coefficients
+    // This function only fills a matrix with the proper values, "building" the system of equations. This involves some interesting calculations...
     m_EqualCoeffComputer( piError, width, pdDerivate, width, i64EqualCoeff, width, height
       , (pu.cu->affineType == AFFINEMODEL_6PARAM)
     );
-
+    
     for ( int row = 0; row < iParaNum; row++ )
     {
       for ( int i = 0; i < iParaNum; i++ )
@@ -5614,12 +5628,12 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     }
 
     double dAffinePara[6];
-    double dDeltaMv[6]={0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
-    Mv acDeltaMv[3];
-
+    double dDeltaMv[6]={0.0, 0.0, 0.0, 0.0, 0.0, 0.0,}; // This is the delta for the MVs of 3 CPs (x and y for 3 CPs)
+    Mv acDeltaMv[3]; // This is also the deltas, however, with "Mv" datatype, therefore there are only 3 instances
+    // This solves the system and stores the proper parameters (a,b,c,d,e,f) on dAffinePara
     solveEqual( pdEqualCoeff, affineParaNum, dAffinePara );
 
-    // convert to delta mv
+    // convert the parameters to delta mv
     dDeltaMv[0] = dAffinePara[0];
     dDeltaMv[2] = dAffinePara[2];
     if ( pu.cu->affineType == AFFINEMODEL_6PARAM )
@@ -5702,7 +5716,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
         break;
       }
     }
-
+        
     // The MV was updated recently based on the gradient. Now it performs the prediction
     // with new MVs, and computes the error to uptade de MV again in next iteration
     xPredAffineBlk( COMPONENT_Y, pu, refPic, acMvTemp, predBuf, false, pu.cu->slice->clpRng( COMPONENT_Y ) );
@@ -5736,7 +5750,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
       mvpIdx = bestMvpIdx;
     }
   } // Exit MV optimization based on gradient
-
+  storch::finishAffineGradientME();
   // I didn't completely understand the following code. It seems that a lambda function named "checkCPMVRdCost" is declared. It takes as input the MV of 3 CPs "ctrlPtMv[3]"
   // performs the prediction for such MVs, and tests the new RD agains the best to swap when appropriate.
   // This function is called multiple times after its declaration, testing some simplifications on the affine MVs
@@ -5760,6 +5774,8 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   };
 
   // Here it tests if affine is better than HEVC, and makes some simplifications and refinements
+  // The description of most of these is described in L-0260
+  storch::startSimpRefAffineME();
   const uint32_t mvShiftTable[3] = {MV_PRECISION_INTERNAL - MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL - MV_PRECISION_INTERNAL, MV_PRECISION_INTERNAL - MV_PRECISION_INT};
   const uint32_t mvShift = mvShiftTable[pu.cu->imv];
   if (uiCostBest <= AFFINE_ME_LIST_MVP_TH*m_hevcCost)
@@ -5792,6 +5808,8 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
 
     //keep the rotation/zoom;
     // subtracts deltaMV[0] from the three MVs
+    // By setting MV0 to MVP0, and subtracting delta0 from MV1 and MV2, we are removing the translation in relation to predicted MVs
+    // MV0 will not move, and MV1 and MV2 can only rotate around it or zoom
     if (mvME[0] != mvPredTmp[0])
     {
       ::memcpy(acMvTemp, mvME, sizeof(Mv) * 3);
@@ -5807,6 +5825,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     //keep the translation;
     // tests if delta[1] and delta[2] are different from delta[0]
     // then substitutes delta[1] and delta[2] by delta[0]
+    // By making all MVs have the same difference in relation to the MVPs, we are performing only translational movement in relation to predictors
     if (pu.cu->affineType == AFFINEMODEL_6PARAM && mvME[1] != (mvPredTmp[1] + dMv) && mvME[2] != (mvPredTmp[2] + dMv))
     {
       ::memcpy(acMvTemp, mvME, sizeof(Mv) * 3);
@@ -5818,6 +5837,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     }
 
     // The following code performs a refinement over the best MV similar to TZS: search neighboring points and update the "center" of search range. When one iteration does not improve RD, stop refinement
+    
     // 8 nearest neighbor search
     int testPos[8][2] = { { -1, 0 },{ 0, -1 },{ 0, 1 },{ 1, 0 },{ -1, -1 },{ -1, 1 },{ 1, 1 },{ 1, -1 } };
     const int maxSearchRound = (pu.cu->imv) ? 3 : ((m_pcEncCfg->getUseAffineAmvrEncOpt() && m_pcEncCfg->getIntraPeriod() == (uint32_t)-1) ? 2 : 3);
@@ -5873,6 +5893,8 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
       }
     }
   }
+  
+  storch::finishSimpRefAffineME();
   acMvPred[0] = aamvpi.mvCandLT[mvpIdx];
   acMvPred[1] = aamvpi.mvCandRT[mvpIdx];
   acMvPred[2] = aamvpi.mvCandLB[mvpIdx];
@@ -5897,6 +5919,13 @@ void InterSearch::xEstimateAffineAMVP( PredictionUnit&  pu,
   // This function fetches the inherited, constructed, zero MVs, ... based on section 3.4.4.1 and 3.4.4.2 of VTM 11 description (T-2002)
   // Fill the MV Candidates
   PU::fillAffineMvpCand( pu, eRefPicList, iRefIdx, affineAMVPInfo );
+  
+  storch::inheritedCand += PU::getAndResetInheritedCands();
+  storch::constructedCand += PU::getAndResetConstructedCands();
+  storch::translationalCand += PU::getAndResetTranslationalCands();
+  storch::temporalCand += PU::getAndResetTemporalCands();
+  storch::zeroCand += PU::getAndResetZeroMvCands();
+  
   CHECK( affineAMVPInfo.numCand == 0, "Assertion failed." );
 
   PelUnitBuf predBuf = m_tmpStorageLCU.getBuf( UnitAreaRelative(*pu.cu, pu) );
