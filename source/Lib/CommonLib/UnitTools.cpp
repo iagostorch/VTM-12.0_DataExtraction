@@ -46,7 +46,6 @@
 #include <utility>
 #include <algorithm>
 
-#include "../../App/EncoderApp/storchmain.h"
 
 int inheritedCands=0;
 int constructedCands=0;

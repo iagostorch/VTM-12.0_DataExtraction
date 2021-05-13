@@ -47,7 +47,7 @@
 
 #include <math.h>
 
-#include "../../App/EncoderApp/storchmain.h"
+#include "../CommonLib/storchmain.h"
 
 //! \ingroup EncoderLib
 //! \{
@@ -1558,7 +1558,7 @@ void EncSlice::encodeCtus( Picture* pcPic, const bool bCompressEntireSlice, cons
       cs.slice->setDisableSATDForRD(hashBlkHitPerc > 59);
     }
   }
-
+    
   // for every CTU in the slice
   for( uint32_t ctuIdx = 0; ctuIdx < pcSlice->getNumCtuInSlice(); ctuIdx++ )
   {

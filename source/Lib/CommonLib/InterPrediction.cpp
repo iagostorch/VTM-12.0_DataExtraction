@@ -44,6 +44,11 @@
 #include <memory.h>
 #include <algorithm>
 
+#include "storchmain.h"
+
+// This variable is used to extract information from a target block (POC, position, size, MV, ...) during the encoding
+int target;
+
 //! \ingroup CommonLib
 //! \{
 
@@ -838,15 +843,19 @@ void InterPrediction::xPredInterBlk ( const ComponentID& compID, const Predictio
   }
 }
 
-bool InterPrediction::isSubblockVectorSpreadOverLimit( int a, int b, int c, int d, int predType )
+                                                                                                                    bool InterPrediction::isSubblockVectorSpreadOverLimit( int a, int b, int c, int d, int predType )
 {
+  // predType=1 -> list0
+  // predType=2 -> list1
+  // predType=3 -> bi-pred
+    
   int s4 = ( 4 << 11 );
   int filterTap = 6;
 
   if ( predType == 3 )
-  {
+  {     
     int refBlkWidth  = std::max( std::max( 0, 4 * a + s4 ), std::max( 4 * c, 4 * a + 4 * c + s4 ) ) - std::min( std::min( 0, 4 * a + s4 ), std::min( 4 * c, 4 * a + 4 * c + s4 ) );
-    int refBlkHeight = std::max( std::max( 0, 4 * b ), std::max( 4 * d + s4, 4 * b + 4 * d + s4 ) ) - std::min( std::min( 0, 4 * b ), std::min( 4 * d + s4, 4 * b + 4 * d + s4 ) );
+    int refBlkHeight = std::max( std::max( 0, 4 * b ), std::max( 4 * d + s4, 4 * b + 4 * d + s4 ) ) - std::min( std::min( 0, 4 * b ), std::min( 4 * d + s4, 4 * b + 4 * d + s4 ) );   
     refBlkWidth  = ( refBlkWidth >> 11 ) + filterTap + 3;
     refBlkHeight = ( refBlkHeight >> 11 ) + filterTap + 3;
 
@@ -896,20 +905,39 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
   int blockWidth = AFFINE_MIN_BLOCK_SIZE;   // these are always 4, since MVs are distributed in 4x4 blocks
   int blockHeight = AFFINE_MIN_BLOCK_SIZE;
 
+// THE FOLLOWING VARIABLES ARE USED TO EXPORT INFORMATION OF BLOCKS WITH SPECIFIC PROPERTIES (SIZE, MVS, POSITION, ...)
+//  int targetSize = 16;
+//  int targetCp = AFFINEMODEL_4PARAM; //AFFINEMODEL_6PARAM
+  
+  target = 1;
+//  target &= pu.cu->lwidth() == targetSize;
+//  target &= pu.cu->lheight() == targetSize;
+//  target &= pu.cu->affineType == targetCp;
+  target &= pu.cu->cs->picture->getPOC() > 0;
+//  target &= pu.cu->lx() == 0;
+//  target &= pu.cu->ly() == 72;
+//  target &= mvLT.hor == -2160;
+//  target &= mvLT.ver == -60;
+//  target &= mvRT.hor == -2144;
+//  target &= mvRT.ver == -52;
+//  target &= mvLB.hor == -8;
+//  target &= mvLB.ver == 176;
+  
   CHECK(blockWidth  > (width >> iScaleX ), "Sub Block width  > Block width");
   CHECK(blockHeight > (height >> iScaleY), "Sub Block height > Block height");
   const int MVBUFFER_SIZE = MAX_CU_SIZE / MIN_PU_SIZE;
 
-  const int cxWidth  = width  >> iScaleX;
+  const int cxWidth  = width  >> iScaleX;   // width and height equal 4 for LUMA
   const int cxHeight = height >> iScaleY;
   const int iHalfBW  = blockWidth  >> 1;    // these HALF sizes must be used to find the center position of each 4x4 block or perform ME in chroma blocks
   const int iHalfBH  = blockHeight >> 1;
 
   // Here it computes the fixed part of the sub-blocks MV, considering only CPMV and block size. Sub-block position is considered later
-  const int iBit = MAX_CU_DEPTH;
+  const int iBit = MAX_CU_DEPTH; // Equals 7 = log2(CTUsize)
   int iDMvHorX, iDMvHorY, iDMvVerX, iDMvVerY; //HorX and HorY will be multiplied by X later, but one is part of the horizontal (MVx) and other vertical (MVy) MV
   iDMvHorX = (mvRT - mvLT).getHor() << (iBit - floorLog2(cxWidth)); // Computes the X and Y differences between HORIZONTALLY-neighboring CPs: RT and LT
-  iDMvHorY = (mvRT - mvLT).getVer() << (iBit - floorLog2(cxWidth));
+  iDMvHorY = (mvRT - mvLT).getVer() << (iBit - floorLog2(cxWidth)); // Multiply the MV for 128 (max CU size) to avoid decimal numbers, and divides by block width (as in the equations)
+
   if ( pu.cu->affineType == AFFINEMODEL_6PARAM ) // If it is 6 params, compute the X and Y difference between vertically-neighboring CPs
   {
     iDMvVerX = (mvLB - mvLT).getHor() << (iBit - floorLog2(cxHeight));
@@ -921,7 +949,7 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
     iDMvVerY = iDMvHorX;
   }
 
-  int iMvScaleHor = mvLT.getHor() << iBit;
+  int iMvScaleHor = mvLT.getHor() << iBit;  // This is the constant part, either MV0x or MV0y, added to the internal MVs
   int iMvScaleVer = mvLT.getVer() << iBit;
   const SPS &sps    = *pu.cs->sps;
 
@@ -1013,6 +1041,7 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
   int scaleXLuma = ::getComponentScaleX(COMPONENT_Y, chFmt);
   int scaleYLuma = ::getComponentScaleY(COMPONENT_Y, chFmt);
 
+  // TODO: Verify what is done in this IF statement
   // Computes MVs useful for chroma. These are updated in sequence, where it tests if it's 4:4:4 or not
   if (genChromaMv && pu.chromaFormat != CHROMA_444)
   {
@@ -1087,23 +1116,30 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
       if (compID == COMPONENT_Y || pu.chromaFormat == CHROMA_444)
       {
         // Combine pre-computed MVs with X and Y position to create sub-block MV
+        // This IF is based on document N-0068: When the MV of sub-blocks point too apart from each other, all sub-block have the same MV
         if ( !subblkMVSpreadOverLimit )
         {
+         // subMV           MV0X     (RTx-LTx)/width    xCenter  (RTy-LTy)/width  yCenter
           iMvScaleTmpHor = iMvScaleHor + iDMvHorX * (iHalfBW + w) + iDMvVerX * (iHalfBH + h);
+          // subMV           MV0Y    (RTy-LTy)/width    xCenter (RTx-LTx)/width  yCenter
           iMvScaleTmpVer = iMvScaleVer + iDMvHorY * (iHalfBW + w) + iDMvVerY * (iHalfBH + h);
         }
         else
         {
+          // THe following computes the MV for all sub-blocks considering the center of the current CU
+            // All sub-blocks have the same MV in this case
           iMvScaleTmpHor = iMvScaleHor + iDMvHorX * ( cxWidth >> 1 ) + iDMvVerX * ( cxHeight >> 1 );
           iMvScaleTmpVer = iMvScaleVer + iDMvHorY * ( cxWidth >> 1 ) + iDMvVerY * ( cxHeight >> 1 );
-        }
+        }               
         // Since we use fractional values in the MV computation, it is necessary to round them to an allowed precision
+        // The following function undoes the shift performed before starting the MV derivation (i.e., it rounds the MVs to the actual precision)       
         roundAffineMv(iMvScaleTmpHor, iMvScaleTmpVer, shift);
         Mv tmpMv(iMvScaleTmpHor, iMvScaleTmpVer);
-        tmpMv.clipToStorageBitDepth();
+
+        tmpMv.clipToStorageBitDepth(); // Clip to 17 bits precision. Between -(1 << 17) and (1 << 17)-1
         iMvScaleTmpHor = tmpMv.getHor();
         iMvScaleTmpVer = tmpMv.getVer();
-
+       
         // clip and scale
         if ( refPic->isWrapAroundEnabled( pu.cs->pps ) ) // this is used for 360 video
         {
@@ -1124,6 +1160,17 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
             iMvScaleTmpVer = tmpMv.getVer();
           }
         }
+        if(EXTRACT_AFFINE_MV){
+            
+            // REMINDER
+            // Always check if "target" is not pointing to a specific block
+            if(target){
+                storch::exportAffineInfo(pu, mvLT, mvRT, mvLB, w, h, iMvScaleTmpHor, iMvScaleTmpVer);
+            } 
+            
+        }
+        
+        
       }
       else // If it is not 4:4:4....
            // If this is the case, then some MVs are computed earlier (in this same function) and stored in m_storedMv[ ]

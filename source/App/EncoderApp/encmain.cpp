@@ -44,7 +44,7 @@
 #include "EncApp.h"
 #include "Utilities/program_options_lite.h"
 
-#include "storchmain.h"
+#include "../../Lib/CommonLib/storchmain.h"
 
 //! \ingroup EncoderApp
 //! \{

@@ -12,12 +12,16 @@
  */
 
 #include "storchmain.h"
+// These are used to access methods of object parameters
+#include "CodingStructure.h"
+#include "Picture.h"
 
 double storch::fsTime, storch::affAMVPTime, storch::affGradTime, storch::aff4pTime, storch::aff6pTime, storch::affMeTime, storch::simpRefAffMeTime;
 struct timeval storch::fs1, storch::fs2, storch::aamvp1, storch::aamvp2, storch::ag1, storch::ag2, storch::a4p1, storch::a4p2, storch::a6p1, storch::a6p2, storch::affme1, storch::affme2, storch::sraffme1, storch::sraffme2;
 int storch::extractedFrames[EXT_NUM][500];
 int storch::currPoc;
 int storch::inheritedCand, storch::constructedCand, storch::translationalCand, storch::temporalCand, storch::zeroCand, storch::totalCand;
+std::ofstream storch::affine_file;
 
 storch::storch() {
     fsTime = 0.0;
@@ -36,7 +40,18 @@ storch::storch() {
     zeroCand = 0;
     totalCand = 0;
     
-    
+    // Print the header of the file
+    if(EXTRACT_AFFINE_MV){
+        string affineFileName = (string) "affine_mv.csv";
+        affine_file.open(affineFileName);    
+        
+        affine_file << "POC,frameWidth,frameHeight,";
+        affine_file << "puX,puY,puWidth,puHeight,biPred,";
+        affine_file << "nCP,LT_X,LT_Y,RT_X,RT_Y,LB_X,LB_Y,";
+        affine_file << "subX,subY,mv_X,mv_Y" << endl;
+        
+    }
+       
     for(int f=0; f<500; f++){
         for(int t=0; t<EXT_NUM; t++){
             extractedFrames[t][f]=0;   // at the start, no frame was extracted
@@ -126,6 +141,28 @@ void storch::exportSamplesFrame(PelBuf samples, int POC, SamplesType type){
     else{
         cout << "ERROR - Incorrect type passes when exporting frame samples" << endl;
     }
+}
+
+// Export information from the affine ME into a file
+void storch::exportAffineInfo(const PredictionUnit pu, Mv mvLT, Mv mvRT, Mv mvLB, int subX, int subY, int mv_x, int mv_y){
+    int POC = pu.cu->cs->picture->getPOC();
+    int frameWidth = pu.cu->cs->picture->getPicWidthInLumaSamples();
+    int frameHeight = pu.cu->cs->picture->getPicHeightInLumaSamples();
+    
+    int puWidth = pu.Y().width;
+    int puHeight = pu.Y().height;
+    int puX = pu.lx();
+    int puY = pu.ly();
+    int biPred = (pu.interDir == 3) ? 1 : 0;
+    
+    int nCP = (pu.cu->affineType == AFFINEMODEL_4PARAM)? 2 : 3;
+    
+    affine_file << POC << "," << frameWidth << "," << frameHeight << ",";
+    affine_file << puX << "," << puY << "," << puWidth << "," << puHeight << "," << biPred << ",";
+    affine_file << nCP << "," << mvLT.hor << "," << mvLT.ver << "," << mvRT.hor << "," << mvRT.ver << "," << mvLB.hor << "," << mvLB.ver << ",";
+    affine_file << subX << "," << subY << "," << mv_x << "," << mv_y << endl;
+//    affine_file.close();
+    
 }
 
 // Used to track the execution time

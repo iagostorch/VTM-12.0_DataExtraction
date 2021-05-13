@@ -53,6 +53,7 @@
 #include <math.h>
 #include <limits>
 
+#include "../CommonLib/storchmain.h"
 
  //! \ingroup EncoderLib
  //! \{
@@ -2313,11 +2314,13 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
   WPScalingParam *wp0;
   WPScalingParam *wp1;
   int tryBipred = 0;
+                        // The first part is the "original" resolution for affine, the second is a condition to perform Affine with AMVR (1-pel and 1/16-pel)
   bool checkAffine    = (pu.cu->imv == 0 || pu.cu->slice->getSPS()->getAffineAmvrEnabledFlag()) && pu.cu->imv != IMV_HPEL;
   bool checkNonAffine = pu.cu->imv == 0 || pu.cu->imv == IMV_HPEL || (pu.cu->slice->getSPS()->getAMVREnabledFlag() &&
                                             pu.cu->imv <= (pu.cu->slice->getSPS()->getAMVREnabledFlag() ? IMV_4PEL : 0));
   CodingUnit *bestCU  = pu.cu->cs->bestCS != nullptr ? pu.cu->cs->bestCS->getCU( CHANNEL_TYPE_LUMA ) : nullptr;
   bool trySmvd        = ( bestCU != nullptr && pu.cu->imv == 2 && checkAffine ) ? ( !bestCU->firstPU->mergeFlag && !bestCU->affine ) : true;
+  // This tests if the best in the last iteration of AMVR was MERGE and NOT affine. In this case, skip merge now
   if ( pu.cu->imv && bestCU != nullptr && checkAffine )
   {
     checkAffine = !( bestCU->firstPU->mergeFlag || !bestCU->affine );
@@ -2933,7 +2936,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
                      : ((uiCost[0] <= uiCost[1]) ? uiCost[0] : uiCost[1]);
     }
     // This if decides if affine will be tested or not
-    if (cu.Y().width > 8 && cu.Y().height > 8 && cu.slice->getSPS()->getUseAffine()
+    if (cu.Y().width > 8 && cu.Y().height > 8 && cu.slice->getSPS()->getUseAffine() // Minimum block size and affine encoding parameter
       && checkAffine
       && (bcwIdx == BCW_DEFAULT || m_affineModeSelected || !m_pcEncCfg->getUseBcwFast())
       )
@@ -2963,7 +2966,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
       Mv acMvAffine4Para[2][33][3]; // 2 lists, 33 reference pics, 3 CPs. The same function computes affine for 4 and 6 CPs, thus the "extra" CP
       int refIdx4Para[2] = { -1, -1 };
 
-      // Here it invokes affine 
+      // Here it invokes affine with 2 CPs (4 parameters)
       storch::startAffineComplete(4);
       xPredAffineInterSearch(pu, origBuf, puIdx, uiLastModeTemp, uiAffineCost, cMvHevcTemp, acMvAffine4Para, refIdx4Para, bcwIdx, enforceBcwPred,
         ((cu.slice->getSPS()->getUseBcw() == true) ? getWeightIdxBits(bcwIdx) : 0));

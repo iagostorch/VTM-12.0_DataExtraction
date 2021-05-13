@@ -42,7 +42,6 @@
 #include "UnitPartitioner.h"
 #include "ContextModelling.h"
 #include "InterPrediction.h"
-#include "../../App/EncoderApp/storchmain.h"
 
 // CS tools
 namespace CS
