@@ -334,10 +334,10 @@ const TFilterCoeff InterpolationFilter::m_bilinearFilterPrec4[LUMA_INTERPOLATION
 
 InterpolationFilter::InterpolationFilter()
 {
-  m_filterHor[0][0][0] = filter<8, false, false, false>;
-  m_filterHor[0][0][1] = filter<8, false, false, true>;
-  m_filterHor[0][1][0] = filter<8, false, true, false>;
-  m_filterHor[0][1][1] = filter<8, false, true, true>;
+  m_filterHor[0][0][0] = filter<8, false, false, false>; 
+  m_filterHor[0][0][1] = filter<8, false, false, true>; 
+  m_filterHor[0][1][0] = filter<8, false, true, false>; // template <N_TAPS, isVertical, isFirst, isLast> 
+  m_filterHor[0][1][1] = filter<8, false, true, true>;  // These two filters (this and prev line) are used in affine MC: horizontal (second idx) is always first, may be last or not depending if there will bea vertical filtering operatin
 
   m_filterHor[1][0][0] = filter<4, false, false, false>;
   m_filterHor[1][0][1] = filter<4, false, false, true>;
@@ -349,10 +349,10 @@ InterpolationFilter::InterpolationFilter()
   m_filterHor[2][1][0] = filter<2, false, true, false>;
   m_filterHor[2][1][1] = filter<2, false, true, true>;
 
-  m_filterVer[0][0][0] = filter<8, true, false, false>;
-  m_filterVer[0][0][1] = filter<8, true, false, true>;
+  m_filterVer[0][0][0] = filter<8, true, false, false>; 
+  m_filterVer[0][0][1] = filter<8, true, false, true>;  // These filters are used in affine MC: vertical is always last, may be first or not depending if there is a orizontal filtering operation
   m_filterVer[0][1][0] = filter<8, true, true, false>;
-  m_filterVer[0][1][1] = filter<8, true, true, true>;
+  m_filterVer[0][1][1] = filter<8, true, true, true>; // And this is the the other from "these"
 
   m_filterVer[1][0][0] = filter<4, true, false, false>;
   m_filterVer[1][0][1] = filter<4, true, false, true>;
@@ -569,8 +569,8 @@ void InterpolationFilter::filter(const ClpRng& clpRng, Pel const *src, int srcSt
   src -= ( N/2 - 1 ) * cStride;
 
   int offset;
-  int headRoom = IF_INTERNAL_FRAC_BITS(clpRng.bd);
-  int shift    = IF_FILTER_PREC;
+  int headRoom = IF_INTERNAL_FRAC_BITS(clpRng.bd); // =4
+  int shift    = IF_FILTER_PREC; // =6
   // with the current settings (IF_INTERNAL_PREC = 14 and IF_FILTER_PREC = 6), though headroom can be
   // negative for bit depths greater than 14, shift will remain non-negative for bit depths of 8->20
   CHECK(shift < 0, "Negative shift");
@@ -599,7 +599,7 @@ void InterpolationFilter::filter(const ClpRng& clpRng, Pel const *src, int srcSt
       shift = 4;
       offset = 1 << (shift - 1);
     }
-  }
+  } 
   for (row = 0; row < height; row++)
   {
     for (col = 0; col < width; col++)
@@ -637,7 +637,7 @@ void InterpolationFilter::filter(const ClpRng& clpRng, Pel const *src, int srcSt
       {
         val = ClipPel( val, clpRng );
       }
-      dst[col] = val;
+      dst[col] = val;      
     }
 
     src += srcStride;
@@ -663,6 +663,7 @@ template<int N>
 void InterpolationFilter::filterHor(const ClpRng& clpRng, Pel const *src, int srcStride, Pel *dst, int dstStride, int width, int height, bool isLast, TFilterCoeff const *coeff, bool biMCForDMVR)
 {
 //#if ENABLE_SIMD_OPT_MCIF
+  // Affine with LUMA has 8 taps
   if( N == 8 )
   {
     m_filterHor[0][1][isLast](clpRng, src, srcStride, dst, dstStride, width, height, coeff, biMCForDMVR);
@@ -700,6 +701,7 @@ template<int N>
 void InterpolationFilter::filterVer(const ClpRng& clpRng, Pel const *src, int srcStride, Pel *dst, int dstStride, int width, int height, bool isFirst, bool isLast, TFilterCoeff const *coeff, bool biMCForDMVR)
 {
 //#if ENABLE_SIMD_OPT_MCIF
+  // Affine with LUMA has 8 taps
   if( N == 8 )
   {
     m_filterVer[0][isFirst][isLast]( clpRng, src, srcStride, dst, dstStride, width, height, coeff, biMCForDMVR);
@@ -739,7 +741,12 @@ void InterpolationFilter::filterHor(const ComponentID compID, Pel const *src, in
                                     int width, int height, int frac, bool isLast, const ClpRng &clpRng, int nFilterIdx,
                                     bool biMCForDMVR, bool useAltHpelIf)
 {
-  if( frac == 0 && nFilterIdx < 2 )
+  // For affine ME:
+  //                   nFilterIdx is always 0 (default parameter)
+  //                   biMCForDMVR is always false (default parameter)    
+  //                   useAltHpelIf is always false (default parameter)
+  
+    if( frac == 0 && nFilterIdx < 2 )
   {
     m_filterCopy[true][isLast]( clpRng, src, srcStride, dst, dstStride, width, height, biMCForDMVR );
   }
@@ -747,7 +754,7 @@ void InterpolationFilter::filterHor(const ComponentID compID, Pel const *src, in
   {
     CHECK( frac < 0 || frac >= LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS, "Invalid fraction" );
     if( nFilterIdx == 1 )
-    {
+    { 
       filterHor<NTAPS_BILINEAR>( clpRng, src, srcStride, dst, dstStride, width, height, isLast, m_bilinearFilterPrec4[frac], biMCForDMVR );
     }
     else if( nFilterIdx == 2 )
@@ -755,19 +762,19 @@ void InterpolationFilter::filterHor(const ComponentID compID, Pel const *src, in
       filterHor<NTAPS_LUMA>( clpRng, src, srcStride, dst, dstStride, width, height, isLast, m_lumaFilter4x4[frac], biMCForDMVR );
     }
     else if( nFilterIdx == 3 )
-    {
+    { 
       filterHor<NTAPS_LUMA>( clpRng, src, srcStride, dst, dstStride, width, height, isLast, m_lumaFilterRPR1[frac], biMCForDMVR );
     }
     else if( nFilterIdx == 4 )
-    {
+    { 
       filterHor<NTAPS_LUMA>( clpRng, src, srcStride, dst, dstStride, width, height, isLast, m_lumaFilterRPR2[frac], biMCForDMVR );
     }
     else if (nFilterIdx == 5)
-    {
+    { 
       filterHor<NTAPS_LUMA>(clpRng, src, srcStride, dst, dstStride, width, height, isLast, m_affineLumaFilterRPR1[frac], biMCForDMVR);
     }
     else if (nFilterIdx == 6)
-    {
+    { 
       filterHor<NTAPS_LUMA>(clpRng, src, srcStride, dst, dstStride, width, height, isLast, m_affineLumaFilterRPR2[frac], biMCForDMVR);
     }
     else if( frac == 8 && useAltHpelIf )
@@ -776,11 +783,12 @@ void InterpolationFilter::filterHor(const ComponentID compID, Pel const *src, in
     }
     else if( ( width == 4 && height == 4 ) || ( width == 4 && height == ( 4 + NTAPS_LUMA - 1 ) ) )
     {
+    // Affine ME always enters this IF: height/width refers to the 4x4 block, or 4x11 block when it must undergo horizontal+vertical filtering
       filterHor<NTAPS_LUMA>( clpRng, src, srcStride, dst, dstStride, width, height, isLast, m_lumaFilter4x4[frac], biMCForDMVR );
     }
     else
     {
-      filterHor<NTAPS_LUMA>( clpRng, src, srcStride, dst, dstStride, width, height, isLast, m_lumaFilter[frac], biMCForDMVR );
+        filterHor<NTAPS_LUMA>( clpRng, src, srcStride, dst, dstStride, width, height, isLast, m_lumaFilter[frac], biMCForDMVR );
     }
   }
   else
@@ -823,7 +831,11 @@ void InterpolationFilter::filterHor(const ComponentID compID, Pel const *src, in
 void InterpolationFilter::filterVer(const ComponentID compID, Pel const *src, int srcStride, Pel *dst, int dstStride,
                                     int width, int height, int frac, bool isFirst, bool isLast, const ClpRng &clpRng,
                                     int nFilterIdx, bool biMCForDMVR, bool useAltHpelIf)
-{
+{   
+  // For affine ME:
+  //                   nFilterIdx is always 0 (default parameter)
+  //                   biMCForDMVR is always false (default parameter)    
+  //                   useAltHpelIf is always false (default parameter)
   if( frac == 0 && nFilterIdx < 2 )
   {
     m_filterCopy[isFirst][isLast]( clpRng, src, srcStride, dst, dstStride, width, height, biMCForDMVR );
@@ -861,6 +873,7 @@ void InterpolationFilter::filterVer(const ComponentID compID, Pel const *src, in
     }
     else if( width == 4 && height == 4 )
     {
+      // Affine ME always enters this IF: height/width refers to the 4x4 block
       filterVer<NTAPS_LUMA>( clpRng, src, srcStride, dst, dstStride, width, height, isFirst, isLast, m_lumaFilter4x4[frac], biMCForDMVR );
     }
     else

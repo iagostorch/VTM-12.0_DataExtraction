@@ -23,10 +23,14 @@
 
 #define EXTRACT_AFFINE_MV 0
 
+// This typedef is used to control what type of samples are being exported from the encoder
 typedef enum
 {
   EXT_RECONSTRUCTED,
   EXT_ORIGINAL,
+  REFERENCE,
+  FILTERED_REFERENCE,
+  PREDICTED,
   EXT_NUM
 } SamplesType;
 
@@ -55,6 +59,8 @@ public:
     storch();
     static void printSummary();
     static void exportSamplesFrame(PelBuf samples, int POC, SamplesType type);
+    static void exportSamplesBlock(CPelBuf samples, SamplesType type);
+    static void exportSamples4x4Block(Pel* samples, int xPos, int yPos, int stride, SamplesType type);
     static void exportAffineInfo(PredictionUnit pu, Mv mvLT, Mv mvRT, Mv mvLB, int subX, int subY, int mv_x, int mv_y);
     
 #if EXAMPLE || EXAMPLE

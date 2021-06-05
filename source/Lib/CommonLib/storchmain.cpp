@@ -86,7 +86,75 @@ void storch::printSummary() {
     cout << "---------------------------------------------------------------------" << endl;
 }
 
-// Export the input samples into a CSV file
+// Export the samples of a 4x4 sub-block during affine ME into a CSV file
+void storch::exportSamples4x4Block(Pel* samples, int xPos, int yPos, int stride, SamplesType type){
+    int h,w;
+
+    std::ofstream fileHandler;
+    string name;
+    
+    if(type == REFERENCE){
+        name = (string) "block_reference_" + std::to_string(xPos) + "_" + std::to_string(yPos);
+    }
+    else if(type == FILTERED_REFERENCE){
+        name = (string) "block_filtered_" + std::to_string(xPos) + "_" + std::to_string(yPos);
+    }
+    else{
+        printf("ERROR -- Incorrect samples type when exporting samples from 4x4 sub-block");
+    }    
+    
+    fileHandler.open(name + ".csv");
+
+    int blockWidth = 4;
+    int blockHeight = 4;
+
+    for (h=0; h<blockHeight; h++){
+        for(w=0; w<blockWidth-1; w++){
+            fileHandler << samples[h*stride + w] << ",";
+        }
+        fileHandler << samples[h*stride + w];
+        fileHandler << endl;
+    }
+    fileHandler.close();
+    
+}
+
+// Export the samples of a PU into a CSV file
+void storch::exportSamplesBlock(CPelBuf samples, SamplesType type){
+    int h,w;
+
+    std::ofstream fileHandler;
+    string name;
+    
+    if(type == REFERENCE){
+        name = (string) "block_reference";
+    }
+    else if(type == FILTERED_REFERENCE){
+        name = (string) "block_filtered";
+    }
+    else if(type == PREDICTED){
+        name = (string) "block_predicted";
+    }
+    else{
+        printf("ERROR -- Incorrect samples type when exporting block samples");
+    }
+
+    fileHandler.open(name + ".csv");
+
+    int blockWidth = samples.width;
+    int blockHeight = samples.height;
+
+    for (h=0; h<blockHeight; h++){
+        for(w=0; w<blockWidth-1; w++){
+            fileHandler << samples.at(w,h) << ",";
+        }
+        fileHandler << samples.at(w,h);
+        fileHandler << endl;
+    }
+    fileHandler.close();
+}
+
+// Export the samples of a frame into a CSV file
 void storch::exportSamplesFrame(PelBuf samples, int POC, SamplesType type){
     int h,w;
     if(type == EXT_ORIGINAL){

@@ -2966,7 +2966,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
       Mv acMvAffine4Para[2][33][3]; // 2 lists, 33 reference pics, 3 CPs. The same function computes affine for 4 and 6 CPs, thus the "extra" CP
       int refIdx4Para[2] = { -1, -1 };
 
-      // Here it invokes affine with 2 CPs (4 parameters)
+      // Here it invokes affine with 2 CPs (4 parameters) performs both uni and bi-prediction
       storch::startAffineComplete(4);
       xPredAffineInterSearch(pu, origBuf, puIdx, uiLastModeTemp, uiAffineCost, cMvHevcTemp, acMvAffine4Para, refIdx4Para, bcwIdx, enforceBcwPred,
         ((cu.slice->getSPS()->getUseBcw() == true) ? getWeightIdxBits(bcwIdx) : 0));
@@ -3010,7 +3010,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
           refIdx4Para[0] = bestRefIdx[0];
           refIdx4Para[1] = bestRefIdx[1];
 
-          // Here it starts the initialization for 6 parameters affine
+          // Here it starts the initialization for 6 parameters affine, performs both uni and bi-prediction
           Distortion uiAffine6Cost = std::numeric_limits<Distortion>::max();
           cu.affineType = AFFINEMODEL_6PARAM;
           storch::startAffineComplete(6);
@@ -4735,6 +4735,9 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       bool savedParaAvail = pu.cu->imv && ( ( m_affineMotion.affine4ParaRefIdx[iRefList] == iRefIdxTemp && affine4Para && m_affineMotion.affine4ParaAvail ) ||
                                             ( m_affineMotion.affine6ParaRefIdx[iRefList] == iRefIdxTemp && !affine4Para && m_affineMotion.affine6ParaAvail ) );
 
+      
+      // This is true when: (1) We are in the second or third pass of AMVR, and (2) the optimal affine in last pass was in the same ref index as now
+      // This IF selects if current pass will start at HEVC MV or the best MV from last pass (pass of AMVR)
       if ( savedParaAvail )
       {
         Mv mvFour[3];
@@ -4754,6 +4757,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         }
       }
 
+      // Some sort of pre-processing for 4 parameters Affine. It seems like it is searching for the best starting point for ME
       if (pu.cu->affineType == AFFINEMODEL_4PARAM && m_affMVListSize
         && (!pu.cu->cs->sps->getUseBcw() || bcwIdx == BCW_DEFAULT)
         )
@@ -4877,7 +4881,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       {
         if ( slice.getList1IdxToList0Idx( iRefIdxTemp ) >= 0 && (pu.cu->affineType != AFFINEMODEL_6PARAM || slice.getList1IdxToList0Idx( iRefIdxTemp ) == refIdx4Para[0]) )
         { 
-          // Didn't understand this if...
+          // Didn't understand this if... I believe it is considering that we are testing the same reference frame but in another reference list, therefore the distortion is the same but the cost is different
           int iList1ToList0Idx = slice.getList1IdxToList0Idx( iRefIdxTemp );
           ::memcpy( cMvTemp[1][iRefIdxTemp], cMvTemp[0][iList1ToList0Idx], sizeof(Mv)*3 );
           uiCostTemp = uiCostTempL0[iList1ToList0Idx];
@@ -4914,6 +4918,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       }
       // Set best AMVP Index
       xCopyAffineAMVPInfo( affiAMVPInfoTemp[eRefPicList], aacAffineAMVPInfo[iRefList][iRefIdxTemp] );
+      // Doc M-0247: When AMVR is using precision 1-pel for affine, and AffineAmvrEncOpt is enabled, the MV predictor can be selected AFTER the motion estimation (for signaling MVD)
       if ( pu.cu->imv != 2 || !m_pcEncCfg->getUseAffineAmvrEncOpt() )
       xCheckBestAffineMVP( pu, affiAMVPInfoTemp[eRefPicList], eRefPicList, cMvTemp[iRefList][iRefIdxTemp], cMvPred[iRefList][iRefIdxTemp], aaiMvpIdx[iRefList][iRefIdxTemp], uiBitsTemp, uiCostTemp );
 
@@ -5147,6 +5152,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
           true );
         storch::finishAffineME();
         xCopyAffineAMVPInfo( aacAffineAMVPInfo[iRefList][iRefIdxTemp], affiAMVPInfoTemp[eRefPicList] );
+        // Doc M-0247: When AMVR is using precision 1-pel for affine, and AffineAmvrEncOpt is enabled, the MV predictor can be selected AFTER the motion estimation (for signaling MVD)
         if ( pu.cu->imv != 2 || !m_pcEncCfg->getUseAffineAmvrEncOpt() )
         {
           xCheckBestAffineMVP(pu, affiAMVPInfoTemp[eRefPicList], eRefPicList, cMvTemp[iRefList][iRefIdxTemp],
@@ -5445,7 +5451,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
                                            int&            mvpIdx,
                                            const AffineAMVPInfo& aamvpi,
                                            bool            bBi)
-{
+{  
   if( pu.cu->cs->sps->getUseBcw() && pu.cu->BcwIdx != BCW_DEFAULT && !bBi && xReadBufferedAffineUniMv(pu, eRefPicList, iRefIdxPred, acMvPred, acMv, ruiBits, ruiCost
       , mvpIdx, aamvpi
   ) )
@@ -5485,7 +5491,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   // pred YUV
   PelUnitBuf  predBuf = m_tmpAffiStorage.getBuf( UnitAreaRelative(*pu.cu, pu) );
 
-  // Set start Mv position, use input mv as started search mv
+  // Set start Mv position, use input mv as start search mv. The input MV may not be the AMVP: in some cases, it is the HEVC motion vector
   Mv acMvTemp[3];
   ::memcpy( acMvTemp, acMv, sizeof(Mv)*3 );
   // Set delta mv
@@ -5530,14 +5536,16 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   {
     acMvTemp[2].roundAffinePrecInternal2Amvr(pu.cu->imv);
   }
+  // Motion compensation with the input MV. This is used to get the first prediction error and start gradient refinement
   xPredAffineBlk( COMPONENT_Y, pu, refPic, acMvTemp, predBuf, false, pu.cs->slice->clpRng( COMPONENT_Y ) );
-
+  
   // get error
   uiCostBest = m_pcRdCost->getDistPart(predBuf.Y(), pBuf->Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA), COMPONENT_Y, distFunc);
 
   // get cost with mv
   m_pcRdCost->setCostScale(0);
   uiBitsBest = ruiBits;
+  // Doc M-0247: When AMVR is using precision 1-pel for affine, and AffineAmvrEncOpt is enabled, the MV predictor can be selected AFTER the motion estimation (for signaling MVD)
   if ( pu.cu->imv == 2 && m_pcEncCfg->getUseAffineAmvrEncOpt() )
   {
     uiBitsBest  = dirBits + xDetermineBestMvp( pu, acMvTemp, mvpIdx, aamvpi );
@@ -5700,6 +5708,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
       }
     }
 
+    // Doc M-0247: When AMVR is using precision 1-pel for affine, and AffineAmvrEncOpt is enabled, the MV predictor can be selected AFTER the motion estimation (for signaling MVD)
     if ( m_pcEncCfg->getUseAffineAmvrEncOpt() )
     {
       bool identical = false;
@@ -5723,7 +5732,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     // The MV was updated recently based on the gradient. Now it performs the prediction
     // with new MVs, and computes the error to uptade de MV again in next iteration
     xPredAffineBlk( COMPONENT_Y, pu, refPic, acMvTemp, predBuf, false, pu.cu->slice->clpRng( COMPONENT_Y ) );
-
+    
     // get error
     Distortion uiCostTemp = m_pcRdCost->getDistPart(predBuf.Y(), pBuf->Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA), COMPONENT_Y, distFunc);
     DTRACE( g_trace_ctx, D_COMMON, " (%d) uiCostTemp=%d\n", DTRACE_GET_COUNTER(g_trace_ctx,D_COMMON), uiCostTemp );
@@ -5863,6 +5872,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
             break;
           }
           Mv centerMv[3];
+          // acMv is the best MV so far: it is an input to the ME function, but it is overwritten several times during gradient/simplification
           memcpy(centerMv, acMv, sizeof(Mv) * 3);
           memcpy(acMvTemp, acMv, sizeof(Mv) * 3);
 
@@ -5871,7 +5881,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
           {
             acMvTemp[j].set(centerMv[j].getHor() + (testPos[i][0] << mvShift), centerMv[j].getVer() + (testPos[i][1] << mvShift));
             clipMv( acMvTemp[j], pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps );
-            xPredAffineBlk(COMPONENT_Y, pu, refPic, acMvTemp, predBuf, false, pu.cu->slice->clpRng(COMPONENT_Y));
+            xPredAffineBlk(COMPONENT_Y, pu, refPic, acMvTemp, predBuf, false, pu.cu->slice->clpRng(COMPONENT_Y));                       
             Distortion costTemp = m_pcRdCost->getDistPart(predBuf.Y(), pBuf->Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA), COMPONENT_Y, distFunc);
             uint32_t bitsTemp = ruiBits;
             bitsTemp += xCalcAffineMVBits(pu, acMvTemp, acMvPred);

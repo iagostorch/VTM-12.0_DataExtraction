@@ -906,23 +906,23 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
   int blockHeight = AFFINE_MIN_BLOCK_SIZE;
 
 // THE FOLLOWING VARIABLES ARE USED TO EXPORT INFORMATION OF BLOCKS WITH SPECIFIC PROPERTIES (SIZE, MVS, POSITION, ...)
-//  int targetSize = 16;
-//  int targetCp = AFFINEMODEL_4PARAM; //AFFINEMODEL_6PARAM
+  int targetSize = 128;
+  int targetCp = AFFINEMODEL_4PARAM; //AFFINEMODEL_6PARAM
   
   target = 1;
-//  target &= pu.cu->lwidth() == targetSize;
-//  target &= pu.cu->lheight() == targetSize;
-//  target &= pu.cu->affineType == targetCp;
-  target &= pu.cu->cs->picture->getPOC() > 0;
-//  target &= pu.cu->lx() == 0;
-//  target &= pu.cu->ly() == 72;
-//  target &= mvLT.hor == -2160;
-//  target &= mvLT.ver == -60;
-//  target &= mvRT.hor == -2144;
-//  target &= mvRT.ver == -52;
-//  target &= mvLB.hor == -8;
-//  target &= mvLB.ver == 176;
-  
+  target &= pu.cu->lwidth() == targetSize;
+  target &= pu.cu->lheight() == targetSize;
+  target &= pu.cu->affineType == targetCp;
+  target &= pu.cu->cs->picture->getPOC() == 1;
+  target &= pu.cu->lx() == 1792;
+  target &= pu.cu->ly() == 896;
+  target &= mvLT.hor == 52;
+  target &= mvLT.ver == 92;
+  target &= mvRT.hor == 52;
+  target &= mvRT.ver == 92;
+//  target &= mvLB.hor == 4;
+//  target &= mvLB.ver == -44;
+    
   CHECK(blockWidth  > (width >> iScaleX ), "Sub Block width  > Block width");
   CHECK(blockHeight > (height >> iScaleY), "Sub Block height > Block height");
   const int MVBUFFER_SIZE = MAX_CU_SIZE / MIN_PU_SIZE;
@@ -1222,6 +1222,7 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
         }
         
         // Retrieve the reference block at the integer position pointed by the MV (xInt and yInt)
+        // This refBuf is not a 4x4 block, but a block with the dimensions of current PU with top-left sample at the same position of 4x4 block
         const CPelBuf refBuf = refPic->getRecoBuf(
           CompArea(compID, chFmt, pu.blocks[compID].offset(xInt + w, yInt + h), pu.blocks[compID]), wrapRef);
 
@@ -1235,6 +1236,13 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
         // This is original block size, 4x4
         int bw = blockWidth;
         int bh = blockHeight;
+        
+        // Export the reference block pointed by the MV for current block
+        if(EXTRACT_BLOCK){
+            if(target){
+                storch::exportSamples4x4Block(ref, w, h, refStride, REFERENCE);
+            }
+        }
         
         // Sometimes PROF is enabled, sometimes it is not. Refer to Section 3.4.4.4 of T-2002. 
         // It depends on whether the parent block used affine or not, and on some relations between the CPMVs
@@ -1261,6 +1269,15 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
                          bw, bh, yFrac, false, isLast, clpRng);
           JVET_J0090_SET_CACHE_ENABLE(true);
         }
+        
+        // Export the predicted (filtered) 4x4 sub-block, before PROF
+        if(EXTRACT_BLOCK){
+            if(target){
+                storch::exportSamples4x4Block(dst, w, h, dstStride, FILTERED_REFERENCE);
+            }
+        }
+        // Here we have a predicted sub-block prior to PROF
+        
         if (enablePROF)
         {
           const int shift = IF_INTERNAL_FRAC_BITS(clpRng.bd);
@@ -1305,7 +1322,13 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
       }
     }
   }
-}
+  // Here we have a fully predicted PU, after PROF
+  if(EXTRACT_BLOCK){
+    if(target){
+      storch::exportSamplesBlock(dstBuf, PREDICTED);
+    }
+  }
+} 
 
 void InterPrediction::applyBiOptFlow(const PredictionUnit &pu, const CPelUnitBuf &yuvSrc0, const CPelUnitBuf &yuvSrc1, const int &refIdx0, const int &refIdx1, PelUnitBuf &yuvDst, const BitDepths &clipBitDepths)
 {
