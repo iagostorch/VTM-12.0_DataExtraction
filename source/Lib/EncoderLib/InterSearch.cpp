@@ -2967,10 +2967,10 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
       int refIdx4Para[2] = { -1, -1 };
 
       // Here it invokes affine with 2 CPs (4 parameters) performs both uni and bi-prediction
-      storch::startAffineComplete(4);
+      storch::startAffineComplete(AFFINEMODEL_4PARAM);
       xPredAffineInterSearch(pu, origBuf, puIdx, uiLastModeTemp, uiAffineCost, cMvHevcTemp, acMvAffine4Para, refIdx4Para, bcwIdx, enforceBcwPred,
         ((cu.slice->getSPS()->getUseBcw() == true) ? getWeightIdxBits(bcwIdx) : 0));
-      storch::finishAffineComplete(4);
+      storch::finishAffineComplete(AFFINEMODEL_4PARAM); 
         
       if ( pu.cu->imv == 0 )
       {
@@ -3013,10 +3013,10 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
           // Here it starts the initialization for 6 parameters affine, performs both uni and bi-prediction
           Distortion uiAffine6Cost = std::numeric_limits<Distortion>::max();
           cu.affineType = AFFINEMODEL_6PARAM;
-          storch::startAffineComplete(6);
+          storch::startAffineComplete(AFFINEMODEL_6PARAM);
           xPredAffineInterSearch(pu, origBuf, puIdx, uiLastModeTemp, uiAffine6Cost, cMvHevcTemp, acMvAffine4Para, refIdx4Para, bcwIdx, enforceBcwPred,
             ((cu.slice->getSPS()->getUseBcw() == true) ? getWeightIdxBits(bcwIdx) : 0));
-          storch::finishAffineComplete(6);
+          storch::finishAffineComplete(AFFINEMODEL_6PARAM);
           
           if ( pu.cu->imv == 0 )
           {
@@ -4618,7 +4618,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
 
   int mvNum = 2;
   mvNum = pu.cu->affineType ? 3 : 2;
-
+  EAffineModel AFFINE_PARAMS = pu.cu->affineType? AFFINEMODEL_6PARAM : AFFINEMODEL_4PARAM;
   // Mvp
   Mv        cMvPred[2][33][3];
   Mv        cMvPredBi[2][33][3];
@@ -4673,9 +4673,10 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
   {
     pu.cu->BcwIdx = bcwIdx;
   }
-
+  
   // Affine is performed for all reference pictures
   // Uni-directional prediction
+  storch::startAffineUnipred(AFFINE_PARAMS, UNIPRED);
   for ( int iRefList = 0; iRefList < iNumPredDir; iRefList++ )
   {
     RefPicList  eRefPicList = ( iRefList ? REF_PIC_LIST_1 : REF_PIC_LIST_0 );
@@ -4696,9 +4697,9 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       
       // Do Affine AMVP. The candidates are stored in affiAMVPInfoTemp[eRefPicList], and the best predictors are retured in cMvPred
       // For each reference frame, affiAMVPInfoTemp holds 2 structures (the two candidates), and each structure is composed of 2/3 MVs (in the CPs)
-      storch::startAffineAMVP();
+      storch::startAffineAMVP(AFFINE_PARAMS, UNIPRED);
       xEstimateAffineAMVP( pu, affiAMVPInfoTemp[eRefPicList], origBuf, eRefPicList, iRefIdxTemp, cMvPred[iRefList][iRefIdxTemp], &biPDistTemp );
-      storch::finishAffineAMVP();
+      storch::finishAffineAMVP(AFFINE_PARAMS, UNIPRED);
       if ( affineAmvrEnabled )
       {
         biPDistTemp += m_pcRdCost->getCost( xCalcAffineMVBits( pu, cMvPred[iRefList][iRefIdxTemp], cMvPred[iRefList][iRefIdxTemp] ) );
@@ -4720,11 +4721,13 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         mvHevc[i].roundAffinePrecInternal2Amvr(pu.cu->imv);
       }
       PelUnitBuf predBuf = m_tmpStorageLCU.getBuf( UnitAreaRelative(*pu.cu, pu) );
-
+      
+      storch::startAffineInit(AFFINE_PARAMS, UNIPRED);
       // Compute the cost for the predicted MVs. xGetAffineTemplateCost makes a call to xPredAffineBlk, which performs the prediction for a block
       Distortion uiCandCost = xGetAffineTemplateCost(pu, origBuf, predBuf, mvHevc, aaiMvpIdx[iRefList][iRefIdxTemp],
                                                      AMVP_MAX_NUM_CANDS, eRefPicList, iRefIdxTemp);
-
+      storch::finishAffineInit(AFFINE_PARAMS, UNIPRED);
+      
       if ( affineAmvrEnabled )
       {
         uiCandCost += m_pcRdCost->getCost( xCalcAffineMVBits( pu, mvHevc, cMvPred[iRefList][iRefIdxTemp] ) );
@@ -4740,6 +4743,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       // This IF selects if current pass will start at HEVC MV or the best MV from last pass (pass of AMVR)
       if ( savedParaAvail )
       {
+        storch::startAffineInit(AFFINE_PARAMS, UNIPRED);
         Mv mvFour[3];
         for ( int i = 0; i < mvNum; i++ )
         {
@@ -4755,8 +4759,10 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
           uiCandCost = candCostInherit;
           memcpy( mvHevc, mvFour, 3 * sizeof( Mv ) );
         }
+        storch::finishAffineInit(AFFINE_PARAMS, UNIPRED);
       }
-
+      
+      storch::startAffineInit(AFFINE_PARAMS, UNIPRED);
       // Some sort of pre-processing for 4 parameters Affine. It seems like it is searching for the best starting point for ME
       if (pu.cu->affineType == AFFINEMODEL_4PARAM && m_affMVListSize
         && (!pu.cu->cs->sps->getUseBcw() || bcwIdx == BCW_DEFAULT)
@@ -4856,7 +4862,8 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
           }
         }
       }
-
+      storch::finishAffineInit(AFFINE_PARAMS, UNIPRED);
+      
       if ( uiCandCost < biPDistTemp )
       {
         ::memcpy( cMvTemp[iRefList][iRefIdxTemp], mvHevc, sizeof(Mv)*3 );
@@ -4894,20 +4901,20 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         }
         else
         {
-          storch::startAffineME();
+          storch::startAffineME(AFFINE_PARAMS, UNIPRED);
           xAffineMotionEstimation( pu, origBuf, eRefPicList, cMvPred[iRefList][iRefIdxTemp], iRefIdxTemp, cMvTemp[iRefList][iRefIdxTemp], uiBitsTemp, uiCostTemp
                                    , aaiMvpIdx[iRefList][iRefIdxTemp], affiAMVPInfoTemp[eRefPicList]
           );
-          storch::finishAffineME();
+          storch::finishAffineME(AFFINE_PARAMS, UNIPRED);
         }
       }
       else
       {
-        storch::startAffineME();
+        storch::startAffineME(AFFINE_PARAMS, UNIPRED);
         xAffineMotionEstimation( pu, origBuf, eRefPicList, cMvPred[iRefList][iRefIdxTemp], iRefIdxTemp, cMvTemp[iRefList][iRefIdxTemp], uiBitsTemp, uiCostTemp
                                  , aaiMvpIdx[iRefList][iRefIdxTemp], affiAMVPInfoTemp[eRefPicList]
         );
-        storch::finishAffineME();
+        storch::finishAffineME(AFFINE_PARAMS, UNIPRED);
       }
       if(pu.cu->cs->sps->getUseBcw() && pu.cu->BcwIdx == BCW_DEFAULT && pu.cu->slice->isInterB())
       {
@@ -4949,6 +4956,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       }
     } // End refIdx loop
   } // end Uni-prediction
+  storch::finishAffineUnipred(AFFINE_PARAMS, UNIPRED);
 
   if ( pu.cu->affineType == AFFINEMODEL_4PARAM )
   {
@@ -4987,6 +4995,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
   // Bi-directional prediction
   if ( slice.isInterB() && !PU::isBipredRestriction(pu) )
   {
+    storch::startAffineBipred(AFFINE_PARAMS, BIPRED);
     tryBipred = 1;
     pu.interDir = 3;
     m_isBi = true;
@@ -5001,6 +5010,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
     uint32_t uiMotBits[2];
     bool doBiPred = true;
 
+    storch::startAffineInit(AFFINE_PARAMS, BIPRED);
     if ( slice.getPicHeader()->getMvdL1ZeroFlag() ) // GPB, list 1 only use Mvp
     {
       xCopyAffineAMVPInfo( aacAffineAMVPInfo[1][bestBiPRefIdxL1], affiAMVPInfoTemp[REF_PIC_LIST_1] );
@@ -5038,7 +5048,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       pu.refIdx[REF_PIC_LIST_1] = iRefIdxBi[1];
 
       PelUnitBuf predBufTmp = m_tmpPredStorage[REF_PIC_LIST_1].getBuf( UnitAreaRelative(*pu.cu, pu) );
-      motionCompensation( pu, predBufTmp, REF_PIC_LIST_1 );
+      motionCompensation( pu, predBufTmp, REF_PIC_LIST_1 ); //
 
       // Update bits
       uiMotBits[0] = uiBits[0] - uiMbBits[0];
@@ -5061,7 +5071,8 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       uiMotBits[1] = uiBits[1] - uiMbBits[1];
       uiBits[2] = uiMbBits[2] + uiMotBits[0] + uiMotBits[1];
     }
-
+    storch::finishAffineInit(AFFINE_PARAMS, BIPRED);
+    
     if( doBiPred )
     {
     // 4-times iteration (default)
@@ -5096,6 +5107,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         iRefList = 0;
       }
 
+      storch::startAffineInit(AFFINE_PARAMS, BIPRED);
       // First iterate, get prediction block of opposite direction
       if( iIter == 0 && !slice.getPicHeader()->getMvdL1ZeroFlag() )
       {
@@ -5105,6 +5117,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         PelUnitBuf predBufTmp = m_tmpPredStorage[1 - iRefList].getBuf( UnitAreaRelative(*pu.cu, pu) );
         motionCompensation( pu, predBufTmp, RefPicList(1 - iRefList) );
       }
+      storch::finishAffineInit(AFFINE_PARAMS, BIPRED);
 
       RefPicList eRefPicList = ( iRefList ? REF_PIC_LIST_1 : REF_PIC_LIST_0 );
 
@@ -5146,11 +5159,11 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         uiBitsTemp += m_auiMVPIdxCost[aaiMvpIdxBi[iRefList][iRefIdxTemp]][AMVP_MAX_NUM_CANDS];
 
         // call Affine ME
-        storch::startAffineME();
+        storch::startAffineME(AFFINE_PARAMS, BIPRED);
         xAffineMotionEstimation( pu, origBuf, eRefPicList, cMvPredBi[iRefList][iRefIdxTemp], iRefIdxTemp, cMvTemp[iRefList][iRefIdxTemp], uiBitsTemp, uiCostTemp,
                                  aaiMvpIdxBi[iRefList][iRefIdxTemp], aacAffineAMVPInfo[iRefList][iRefIdxTemp],
           true );
-        storch::finishAffineME();
+        storch::finishAffineME(AFFINE_PARAMS, BIPRED);
         xCopyAffineAMVPInfo( aacAffineAMVPInfo[iRefList][iRefIdxTemp], affiAMVPInfoTemp[eRefPicList] );
         // Doc M-0247: When AMVR is using precision 1-pel for affine, and AffineAmvrEncOpt is enabled, the MV predictor can be selected AFTER the motion estimation (for signaling MVD)
         if ( pu.cu->imv != 2 || !m_pcEncCfg->getUseAffineAmvrEncOpt() )
@@ -5162,6 +5175,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
 
         if ( uiCostTemp < uiCostBi )
         {
+          storch::startAffineInit(AFFINE_PARAMS, BIPRED);
           bChanged = true;
           ::memcpy( cMvBi[iRefList], cMvTemp[iRefList][iRefIdxTemp], sizeof(Mv)*3 );
           iRefIdxBi[iRefList] = iRefIdxTemp;
@@ -5179,6 +5193,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
             PelUnitBuf predBufTmp = m_tmpPredStorage[iRefList].getBuf( UnitAreaRelative(*pu.cu, pu) );
             motionCompensation( pu, predBufTmp, eRefPicList );
           }
+          storch::finishAffineInit(AFFINE_PARAMS, BIPRED);
         }
       } // for loop-iRefIdxTemp
 
@@ -5200,6 +5215,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
     } // for loop-iter
     }
     m_isBi = false;
+    storch::finishAffineBipred(AFFINE_PARAMS, BIPRED);
   } // if (B_SLICE)
 
   pu.mv    [REF_PIC_LIST_0] = Mv();
@@ -5499,6 +5515,9 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   int iParaNum = pu.cu->affineType ? 7 : 5;
   int affineParaNum = iParaNum - 1;
   int mvNum = pu.cu->affineType ? 3 : 2;
+  EAffineModel AFFINE_PARAMS = pu.cu->affineType? AFFINEMODEL_6PARAM : AFFINEMODEL_4PARAM;
+  EAffinePred PRED = bBi? BIPRED : UNIPRED;
+  
   double pdEqualCoeff[7][7];
 
   int64_t  i64EqualCoeff[7][7];
@@ -5510,6 +5529,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   Distortion uiCostBest = std::numeric_limits<Distortion>::max();
   uint32_t uiBitsBest = 0;
 
+  storch::startAffineMEInit(AFFINE_PARAMS, PRED);
   // do motion compensation with origin mv
   if( m_pcEncCfg->getMCTSEncConstraint() )
   {
@@ -5538,10 +5558,11 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   }
   // Motion compensation with the input MV. This is used to get the first prediction error and start gradient refinement
   xPredAffineBlk( COMPONENT_Y, pu, refPic, acMvTemp, predBuf, false, pu.cs->slice->clpRng( COMPONENT_Y ) );
-  
+  // Compute the distortion part
+  // Affine always use RdCost::xGetHADs;
   // get error
   uiCostBest = m_pcRdCost->getDistPart(predBuf.Y(), pBuf->Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA), COMPONENT_Y, distFunc);
-
+  
   // get cost with mv
   m_pcRdCost->setCostScale(0);
   uiBitsBest = ruiBits;
@@ -5561,6 +5582,8 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   }
   uiCostBest = (Distortion)( floor( fWeight * (double)uiCostBest ) + (double)m_pcRdCost->getCost( uiBitsBest ) );
 
+  storch::finishAffineMEInit(AFFINE_PARAMS, PRED);
+  
   DTRACE( g_trace_ctx, D_COMMON, " (%d) uiBitsBest=%d, uiCostBest=%d\n", DTRACE_GET_COUNTER(g_trace_ctx,D_COMMON), uiBitsBest, uiCostBest );
 
   ::memcpy( acMv, acMvTemp, sizeof(Mv) * 3 );
@@ -5584,7 +5607,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   }
   // The previous lines performed MC using the predicted MV. Now it will use the gradient to
   // perform ME and update the MVs in each iteration
-  storch::startAffineGradientME();
+  storch::startAffineMEGradient(AFFINE_PARAMS, PRED);
   for ( int iter=0; iter<iIterTime; iter++ )    // iterate loop
   {
     memcpy( prevIterMv[iter], acMvTemp, sizeof( Mv ) * 3 );
@@ -5762,7 +5785,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
       mvpIdx = bestMvpIdx;
     }
   } // Exit MV optimization based on gradient
-  storch::finishAffineGradientME();
+  storch::finishAffineMEGradient(AFFINE_PARAMS, PRED);
   // I didn't completely understand the following code. It seems that a lambda function named "checkCPMVRdCost" is declared. It takes as input the MV of 3 CPs "ctrlPtMv[3]"
   // performs the prediction for such MVs, and tests the new RD agains the best to swap when appropriate.
   // This function is called multiple times after its declaration, testing some simplifications on the affine MVs
@@ -5787,7 +5810,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
 
   // Here it tests if affine is better than HEVC, and makes some simplifications and refinements
   // The description of most of these is described in L-0260
-  storch::startSimpRefAffineME();
+  storch::startAffineMESimpRef(AFFINE_PARAMS, PRED);
   const uint32_t mvShiftTable[3] = {MV_PRECISION_INTERNAL - MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL - MV_PRECISION_INTERNAL, MV_PRECISION_INTERNAL - MV_PRECISION_INT};
   const uint32_t mvShift = mvShiftTable[pu.cu->imv];
   if (uiCostBest <= AFFINE_ME_LIST_MVP_TH*m_hevcCost)
@@ -5907,7 +5930,8 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     }
   }
   
-  storch::finishSimpRefAffineME();
+  storch::finishAffineMESimpRef(AFFINE_PARAMS, PRED);
+  
   acMvPred[0] = aamvpi.mvCandLT[mvpIdx];
   acMvPred[1] = aamvpi.mvCandRT[mvpIdx];
   acMvPred[2] = aamvpi.mvCandLB[mvpIdx];

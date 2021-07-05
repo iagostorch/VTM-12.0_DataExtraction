@@ -70,27 +70,39 @@ public:
     static void startFullSearch();
     static void finishFullSearch();
     
-    static void startAffineAMVP();
-    static void finishAffineAMVP();
+    static void startAffineAMVP(EAffineModel param, EAffinePred pred);
+    static void finishAffineAMVP(EAffineModel param, EAffinePred pred);
 
-    static void startAffineGradientME();
-    static void finishAffineGradientME();
+    static void startAffineMEGradient(EAffineModel param, EAffinePred pred);
+    static void finishAffineMEGradient(EAffineModel param, EAffinePred pred);
     
-    static void startAffineComplete(int params);
-    static void finishAffineComplete(int params);
+    static void startAffineComplete(EAffineModel param);
+    static void finishAffineComplete(EAffineModel param);
     
-    static void startAffineME();
-    static void finishAffineME();
+    static void startAffineME(EAffineModel param, EAffinePred pred);
+    static void finishAffineME(EAffineModel param, EAffinePred pred);
 
-    static void startSimpRefAffineME();
-    static void finishSimpRefAffineME();
+    static void startAffineMESimpRef(EAffineModel param, EAffinePred pred);
+    static void finishAffineMESimpRef(EAffineModel param, EAffinePred pred);
+    
+    static void startAffineInit(EAffineModel param, EAffinePred pred);
+    static void finishAffineInit(EAffineModel param, EAffinePred pred);
 
+    static void startAffineUnipred(EAffineModel param, EAffinePred pred);
+    static void finishAffineUnipred(EAffineModel param, EAffinePred pred);
+    
+    static void startAffineBipred(EAffineModel param, EAffinePred pred);
+    static void finishAffineBipred(EAffineModel param, EAffinePred pred);    
+    
+    static void startAffineMEInit(EAffineModel param, EAffinePred pred);
+    static void finishAffineMEInit(EAffineModel param, EAffinePred pred);    
+        
     
     static int extractedFrames[EXT_NUM][500]; // Maks what frame were already extracted   
     
 private:   
-    static double fsTime, affAMVPTime, affGradTime, aff4pTime, aff6pTime, affMeTime, simpRefAffMeTime;
-    static struct timeval fs1,fs2, aamvp1, aamvp2, ag1, ag2, a4p1, a4p2, a6p1, a6p2, affme1, affme2, sraffme1, sraffme2;
+    static double fsTime, aff4pTime, aff6pTime, aff4pAMVPTime, aff6pAMVPTime, affUnip4pTime, affBip4pTime, affUnip6pTime, affBip6pTime, affUnip4pInitTime, affBip4pInitTime, affUnip6pInitTime, affBip6pInitTime, affUnip4pMeTime, affBip4pMeTime, affUnip6pMeTime, affBip6pMeTime, affUnip4pMEGradTime, affBip4pMEGradTime, affUnip6pMEGradTime, affBip6pMEGradTime, affUnip4pMERefTime, affBip4pMERefTime, affUnip6pMERefTime, affBip6pMERefTime, affUnip4pMeInitTime, affBip4pMeInitTime, affUnip6pMeInitTime, affBip6pMeInitTime;
+    static struct timeval fs1,fs2, aamvp1, aamvp2, ag1, ag2, a4p1, a4p2, a6p1, a6p2, affme1, affme2, sraffme1, sraffme2, affinit1, affinit2, affunip1, affunip2, affbip1, affbip2, affmeinit1, affmeinit2;
     static ofstream affine_file;
     
 };

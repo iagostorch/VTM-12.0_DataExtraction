@@ -131,6 +131,7 @@ void RdCost::lambdaAdjustColorTrans(bool forward, ComponentID componentID, bool 
 // Initialize Function Pointer by [eDFunc]
 void RdCost::init()
 {
+  // This initialiation assigns the proper function pointers to the DistortionFunctions array
   m_afpDistortFunc[DF_SSE    ] = RdCost::xGetSSE;
   m_afpDistortFunc[DF_SSE2   ] = RdCost::xGetSSE;
   m_afpDistortFunc[DF_SSE4   ] = RdCost::xGetSSE4;
@@ -152,7 +153,7 @@ void RdCost::init()
   m_afpDistortFunc[DF_SAD12  ] = RdCost::xGetSAD12;
   m_afpDistortFunc[DF_SAD24  ] = RdCost::xGetSAD24;
   m_afpDistortFunc[DF_SAD48  ] = RdCost::xGetSAD48;
-
+  
   m_afpDistortFunc[DF_HAD    ] = RdCost::xGetHADs;
   m_afpDistortFunc[DF_HAD2   ] = RdCost::xGetHADs;
   m_afpDistortFunc[DF_HAD4   ] = RdCost::xGetHADs;
@@ -424,6 +425,8 @@ Distortion RdCost::getDistPart( const CPelBuf &org, const CPelBuf &cur, int bitD
   }
 #endif
 
+  // If the block width is a power of 2, the "floorLog2(org.width)" offset is used
+  // to point for a specific SIMD implementation
   if( isPowerOf2( org.width ) )
   {
     cDtParam.distFunc = m_afpDistortFunc[eDFunc + floorLog2(org.width)];
@@ -439,6 +442,7 @@ Distortion RdCost::getDistPart( const CPelBuf &org, const CPelBuf &cur, int bitD
   }
   else
   {
+    // This line computes the distortion: distFunc is a pointer to a function, cDtParam holds all parameters
     return cDtParam.distFunc( cDtParam );
   }
 }
@@ -2232,7 +2236,7 @@ Distortion RdCost::xCalcHADs4x4( const Pel *piOrg, const Pel *piCur, int iStride
   d[13] = m[12] - m[13];
   d[14] = m[14] + m[15];
   d[15] = m[15] - m[14];
-
+ 
   for (k=0; k<16; ++k)
   {
     satd += abs(d[k]);
@@ -2799,6 +2803,7 @@ Distortion RdCost::xCalcHADs8x4( const Pel *piOrg, const Pel *piCur, int iStride
   return sad;
 }
 
+// This distortion is used during affine ME
 Distortion RdCost::xGetHADs( const DistParam &rcDtParam )
 {
   if( rcDtParam.applyWeight )
@@ -2912,7 +2917,7 @@ Distortion RdCost::xGetHADs( const DistParam &rcDtParam )
   {
     THROW( "Invalid size" );
   }
-
+   
   return (uiSum >> DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth));
 }
 

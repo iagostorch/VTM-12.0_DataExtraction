@@ -120,6 +120,12 @@ typedef enum
   AFFINE_MODEL_NUM
 } EAffineModel;
 
+typedef enum{
+    UNIPRED = 0,
+    BIPRED = 1,
+    PRED_TYPE_NUM
+} EAffinePred;
+
 static const int AFFINE_ME_LIST_SIZE =                             4;
 static const int AFFINE_ME_LIST_SIZE_LD =                          3;
 static const double AFFINE_ME_LIST_MVP_TH =                        1.0;
