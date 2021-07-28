@@ -4700,6 +4700,14 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       storch::startAffineAMVP(AFFINE_PARAMS, UNIPRED);
       xEstimateAffineAMVP( pu, affiAMVPInfoTemp[eRefPicList], origBuf, eRefPicList, iRefIdxTemp, cMvPred[iRefList][iRefIdxTemp], &biPDistTemp );
       storch::finishAffineAMVP(AFFINE_PARAMS, UNIPRED);
+
+      if(EXTRACT_AME_PROGRESS && pu.cu->imv==0){
+        // POC, List, RefIdx, X and Y position, width and heigth
+        storch::exportAmeProgressBlock(pu.cu->affineType, iRefList, iRefIdxTemp, pu);
+        // AMVP
+        storch::exportAmeProgressMVs(pu.cu->affineType, cMvPred[iRefList][iRefIdxTemp], NOT_FILLER, NOT_FINAL);
+      }
+      
       if ( affineAmvrEnabled )
       {
         biPDistTemp += m_pcRdCost->getCost( xCalcAffineMVBits( pu, cMvPred[iRefList][iRefIdxTemp], cMvPred[iRefList][iRefIdxTemp] ) );
@@ -4707,9 +4715,22 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       aaiMvpIdx[iRefList][iRefIdxTemp] = pu.mvpIdx[eRefPicList];
       aaiMvpNum[iRefList][iRefIdxTemp] = pu.mvpNum[eRefPicList];;
       
-      // This if copies the predictors of 2 CP to 3 CPs depending on "refIdx4Para[iRefList] != iRefIdxTemp" (?)
+      // This if copies the predictors of 2 CP to 3 CPs depending on "refIdx4Para[iRefList] != iRefIdxTemp"
+      // refIdx4Para[iRefList] holds the ref frame that resulted in the best RD for 4 parameters. Since the other frames are not so good,
+      // the ME with 6 params is not performed when we are testing a different frame, and the MVs are just copied
       if ( pu.cu->affineType == AFFINEMODEL_6PARAM && refIdx4Para[iRefList] != iRefIdxTemp )
       {
+        if(EXTRACT_AME_PROGRESS && pu.cu->imv==0){
+            // Initial MV
+            storch::exportAmeProgressMVs(pu.cu->affineType, cMvPred[iRefList][iRefIdxTemp], IS_FILLER, NOT_FINAL);
+            // isGrad + gradMV  
+            storch::exportAmeProgressFlag(pu.cu->affineType, 0);
+            storch::exportAmeProgressMVs(pu.cu->affineType, cMvPred[iRefList][iRefIdxTemp], IS_FILLER, NOT_FINAL);
+            // isRefinement + refinementMV
+            storch::exportAmeProgressFlag(pu.cu->affineType, 0);
+            storch::exportAmeProgressMVs(pu.cu->affineType, cMvPred[iRefList][iRefIdxTemp], IS_FILLER, IS_FINAL);
+        }
+        
         xCopyAffineAMVPInfo( affiAMVPInfoTemp[eRefPicList], aacAffineAMVPInfo[iRefList][iRefIdxTemp] );
         continue;
       }
@@ -4864,6 +4885,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       }
       storch::finishAffineInit(AFFINE_PARAMS, UNIPRED);
       
+      // Substitute the MV from AMVP by a MV generated after the HEVC MV
       if ( uiCandCost < biPDistTemp )
       {
         ::memcpy( cMvTemp[iRefList][iRefIdxTemp], mvHevc, sizeof(Mv)*3 );
@@ -4871,6 +4893,11 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       else
       {
         ::memcpy( cMvTemp[iRefList][iRefIdxTemp], cMvPred[iRefList][iRefIdxTemp], sizeof(Mv)*3 );
+      }
+            
+      // Initial MV (AMVP or derived after HEVC)
+      if(EXTRACT_AME_PROGRESS && pu.cu->imv==0){
+        storch::exportAmeProgressMVs(pu.cu->affineType, cMvTemp[iRefList][iRefIdxTemp], NOT_FILLER, NOT_FINAL)  ;
       }
 
       // GPB list 1, save the best MvpIdx, RefIdx and Cost
@@ -4888,7 +4915,16 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       {
         if ( slice.getList1IdxToList0Idx( iRefIdxTemp ) >= 0 && (pu.cu->affineType != AFFINEMODEL_6PARAM || slice.getList1IdxToList0Idx( iRefIdxTemp ) == refIdx4Para[0]) )
         { 
-          // Didn't understand this if... I believe it is considering that we are testing the same reference frame but in another reference list, therefore the distortion is the same but the cost is different
+            if(EXTRACT_AME_PROGRESS && pu.cu->imv==0){
+                // Filler for gradient
+                storch::exportAmeProgressFlag(pu.cu->affineType,0);
+                storch::exportAmeProgressMVs(pu.cu->affineType, cMvTemp[iRefList][iRefIdxTemp], IS_FILLER, NOT_FINAL);
+                // Filler for simplification and refinement
+                storch::exportAmeProgressFlag(pu.cu->affineType,0);
+                storch::exportAmeProgressMVs(pu.cu->affineType, cMvTemp[iRefList][iRefIdxTemp], IS_FILLER, IS_FINAL);
+            }
+                      
+          // If we are testing the same reference frame but in another reference list (i.e., frame 1 appears in L0 and L1), the distortion is the same but the cost is different. Copy the MV information and re-computed the cost
           int iList1ToList0Idx = slice.getList1IdxToList0Idx( iRefIdxTemp );
           ::memcpy( cMvTemp[1][iRefIdxTemp], cMvTemp[0][iList1ToList0Idx], sizeof(Mv)*3 );
           uiCostTemp = uiCostTempL0[iList1ToList0Idx];
@@ -5467,11 +5503,20 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
                                            int&            mvpIdx,
                                            const AffineAMVPInfo& aamvpi,
                                            bool            bBi)
-{  
+{
+  // TODO: What is this if?
   if( pu.cu->cs->sps->getUseBcw() && pu.cu->BcwIdx != BCW_DEFAULT && !bBi && xReadBufferedAffineUniMv(pu, eRefPicList, iRefIdxPred, acMvPred, acMv, ruiBits, ruiCost
       , mvpIdx, aamvpi
   ) )
   {
+    if(EXTRACT_AME_PROGRESS && !bBi && pu.cu->imv==0){        
+        // Filler for gradient
+        storch::exportAmeProgressFlag(pu.cu->affineType,0);
+        storch::exportAmeProgressMVs(pu.cu->affineType, acMv, IS_FILLER, NOT_FINAL);
+        // Filler for refinement
+        storch::exportAmeProgressFlag(pu.cu->affineType,0);
+        storch::exportAmeProgressMVs(pu.cu->affineType, acMv, IS_FILLER, IS_FINAL);        
+    }
     return;
   }
 
@@ -5786,6 +5831,13 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     }
   } // Exit MV optimization based on gradient
   storch::finishAffineMEGradient(AFFINE_PARAMS, PRED);
+
+  if(EXTRACT_AME_PROGRESS && !bBi && pu.cu->imv==0){
+      // MV after gradient ME
+      storch::exportAmeProgressFlag(pu.cu->affineType, 1);
+      storch::exportAmeProgressMVs(pu.cu->affineType, acMv, NOT_FILLER, NOT_FINAL);
+  }
+  
   // I didn't completely understand the following code. It seems that a lambda function named "checkCPMVRdCost" is declared. It takes as input the MV of 3 CPs "ctrlPtMv[3]"
   // performs the prediction for such MVs, and tests the new RD agains the best to swap when appropriate.
   // This function is called multiple times after its declaration, testing some simplifications on the affine MVs
@@ -5928,10 +5980,23 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
         break;
       }
     }
+    if(EXTRACT_AME_PROGRESS && !bBi && pu.cu->imv==0){
+        // isRefinement = 1
+        storch::exportAmeProgressFlag(pu.cu->affineType,1);
+    }
+  }
+  else{
+    if(EXTRACT_AME_PROGRESS && !bBi && pu.cu->imv==0){  
+        // isRefinement = 0
+        storch::exportAmeProgressFlag(pu.cu->affineType,0);
+    }
   }
   
   storch::finishAffineMESimpRef(AFFINE_PARAMS, PRED);
-  
+    if(EXTRACT_AME_PROGRESS && !bBi && pu.cu->imv==0){
+      // Final MV, after refinement and simplification
+      storch::exportAmeProgressMVs(pu.cu->affineType, acMv, NOT_FILLER, IS_FINAL);      
+    }
   acMvPred[0] = aamvpi.mvCandLT[mvpIdx];
   acMvPred[1] = aamvpi.mvCandRT[mvpIdx];
   acMvPred[2] = aamvpi.mvCandLB[mvpIdx];

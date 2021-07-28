@@ -21,7 +21,9 @@ struct timeval storch::fs1, storch::fs2, storch::aamvp1, storch::aamvp2, storch:
 int storch::extractedFrames[EXT_NUM][500];
 int storch::currPoc;
 int storch::inheritedCand, storch::constructedCand, storch::translationalCand, storch::temporalCand, storch::zeroCand, storch::totalCand;
+char storch::fillerChar;
 std::ofstream storch::affine_file;
+std::ofstream storch::affine_me_2cps_file, storch::affine_me_3cps_file;
 
 storch::storch() {
     fsTime = 0.0;
@@ -60,6 +62,8 @@ storch::storch() {
     zeroCand = 0;
     totalCand = 0;
     
+    fillerChar = 'x';
+    
     // Print the header of the file
     if(EXTRACT_AFFINE_MV){
         string affineFileName = (string) "affine_mv.csv";
@@ -69,6 +73,29 @@ storch::storch() {
         affine_file << "puX,puY,puWidth,puHeight,biPred,";
         affine_file << "nCP,LT_X,LT_Y,RT_X,RT_Y,LB_X,LB_Y,";
         affine_file << "subX,subY,mv_X,mv_Y" << endl;
+        
+    }
+    
+    if(EXTRACT_AME_PROGRESS){
+        affine_me_2cps_file.open("affine_progress_2CPs.csv");
+        affine_me_3cps_file.open("affine_progress_3CPs.csv");
+        
+        
+        affine_me_2cps_file << "POC,List,Ref,X,Y,W,H,";
+        affine_me_2cps_file << "AMVP_0_X,AMVP_0_Y,AMVP_1_X,AMVP_1_Y,AMVP_2_X,AMVP_2_Y,";
+        affine_me_2cps_file << "INIT_0_X,INIT_0_Y,INIT_1_X,INIT_1_Y,INIT_2_X,INIT_2_Y,";
+        affine_me_2cps_file << "isGradient,";
+        affine_me_2cps_file << " GRAD_0_X,GRAD_0_Y,GRAD_1_X,GRAD_1_Y,GRAD_2_X,GRAD_2_Y,";
+        affine_me_2cps_file << "isRefinement,";
+        affine_me_2cps_file << "FINAL_0_X,FINAL_0_Y,FINAL_1_X,FINAL_1_Y,FINAL_2_X,FINAL_2_Y" << endl;
+        
+        affine_me_3cps_file << "POC,List,Ref,X,Y,W,H,";
+        affine_me_3cps_file << "AMVP_0_X,AMVP_0_Y,AMVP_1_X,AMVP_1_Y,AMVP_2_X,AMVP_2_Y,";
+        affine_me_3cps_file << "INIT_0_X,INIT_0_Y,INIT_1_X,INIT_1_Y,INIT_2_X,INIT_2_Y,";
+        affine_me_3cps_file << "isGradient,";
+        affine_me_3cps_file << " GRAD_0_X,GRAD_0_Y,GRAD_1_X,GRAD_1_Y,GRAD_2_X,GRAD_2_Y,";
+        affine_me_3cps_file << "isRefinement,";
+        affine_me_3cps_file << "FINAL_0_X,FINAL_0_Y,FINAL_1_X,FINAL_1_Y,FINAL_2_X,FINAL_2_Y" << endl;
         
     }
        
@@ -281,6 +308,49 @@ void storch::exportAffineInfo(const PredictionUnit pu, Mv mvLT, Mv mvRT, Mv mvLB
     affine_file << subX << "," << subY << "," << mv_x << "," << mv_y << endl;
 //    affine_file.close();
     
+}
+
+void storch::exportAmeProgressFlag(int is3CPs, int flag){
+    if(!is3CPs){ // 2 CPs
+        storch::affine_me_2cps_file << flag << ",";
+    }
+    else{
+        storch::affine_me_3cps_file << flag << ",";
+    }
+}
+
+void storch::exportAmeProgressMVs(int is3CPs, Mv mvs[3], int isFiller, int isFinal){
+    if(!is3CPs){ // 2 CPs
+        if(isFiller)
+            storch::affine_me_2cps_file << storch::fillerChar << "," << storch::fillerChar << "," << storch::fillerChar << "," << storch::fillerChar << "," << storch::fillerChar << "," << storch::fillerChar;
+        else
+            storch::affine_me_2cps_file << mvs[0].hor << "," << mvs[0].ver << "," << mvs[1].hor << "," << mvs[1].ver << "," << mvs[2].hor << "," << mvs[2].ver;
+        
+        if(isFinal)
+            storch::affine_me_2cps_file << endl;
+        else
+            storch::affine_me_2cps_file << ",";
+    }
+    else{
+        if(isFiller)
+            storch::affine_me_3cps_file << storch::fillerChar << "," << storch::fillerChar << "," << storch::fillerChar << "," << storch::fillerChar << "," << storch::fillerChar << "," << storch::fillerChar;
+        else
+            storch::affine_me_3cps_file << mvs[0].hor << "," << mvs[0].ver << "," << mvs[1].hor << "," << mvs[1].ver << "," << mvs[2].hor << "," << mvs[2].ver;
+        
+        if(isFinal)
+            storch::affine_me_3cps_file << endl;
+        else
+            storch::affine_me_3cps_file << ",";
+    }
+}
+
+void storch::exportAmeProgressBlock(int is3CPs, int refList, int refIdx, PredictionUnit& pu){
+    if(!is3CPs){ // 2CPs
+        storch::affine_me_2cps_file << pu.cs->picture->getPOC() << "," << refList << "," << refIdx << "," << pu.lx() << "," << pu.ly() << "," << pu.lwidth() << "," << pu.lheight() << ",";
+    }
+    else{
+        storch::affine_me_3cps_file << pu.cs->picture->getPOC() << "," << refList << "," << refIdx << "," << pu.lx() << "," << pu.ly() << "," << pu.lwidth() << "," << pu.lheight() << ",";
+    }
 }
 
 // Used to track the execution time

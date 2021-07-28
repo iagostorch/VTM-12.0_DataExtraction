@@ -23,6 +23,8 @@
 
 #define EXTRACT_AFFINE_MV 0
 
+#define EXTRACT_AME_PROGRESS 1
+
 // This typedef is used to control what type of samples are being exported from the encoder
 typedef enum
 {
@@ -33,6 +35,18 @@ typedef enum
   PREDICTED,
   EXT_NUM
 } SamplesType;
+
+enum
+{
+    NOT_FINAL,
+    IS_FINAL
+};
+
+enum
+{
+    NOT_FILLER,
+    IS_FILLER
+};
 
 
 #include <iostream>
@@ -62,6 +76,10 @@ public:
     static void exportSamplesBlock(CPelBuf samples, SamplesType type);
     static void exportSamples4x4Block(Pel* samples, int xPos, int yPos, int stride, SamplesType type);
     static void exportAffineInfo(PredictionUnit pu, Mv mvLT, Mv mvRT, Mv mvLB, int subX, int subY, int mv_x, int mv_y);
+    
+    static void exportAmeProgressFlag(int is3CPs, int flag);
+    static void exportAmeProgressMVs(int is3CPs, Mv mvs[3], int isFiller, int isFinal);
+    static void exportAmeProgressBlock(int is3CPs, int refList, int refIdx, PredictionUnit& pu);
     
 #if EXAMPLE || EXAMPLE
     static void exampleFunct();
@@ -104,6 +122,8 @@ private:
     static double fsTime, aff4pTime, aff6pTime, aff4pAMVPTime, aff6pAMVPTime, affUnip4pTime, affBip4pTime, affUnip6pTime, affBip6pTime, affUnip4pInitTime, affBip4pInitTime, affUnip6pInitTime, affBip6pInitTime, affUnip4pMeTime, affBip4pMeTime, affUnip6pMeTime, affBip6pMeTime, affUnip4pMEGradTime, affBip4pMEGradTime, affUnip6pMEGradTime, affBip6pMEGradTime, affUnip4pMERefTime, affBip4pMERefTime, affUnip6pMERefTime, affBip6pMERefTime, affUnip4pMeInitTime, affBip4pMeInitTime, affUnip6pMeInitTime, affBip6pMeInitTime;
     static struct timeval fs1,fs2, aamvp1, aamvp2, ag1, ag2, a4p1, a4p2, a6p1, a6p2, affme1, affme2, sraffme1, sraffme2, affinit1, affinit2, affunip1, affunip2, affbip1, affbip2, affmeinit1, affmeinit2;
     static ofstream affine_file;
+    static ofstream affine_me_2cps_file, affine_me_3cps_file;
+    static char fillerChar;
     
 };
 
