@@ -37,6 +37,7 @@
 
 #include "InterSearch.h"
 
+extern int target;
 
 #include "CommonLib/CommonDef.h"
 #include "CommonLib/Rom.h"
@@ -5655,6 +5656,10 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   storch::startAffineMEGradient(AFFINE_PARAMS, PRED);
   for ( int iter=0; iter<iIterTime; iter++ )    // iterate loop
   {
+    // These are used specifically to measure the time of building and solving the system of linear equations during ME
+    // Starts by building the system...
+    storch::startAffineMEGradientEquations(AFFINE_PARAMS, PRED);
+    storch::startAffineMEGradientEquations_build(AFFINE_PARAMS, PRED);
     memcpy( prevIterMv[iter], acMvTemp, sizeof( Mv ) * 3 );
     /*********************************************************************************
      *                         use gradient to update mv
@@ -5709,6 +5714,9 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     double dAffinePara[6];
     double dDeltaMv[6]={0.0, 0.0, 0.0, 0.0, 0.0, 0.0,}; // This is the delta for the MVs of 3 CPs (x and y for 3 CPs)
     Mv acDeltaMv[3]; // This is also the deltas, however, with "Mv" datatype, therefore there are only 3 instances
+    // Finished building the system. Starts to solve it and derive the deltaMVs...
+    storch::finishAffineMEGradientEquations_build(AFFINE_PARAMS, PRED);
+    storch::startAffineMEGradientEquations_solve(AFFINE_PARAMS, PRED);
     // This solves the system and stores the proper parameters (a,b,c,d,e,f) on dAffinePara
     solveEqual( pdEqualCoeff, affineParaNum, dAffinePara );
 
@@ -5756,9 +5764,16 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
         bAllZero = true;
       }
 
-      if ( bAllZero )
-        break;
+      if ( bAllZero ){ // When the residual equals zero there is no need to continue
+          storch::finishAffineMEGradientEquations_solve(AFFINE_PARAMS, PRED);
+          break;
+      }
+        
     }
+    // Finished solving the system of equations. Now update the MVs and perform a new prediction
+    storch::finishAffineMEGradientEquations_solve(AFFINE_PARAMS, PRED);
+    storch::finishAffineMEGradientEquations(AFFINE_PARAMS, PRED);
+    storch::startAffineMEGradientPred(AFFINE_PARAMS, PRED);
     // do motion compensation with updated mv
     for ( int i = 0; i < mvNum; i++ )
     {
@@ -5796,13 +5811,30 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
         break;
       }
     }
-        
+      
+    // Used to extract the information of a specific block during the encoding
+    target = 0;
+    target &= pu.lwidth()==128;
+    target &= pu.lheight()==128;
+    target &= pu.lx()==384;
+    target &= pu.ly()==0;
+    target &= acMvTemp[0].hor==-28;
+    target &= acMvTemp[0].ver==76;
+    target &= acMvTemp[1].hor==-28;
+    target &= acMvTemp[1].ver==56;
+    target &= bBi == false;
+    target &= pu.cu->affineType == AFFINEMODEL_4PARAM;
+    
+    int extract_rd = 0 & target;
+       
     // The MV was updated recently based on the gradient. Now it performs the prediction
     // with new MVs, and computes the error to uptade de MV again in next iteration
     xPredAffineBlk( COMPONENT_Y, pu, refPic, acMvTemp, predBuf, false, pu.cu->slice->clpRng( COMPONENT_Y ) );
     
     // get error
-    Distortion uiCostTemp = m_pcRdCost->getDistPart(predBuf.Y(), pBuf->Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA), COMPONENT_Y, distFunc);
+//    Distortion uiCostTemp = m_pcRdCost->getDistPart(predBuf.Y(), pBuf->Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA), COMPONENT_Y, distFunc);
+    Distortion uiCostTemp = m_pcRdCost->getDistPart_target(predBuf.Y(), pBuf->Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA), COMPONENT_Y, distFunc, extract_rd);
+    
     DTRACE( g_trace_ctx, D_COMMON, " (%d) uiCostTemp=%d\n", DTRACE_GET_COUNTER(g_trace_ctx,D_COMMON), uiCostTemp );
 
     // get cost with mv
@@ -5829,6 +5861,8 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
       memcpy( acMv, acMvTemp, sizeof(Mv) * 3 );
       mvpIdx = bestMvpIdx;
     }
+    // Finished the prediction. Next loop iteration builds a new system of equations
+    storch::finishAffineMEGradientPred(AFFINE_PARAMS, PRED);
   } // Exit MV optimization based on gradient
   storch::finishAffineMEGradient(AFFINE_PARAMS, PRED);
 

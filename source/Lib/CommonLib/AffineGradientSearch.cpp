@@ -79,16 +79,18 @@ void AffineGradientSearch::xHorizontalSobelFilter( Pel *const pPred, const int p
           pPred[iCenter + 1 + predStride] -
           pPred[iCenter - 1 + predStride]);
     }
-
+    // Fill the left and right borders of each line, except first and last lines, with the inwards neighbor gradient
     pDerivate[j * derivateBufStride] = pDerivate[j * derivateBufStride + 1];
     pDerivate[j * derivateBufStride + width - 1] = pDerivate[j * derivateBufStride + width - 2];
   }
 
+  // Fill the four corners of the rectangle with the "diagonal" inwards neighbor gradient
   pDerivate[0] = pDerivate[derivateBufStride + 1];
   pDerivate[width - 1] = pDerivate[derivateBufStride + width - 2];
   pDerivate[(height - 1) * derivateBufStride] = pDerivate[(height - 2) * derivateBufStride + 1];
   pDerivate[(height - 1) * derivateBufStride + width - 1] = pDerivate[(height - 2) * derivateBufStride + (width - 2)];
-
+  
+  // Fill the values of the first and last lines, with the inwards neighbor gradient
   for ( int j = 1; j < width - 1; j++ )
   {
     pDerivate[j] = pDerivate[derivateBufStride + j];

@@ -17,7 +17,9 @@
 #include "Picture.h"
 
 double storch::fsTime, storch::aff4pTime, storch::aff6pTime, storch::aff4pAMVPTime, storch::aff6pAMVPTime, storch::affUnip4pTime, storch::affBip4pTime, storch::affUnip6pTime, storch::affBip6pTime, storch::affUnip4pInitTime, storch::affBip4pInitTime, storch::affUnip6pInitTime, storch::affBip6pInitTime, storch::affUnip4pMeTime, storch::affBip4pMeTime, storch::affUnip6pMeTime, storch::affBip6pMeTime, storch::affUnip4pMEGradTime, storch::affBip4pMEGradTime, storch::affUnip6pMEGradTime, storch::affBip6pMEGradTime, storch::affUnip4pMERefTime, storch::affBip4pMERefTime, storch::affUnip6pMERefTime, storch::affBip6pMERefTime, storch::affUnip4pMeInitTime, storch::affBip4pMeInitTime, storch::affUnip6pMeInitTime, storch::affBip6pMeInitTime;
+double storch::affUnip4pMEGradTime_pred, storch::affBip4pMEGradTime_pred, storch::affUnip6pMEGradTime_pred, storch::affBip6pMEGradTime_pred, storch::affUnip4pMEGradTime_eq, storch::affBip4pMEGradTime_eq, storch::affUnip6pMEGradTime_eq, storch::affBip6pMEGradTime_eq, storch::affUnip4pMEGradTime_eq_build, storch::affUnip4pMEGradTime_eq_solve, storch::affBip4pMEGradTime_eq_build, storch::affBip4pMEGradTime_eq_solve, storch::affUnip6pMEGradTime_eq_build, storch::affUnip6pMEGradTime_eq_solve, storch::affBip6pMEGradTime_eq_build, storch::affBip6pMEGradTime_eq_solve;
 struct timeval storch::fs1, storch::fs2, storch::aamvp1, storch::aamvp2, storch::ag1, storch::ag2, storch::a4p1, storch::a4p2, storch::a6p1, storch::a6p2, storch::affme1, storch::affme2, storch::sraffme1, storch::sraffme2, storch::affinit1, storch::affinit2, storch::affunip1, storch::affunip2, storch::affbip1, storch::affbip2, storch::affmeinit1, storch::affmeinit2;
+clock_t storch::clock_agp1, storch::clock_agp2, storch::clock_age1, storch::clock_age2, storch::clock_ageb1, storch::clock_ageb2, storch::clock_ages1, storch::clock_ages2;
 int storch::extractedFrames[EXT_NUM][500];
 int storch::currPoc;
 int storch::inheritedCand, storch::constructedCand, storch::translationalCand, storch::temporalCand, storch::zeroCand, storch::totalCand;
@@ -51,7 +53,23 @@ storch::storch() {
     affBip4pMERefTime = 0.0;
     affUnip6pMERefTime = 0.0;
     affBip6pMERefTime = 0.0;
-
+    
+    affUnip4pMEGradTime_pred = 0.0;
+    affBip4pMEGradTime_pred = 0.0;
+    affUnip6pMEGradTime_pred = 0.0;
+    affBip6pMEGradTime_pred = 0.0;
+    affUnip4pMEGradTime_eq = 0.0;
+    affBip4pMEGradTime_eq = 0.0;
+    affUnip6pMEGradTime_eq = 0.0;
+    affBip6pMEGradTime_eq = 0.0;
+    affUnip4pMEGradTime_eq_build = 0.0;
+    affUnip4pMEGradTime_eq_solve = 0.0;
+    affBip4pMEGradTime_eq_build = 0.0;
+    affBip4pMEGradTime_eq_solve = 0.0;
+    affUnip6pMEGradTime_eq_build = 0.0;
+    affUnip6pMEGradTime_eq_solve = 0.0;
+    affBip6pMEGradTime_eq_build = 0.0;
+    affBip6pMEGradTime_eq_solve = 0.0;
     
     currPoc = 0;
     
@@ -108,7 +126,7 @@ storch::storch() {
 
 // Print extracted encoding information
 void storch::printSummary() {
-    
+
     totalCand = inheritedCand + constructedCand + translationalCand + temporalCand + zeroCand;
     
     cout << endl << "---------------------------------------------------------------------" << endl;
@@ -126,6 +144,10 @@ void storch::printSummary() {
     cout << "  ME                    " << affUnip4pMeTime << endl;   
     cout << "    ME Init             " << affUnip4pMeInitTime << endl;    
     cout << "    ME Gradient         " << affUnip4pMEGradTime << endl;
+    cout << "        Equations:      " << affUnip4pMEGradTime_eq << endl;
+    cout << "          Build:        " << affUnip4pMEGradTime_eq_build << endl;
+    cout << "          Solve:        " << affUnip4pMEGradTime_eq_solve << endl;
+    cout << "        Pred+RD:        " << affUnip4pMEGradTime_pred << endl;
     cout << "    ME Simp/Refinement  " << affUnip4pMERefTime << endl;
     
     cout << "Unipred 6 params        " << affUnip6pTime << endl;
@@ -134,6 +156,10 @@ void storch::printSummary() {
     cout << "  ME                    " << affUnip6pMeTime << endl;
     cout << "    ME Init             " << affUnip6pMeInitTime << endl;    
     cout << "    ME Gradient         " << affUnip6pMEGradTime << endl;
+    cout << "        Equations:      " << affUnip6pMEGradTime_eq << endl;
+    cout << "          Build:        " << affUnip6pMEGradTime_eq_build << endl;
+    cout << "          Solve:        " << affUnip6pMEGradTime_eq_solve << endl;    
+    cout << "        Pred+RD:        " << affUnip6pMEGradTime_pred << endl;    
     cout << "    ME Simp/Refinement  " << affUnip6pMERefTime << endl;
     
     cout << "Bipred 4 params         " << affBip4pTime << endl;
@@ -141,6 +167,10 @@ void storch::printSummary() {
     cout << "  ME                    " << affBip4pMeTime << endl;
     cout << "    ME Init             " << affBip4pMeInitTime << endl;    
     cout << "    ME Gradient         " << affBip4pMEGradTime << endl;
+    cout << "        Equations:      " << affBip4pMEGradTime_eq << endl;
+    cout << "          Build:        " << affBip4pMEGradTime_eq_build << endl;
+    cout << "          Solve:        " << affBip4pMEGradTime_eq_solve << endl;    
+    cout << "        Pred+RD:        " << affBip4pMEGradTime_pred << endl;        
     cout << "    ME Simp/Refinement  " << affBip4pMERefTime << endl;
     
     cout << "Bipred 6 params         " << affBip6pTime << endl;
@@ -148,6 +178,10 @@ void storch::printSummary() {
     cout << "  ME                    " << affBip6pMeTime << endl;
     cout << "    ME Init             " << affBip6pMeInitTime << endl;    
     cout << "    ME Gradient         " << affBip6pMEGradTime << endl;
+    cout << "        Equations:      " << affBip6pMEGradTime_eq << endl;
+    cout << "          Build:        " << affBip6pMEGradTime_eq_build << endl;
+    cout << "          Solve:        " << affBip6pMEGradTime_eq_solve << endl;    
+    cout << "        Pred+RD:        " << affBip6pMEGradTime_pred << endl;    
     cout << "    ME Simp/Refinement  " << affBip6pMERefTime << endl;    
     
     cout << endl << endl;
@@ -383,6 +417,101 @@ void storch::finishAffineMEGradient(EAffineModel param, EAffinePred pred){
         cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
     }
 }
+
+void storch::startAffineMEGradientEquations(EAffineModel param, EAffinePred pred){
+    clock_age1 = clock();
+}
+
+void storch::finishAffineMEGradientEquations(EAffineModel param, EAffinePred pred){
+    assert(((param==AFFINEMODEL_4PARAM) || (param==AFFINEMODEL_6PARAM)) 
+            && ((pred==UNIPRED) || (pred==BIPRED)));
+
+    clock_age2 = clock();
+    
+    if(param == AFFINEMODEL_4PARAM && pred == UNIPRED){
+        affUnip4pMEGradTime_eq += (double) (clock_age2 - clock_age1)/(double) (CLOCKS_PER_SEC);        
+    }else if(param == AFFINEMODEL_4PARAM && pred == BIPRED){
+        affBip4pMEGradTime_eq += (double) (clock_age2 - clock_age1)/(double) (CLOCKS_PER_SEC);        
+    }else if(param == AFFINEMODEL_6PARAM && pred == UNIPRED){
+        affUnip6pMEGradTime_eq += (double) (clock_age2 - clock_age1)/(double) (CLOCKS_PER_SEC);        
+    }else if(param == AFFINEMODEL_6PARAM && pred == BIPRED){
+        affBip6pMEGradTime_eq += (double) (clock_age2 - clock_age1)/(double) (CLOCKS_PER_SEC);        
+    }else{
+        cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
+    }
+}
+
+
+void storch::startAffineMEGradientEquations_build(EAffineModel param, EAffinePred pred){
+    clock_ageb1 = clock();
+}
+
+void storch::finishAffineMEGradientEquations_build(EAffineModel param, EAffinePred pred){
+    assert(((param==AFFINEMODEL_4PARAM) || (param==AFFINEMODEL_6PARAM)) 
+            && ((pred==UNIPRED) || (pred==BIPRED)));
+
+    clock_ageb2 = clock();
+       
+    if(param == AFFINEMODEL_4PARAM && pred == UNIPRED){
+        affUnip4pMEGradTime_eq_build += (double) (clock_ageb2 - clock_ageb1)/(double) (CLOCKS_PER_SEC);        
+    }else if(param == AFFINEMODEL_4PARAM && pred == BIPRED){
+        affBip4pMEGradTime_eq_build += (double) (clock_ageb2 - clock_ageb1)/(double) (CLOCKS_PER_SEC);        
+    }else if(param == AFFINEMODEL_6PARAM && pred == UNIPRED){
+        affUnip6pMEGradTime_eq_build += (double) (clock_ageb2 - clock_ageb1)/(double) (CLOCKS_PER_SEC);        
+    }else if(param == AFFINEMODEL_6PARAM && pred == BIPRED){
+        affBip6pMEGradTime_eq_build += (double) (clock_ageb2 - clock_ageb1)/(double) (CLOCKS_PER_SEC);        
+    }else{
+        cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
+    }   
+}
+
+void storch::startAffineMEGradientEquations_solve(EAffineModel param, EAffinePred pred){
+    clock_ages1 = clock();
+}
+
+void storch::finishAffineMEGradientEquations_solve(EAffineModel param, EAffinePred pred){
+    assert(((param==AFFINEMODEL_4PARAM) || (param==AFFINEMODEL_6PARAM)) 
+            && ((pred==UNIPRED) || (pred==BIPRED)));
+
+    clock_ages2 = clock();
+    
+    if(param == AFFINEMODEL_4PARAM && pred == UNIPRED){
+        affUnip4pMEGradTime_eq_solve += (double) (clock_ages2 - clock_ages1)/(double) (CLOCKS_PER_SEC);        
+    }else if(param == AFFINEMODEL_4PARAM && pred == BIPRED){
+        affBip4pMEGradTime_eq_solve += (double) (clock_ages2 - clock_ages1)/(double) (CLOCKS_PER_SEC);        
+    }else if(param == AFFINEMODEL_6PARAM && pred == UNIPRED){
+        affUnip6pMEGradTime_eq_solve += (double) (clock_ages2 - clock_ages1)/(double) (CLOCKS_PER_SEC);        
+    }else if(param == AFFINEMODEL_6PARAM && pred == BIPRED){
+        affBip6pMEGradTime_eq_solve += (double) (clock_ages2 - clock_ages1)/(double) (CLOCKS_PER_SEC);        
+    }else{
+        cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
+    }  
+    
+}
+
+void storch::startAffineMEGradientPred(EAffineModel param, EAffinePred pred){
+    clock_agp1 = clock();
+}
+
+void storch::finishAffineMEGradientPred(EAffineModel param, EAffinePred pred){
+    assert(((param==AFFINEMODEL_4PARAM) || (param==AFFINEMODEL_6PARAM)) 
+            && ((pred==UNIPRED) || (pred==BIPRED)));
+
+    clock_agp2 = clock();
+    
+    if(param == AFFINEMODEL_4PARAM && pred == UNIPRED){
+        affUnip4pMEGradTime_pred += (double) (clock_agp2 - clock_agp1)/(double) (CLOCKS_PER_SEC);        
+    }else if(param == AFFINEMODEL_4PARAM && pred == BIPRED){
+        affBip4pMEGradTime_pred += (double) (clock_agp2 - clock_agp1)/(double) (CLOCKS_PER_SEC);        
+    }else if(param == AFFINEMODEL_6PARAM && pred == UNIPRED){
+        affUnip6pMEGradTime_pred += (double) (clock_agp2 - clock_agp1)/(double) (CLOCKS_PER_SEC);        
+    }else if(param == AFFINEMODEL_6PARAM && pred == BIPRED){
+        affBip6pMEGradTime_pred += (double) (clock_agp2 - clock_agp1)/(double) (CLOCKS_PER_SEC);        
+    }else{
+        cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
+    }
+}
+
 
 void storch::startAffineAMVP(EAffineModel param, EAffinePred pred){
     gettimeofday(&aamvp1, NULL);

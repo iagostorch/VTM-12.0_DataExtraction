@@ -67,6 +67,7 @@ typedef Distortion (*FpDistFunc) (const DistParam&);
 class DistParam
 {
 public:
+  int                   extract_rd = 0; // Use to signal when the distortion should be extracted/printed or not
   CPelBuf               org;
   CPelBuf               cur;
 #if WCG_EXT
@@ -430,6 +431,7 @@ public:
 
 #if WCG_EXT
   Distortion   getDistPart( const CPelBuf &org, const CPelBuf &cur, int bitDepth, const ComponentID compID, DFunc eDFunc, const CPelBuf *orgLuma = NULL );
+  Distortion   getDistPart_target( const CPelBuf &org, const CPelBuf &cur, int bitDepth, const ComponentID compID, DFunc eDFunc, int target, const CPelBuf *orgLuma = NULL); // target allows signaling wher the RD should be extracted or not
 #else
   Distortion   getDistPart( const CPelBuf &org, const CPelBuf &cur, int bitDepth, const ComponentID compID, DFunc eDFunc );
 #endif

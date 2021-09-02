@@ -395,6 +395,56 @@ void RdCost::setDistParam( DistParam &rcDP, const Pel* pOrg, const Pel* piRefY, 
   }
 }
 
+// Modified function that allows signaling if the computed distortion should be printed or not
+Distortion RdCost::getDistPart_target( const CPelBuf &org, const CPelBuf &cur, int bitDepth, const ComponentID compID, DFunc eDFunc, int target, const CPelBuf *orgLuma)
+
+{
+  DistParam cDtParam;
+
+  cDtParam.extract_rd = target; // When target is true, we should print the distortion
+  cDtParam.org        = org;
+  cDtParam.cur        = cur;
+  cDtParam.step       = 1;
+  cDtParam.bitDepth   = bitDepth;
+  cDtParam.compID     = compID;
+
+#if WCG_EXT
+  if( orgLuma )
+  {
+    cDtParam.cShiftX = getComponentScaleX(compID,  m_cf);
+    cDtParam.cShiftY = getComponentScaleY(compID,  m_cf);
+    if( isChroma(compID) )
+    {
+      cDtParam.orgLuma  = *orgLuma;
+    }
+    else
+    {
+      cDtParam.orgLuma  = org;
+    }
+  }
+#endif
+
+  // If the block width is a power of 2, the "floorLog2(org.width)" offset is used
+  // to point for a specific SIMD implementation
+  if( isPowerOf2( org.width ) )
+  {
+    cDtParam.distFunc = m_afpDistortFunc[eDFunc + floorLog2(org.width)];
+  }
+  else
+  {
+    cDtParam.distFunc = m_afpDistortFunc[eDFunc];
+  }
+  if (isChroma(compID))
+  {
+    return ((Distortion) (m_distortionWeight[ MAP_CHROMA(compID) ] * cDtParam.distFunc( cDtParam )));
+  }
+  else
+  {
+    // This line computes the distortion: distFunc is a pointer to a function, cDtParam holds all parameters
+      return cDtParam.distFunc( cDtParam );
+  }
+}
+
 #if WCG_EXT
 Distortion RdCost::getDistPart( const CPelBuf &org, const CPelBuf &cur, int bitDepth, const ComponentID compID, DFunc eDFunc, const CPelBuf *orgLuma )
 #else
@@ -2155,7 +2205,7 @@ Distortion RdCost::xCalcHADs4x4( const Pel *piOrg, const Pel *piCur, int iStride
   int k;
   Distortion satd = 0;
   TCoeff diff[16], m[16], d[16];
-
+  
   CHECK( iStep != 1, "Invalid step" );
   for( k = 0; k < 16; k+=4 )
   {
@@ -2247,7 +2297,7 @@ Distortion RdCost::xCalcHADs4x4( const Pel *piOrg, const Pel *piCur, int iStride
   satd += abs(d[0]) >> 2;
 #endif
   satd  = ((satd+1)>>1);
-
+  
   return satd;
 }
 
@@ -2822,6 +2872,11 @@ Distortion RdCost::xGetHADs( const DistParam &rcDtParam )
 
   Distortion uiSum = 0;
 
+  // It is possible to extract intermediate SATDs based on the value of rcDtParam.extract_rd
+//  if(rcDtParam.print_rd){
+//      printf("Extract the desired values on the following if/else structures\n");
+//  }
+  
   if( iCols > iRows && ( iRows & 7 ) == 0 && ( iCols & 15 ) == 0 )
   {
     for( y = 0; y < iRows; y += 8 )
@@ -2917,7 +2972,7 @@ Distortion RdCost::xGetHADs( const DistParam &rcDtParam )
   {
     THROW( "Invalid size" );
   }
-   
+  
   return (uiSum >> DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth));
 }
 
