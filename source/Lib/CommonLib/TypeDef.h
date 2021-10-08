@@ -538,7 +538,8 @@ enum DFunc
   DF_SAD_INTERMEDIATE_BITDEPTH = 63,
 
   DF_SAD_WITH_MASK   = 64,
-  DF_TOTAL_FUNCTIONS = 65
+  DF_TOTAL_FUNCTIONS = 65,
+  GPU_ME_DISTORTION // Used to apply HAD4 in affine prediction when GPU_ME is enabled
 };
 
 /// motion vector predictor direction used in AMVP

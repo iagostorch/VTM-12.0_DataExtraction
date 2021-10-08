@@ -18,7 +18,9 @@
 
 double storch::fsTime, storch::aff4pTime, storch::aff6pTime, storch::aff4pAMVPTime, storch::aff6pAMVPTime, storch::affUnip4pTime, storch::affBip4pTime, storch::affUnip6pTime, storch::affBip6pTime, storch::affUnip4pInitTime, storch::affBip4pInitTime, storch::affUnip6pInitTime, storch::affBip6pInitTime, storch::affUnip4pMeTime, storch::affBip4pMeTime, storch::affUnip6pMeTime, storch::affBip6pMeTime, storch::affUnip4pMEGradTime, storch::affBip4pMEGradTime, storch::affUnip6pMEGradTime, storch::affBip6pMEGradTime, storch::affUnip4pMERefTime, storch::affBip4pMERefTime, storch::affUnip6pMERefTime, storch::affBip6pMERefTime, storch::affUnip4pMeInitTime, storch::affBip4pMeInitTime, storch::affUnip6pMeInitTime, storch::affBip6pMeInitTime;
 double storch::affUnip4pMEGradTime_pred, storch::affBip4pMEGradTime_pred, storch::affUnip6pMEGradTime_pred, storch::affBip6pMEGradTime_pred, storch::affUnip4pMEGradTime_eq, storch::affBip4pMEGradTime_eq, storch::affUnip6pMEGradTime_eq, storch::affBip6pMEGradTime_eq, storch::affUnip4pMEGradTime_eq_build, storch::affUnip4pMEGradTime_eq_solve, storch::affBip4pMEGradTime_eq_build, storch::affBip4pMEGradTime_eq_solve, storch::affUnip6pMEGradTime_eq_build, storch::affUnip6pMEGradTime_eq_solve, storch::affBip6pMEGradTime_eq_build, storch::affBip6pMEGradTime_eq_solve;
+double storch::affAmvpInit4pTime_128x128, storch::gradRefSimp4pTime_128x128, storch::blockPredTime_128x128, storch::affUnip4pTime_128x128, storch::affUnip6pTime_128x128;
 struct timeval storch::fs1, storch::fs2, storch::aamvp1, storch::aamvp2, storch::ag1, storch::ag2, storch::a4p1, storch::a4p2, storch::a6p1, storch::a6p2, storch::affme1, storch::affme2, storch::sraffme1, storch::sraffme2, storch::affinit1, storch::affinit2, storch::affunip1, storch::affunip2, storch::affbip1, storch::affbip2, storch::affmeinit1, storch::affmeinit2;
+struct timeval storch::amvpInit_128x128_1, storch::amvpInit_128x128_2, storch::gradRefSimp_128x128_1, storch::gradRefSimp_128x128_2, storch::blockPred_128x128_1, storch::blockPred_128x128_2, storch::affunip_128x128_1, storch::affunip_128x128_2;
 clock_t storch::clock_agp1, storch::clock_agp2, storch::clock_age1, storch::clock_age2, storch::clock_ageb1, storch::clock_ageb2, storch::clock_ages1, storch::clock_ages2;
 int storch::extractedFrames[EXT_NUM][500];
 int storch::currPoc;
@@ -71,6 +73,9 @@ storch::storch() {
     affBip6pMEGradTime_eq_build = 0.0;
     affBip6pMEGradTime_eq_solve = 0.0;
     
+    affAmvpInit4pTime_128x128 = 0.0;
+    gradRefSimp4pTime_128x128 = 0.0;
+        
     currPoc = 0;
     
     inheritedCand = 0;
@@ -183,6 +188,13 @@ void storch::printSummary() {
     cout << "          Solve:        " << affBip6pMEGradTime_eq_solve << endl;    
     cout << "        Pred+RD:        " << affBip6pMEGradTime_pred << endl;    
     cout << "    ME Simp/Refinement  " << affBip6pMERefTime << endl;    
+    
+    cout << "[!] Target times CUs 128x128" << endl;
+    cout << "  128x128 AMVP+Init 2CPs     " << affAmvpInit4pTime_128x128 << endl;
+    cout << "  128x128 Grad+Ref+Simp 2CPs " << gradRefSimp4pTime_128x128 << endl;
+    cout << "  128x128 Unipred 2 CPs      " << affUnip4pTime_128x128 << endl;
+    cout << "  128x128 Unipred 3 CPs      " << affUnip6pTime_128x128 << endl;
+    
     
     cout << endl << endl;
         
@@ -654,7 +666,30 @@ void storch::finishAffineUnipred(EAffineModel param, EAffinePred pred){
         cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
     }     
 }
-    
+
+void storch::startAffineUnipred_128x128(EAffineModel param, EAffinePred pred){
+    gettimeofday(&affunip_128x128_1, NULL);
+}
+
+void storch::finishAffineUnipred_128x128(EAffineModel param, EAffinePred pred){
+    assert(((param==AFFINEMODEL_4PARAM) || (param==AFFINEMODEL_6PARAM)) 
+            && (pred==UNIPRED)); 
+
+    gettimeofday(&affunip_128x128_2, NULL);
+
+    if(param == AFFINEMODEL_4PARAM && pred == UNIPRED){
+        affUnip4pTime_128x128 += (double) (affunip_128x128_2.tv_usec - affunip_128x128_1.tv_usec)/1000000 + (double) (affunip_128x128_2.tv_sec - affunip_128x128_1.tv_sec);
+    }else if(param == AFFINEMODEL_4PARAM && pred == BIPRED){
+        cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
+    }else if(param == AFFINEMODEL_6PARAM && pred == UNIPRED){
+        affUnip6pTime_128x128 += (double) (affunip_128x128_2.tv_usec - affunip_128x128_1.tv_usec)/1000000 + (double) (affunip_128x128_2.tv_sec - affunip_128x128_1.tv_sec);
+    }else if(param == AFFINEMODEL_6PARAM && pred == BIPRED){
+        cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
+    }else{
+        cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
+    }     
+}
+
 void storch::startAffineBipred(EAffineModel param, EAffinePred pred){
     gettimeofday(&affbip1, NULL);
 }
@@ -703,6 +738,28 @@ void storch::finishAffineMEInit(EAffineModel param, EAffinePred pred){
     
 }
 
+
+void storch::startAffineAmvpInit_128x128(EAffineModel param, EAffinePred pred){
+    gettimeofday(&amvpInit_128x128_1, NULL);
+}
+
+void storch::finishAffineAmvpInit_128x128(EAffineModel param, EAffinePred pred){
+    assert((param==AFFINEMODEL_4PARAM) && (pred==UNIPRED)); 
+
+    gettimeofday(&amvpInit_128x128_2, NULL);
+    affAmvpInit4pTime_128x128 += (double) (amvpInit_128x128_2.tv_usec - amvpInit_128x128_1.tv_usec)/1000000 + (double) (amvpInit_128x128_2.tv_sec - amvpInit_128x128_1.tv_sec);
+}
+
+void storch::startAffineGradRefSimp_128x128(EAffineModel param, EAffinePred pred){
+    gettimeofday(&gradRefSimp_128x128_1, NULL);
+}
+
+void storch::finishAffineGradRefSimp_128x128(EAffineModel param, EAffinePred pred){
+    assert((param==AFFINEMODEL_4PARAM) && (pred==UNIPRED)); 
+
+    gettimeofday(&gradRefSimp_128x128_2, NULL);
+    gradRefSimp4pTime_128x128 += (double) (gradRefSimp_128x128_2.tv_usec - gradRefSimp_128x128_1.tv_usec)/1000000 + (double) (gradRefSimp_128x128_2.tv_sec - gradRefSimp_128x128_1.tv_sec);
+}
 
 #if EXAMPLE || EXAMPLE
 void storch::exampleFunct() {

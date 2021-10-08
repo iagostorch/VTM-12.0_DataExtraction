@@ -23,7 +23,9 @@
 
 #define EXTRACT_AFFINE_MV 0
 
-#define EXTRACT_AME_PROGRESS 0
+#define EXTRACT_AME_PROGRESS 1
+
+#define GPU_ME 1     // When enabled: Disable AMVP, force predicted MV to 0x0, compute affine distortion using SATD_4x4, and skip the refinement and simplification stages afer Gradient-ME (for both lists L0 and L1)
 
 // This typedef is used to control what type of samples are being exported from the encoder
 typedef enum
@@ -126,6 +128,16 @@ public:
     
     static void startAffineMEGradientPred(EAffineModel param, EAffinePred pred);
     static void finishAffineMEGradientPred(EAffineModel param, EAffinePred pred);
+
+    // Functions for measuring the execution time of 128x128 CUs (uniprediction with L0 and L1)
+    static void startAffineUnipred_128x128(EAffineModel param, EAffinePred pred);
+    static void finishAffineUnipred_128x128(EAffineModel param, EAffinePred pred);
+    
+    static void startAffineAmvpInit_128x128(EAffineModel param, EAffinePred pred);
+    static void finishAffineAmvpInit_128x128(EAffineModel param, EAffinePred pred);
+    
+    static void startAffineGradRefSimp_128x128(EAffineModel param, EAffinePred pred);
+    static void finishAffineGradRefSimp_128x128(EAffineModel param, EAffinePred pred);
     
     static int extractedFrames[EXT_NUM][500]; // Maks what frame were already extracted   
     
@@ -133,13 +145,18 @@ private:
     static double fsTime, aff4pTime, aff6pTime, aff4pAMVPTime, aff6pAMVPTime, affUnip4pTime, affBip4pTime, affUnip6pTime, affBip6pTime, affUnip4pInitTime, affBip4pInitTime, affUnip6pInitTime, affBip6pInitTime, affUnip4pMeTime, affBip4pMeTime, affUnip6pMeTime, affBip6pMeTime, affUnip4pMEGradTime, affBip4pMEGradTime, affUnip6pMEGradTime, affBip6pMEGradTime, affUnip4pMERefTime, affBip4pMERefTime, affUnip6pMERefTime, affBip6pMERefTime, affUnip4pMeInitTime, affBip4pMeInitTime, affUnip6pMeInitTime, affBip6pMeInitTime;
     static double affUnip4pMEGradTime_pred, affBip4pMEGradTime_pred, affUnip6pMEGradTime_pred, affBip6pMEGradTime_pred, affUnip4pMEGradTime_eq, affBip4pMEGradTime_eq, affUnip6pMEGradTime_eq, affBip6pMEGradTime_eq, affUnip4pMEGradTime_eq_build, affUnip4pMEGradTime_eq_solve, affBip4pMEGradTime_eq_build, affBip4pMEGradTime_eq_solve, affUnip6pMEGradTime_eq_build, affUnip6pMEGradTime_eq_solve, affBip6pMEGradTime_eq_build, affBip6pMEGradTime_eq_solve;
     
-    static struct timeval fs1,fs2, aamvp1, aamvp2, ag1, ag2, a4p1, a4p2, a6p1, a6p2, affme1, affme2, sraffme1, sraffme2, affinit1, affinit2, affunip1, affunip2, affbip1, affbip2, affmeinit1, affmeinit2;
+    static double affAmvpInit4pTime_128x128, gradRefSimp4pTime_128x128, blockPredTime_128x128;
+    static double affUnip4pTime_128x128, affUnip6pTime_128x128;
+    
+    static struct timeval fs1,fs2, aamvp1, aamvp2, ag1, ag2, a4p1, a4p2, a6p1, a6p2, affme1, affme2, sraffme1, sraffme2, affinit1, affinit2, affunip1, affunip2, affbip1, affbip2, affmeinit1, affmeinit2;   
     static clock_t clock_agp1, clock_agp2, clock_age1, clock_age2, clock_ageb1, clock_ageb2, clock_ages1, clock_ages2;
+    
+    static struct timeval amvpInit_128x128_1, amvpInit_128x128_2, gradRefSimp_128x128_1, gradRefSimp_128x128_2, blockPred_128x128_1, blockPred_128x128_2, affunip_128x128_1, affunip_128x128_2;
     
     static ofstream affine_file;
     static ofstream affine_me_2cps_file, affine_me_3cps_file;
     static char fillerChar;
-    
+            
 };
 
 #endif /* STORCHMAIN_H */

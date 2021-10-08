@@ -44,6 +44,8 @@
 
 #include <limits>
 
+#include "storchmain.h"
+
 //! \ingroup CommonLib
 //! \{
 
@@ -485,6 +487,9 @@ Distortion RdCost::getDistPart( const CPelBuf &org, const CPelBuf &cur, int bitD
   {
     cDtParam.distFunc = m_afpDistortFunc[eDFunc];
   }
+  
+  if (eDFunc==GPU_ME_DISTORTION)
+    cDtParam.distFunc = xGetHAD4;
 
   if (isChroma(compID))
   {
@@ -2853,7 +2858,71 @@ Distortion RdCost::xCalcHADs8x4( const Pel *piOrg, const Pel *piCur, int iStride
   return sad;
 }
 
-// This distortion is used during affine ME
+// This distortion is used in affine only when GPU_ME is true
+Distortion RdCost::xGetHAD4( const DistParam &rcDtParam )
+{
+  if( rcDtParam.applyWeight )
+  {
+    return RdCostWeightPrediction::xGetHADsw( rcDtParam );
+  }
+  const Pel* piOrg = rcDtParam.org.buf;
+  const Pel* piCur = rcDtParam.cur.buf;
+  const int  iRows = rcDtParam.org.height;
+  const int  iCols = rcDtParam.org.width;
+  const int  iStrideCur = rcDtParam.cur.stride;
+  const int  iStrideOrg = rcDtParam.org.stride;
+  const int  iStep = rcDtParam.step;
+
+  int  x = 0, y = 0;
+
+  Distortion uiSum = 0;
+
+  // It is possible to extract intermediate SATDs based on the value of rcDtParam.extract_rd
+//  if(rcDtParam.extract_rd){
+//        printf("Extract the desired values on the following if/else structures\n");
+//  }
+    if( ( iRows % 4 == 0 ) && ( iCols % 4 == 0 ) )
+  {
+    int  iOffsetOrg = iStrideOrg << 2;
+    int  iOffsetCur = iStrideCur << 2;
+
+    for( y = 0; y < iRows; y += 4 )
+    {
+      for( x = 0; x < iCols; x += 4 )
+      {
+        uiSum += xCalcHADs4x4( &piOrg[x], &piCur[x*iStep], iStrideOrg, iStrideCur, iStep );
+        //if(rcDtParam.extract_rd){ // Extract SATD of 4x4 sub-block
+        //  printf("  %dx%d,%ld\n", x, y, xCalcHADs4x4( &piOrg[x], &piCur[x*iStep], iStrideOrg, iStrideCur, iStep ));
+        //}
+      }
+      piOrg += iOffsetOrg;
+      piCur += iOffsetCur;
+    }
+  }
+  else if( ( iRows % 2 == 0 ) && ( iCols % 2 == 0 ) )
+  {
+    printf("ERROR: Entered in 2x2 SATD computation during affine prediction\n");
+    int  iOffsetOrg = iStrideOrg << 1;
+    int  iOffsetCur = iStrideCur << 1;
+    for( y = 0; y < iRows; y += 2 )
+    {
+      for( x = 0; x < iCols; x += 2 )
+      {
+        uiSum += xCalcHADs2x2( &piOrg[x], &piCur[x*iStep], iStrideOrg, iStrideCur, iStep );
+      }
+      piOrg += iOffsetOrg;
+      piCur += iOffsetCur;
+    }
+  }
+  else
+  {
+    THROW( "Invalid size" );
+  }
+  
+  return (uiSum >> DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth));
+}
+
+// This distortion is used during affine ME and intra prediction
 Distortion RdCost::xGetHADs( const DistParam &rcDtParam )
 {
   if( rcDtParam.applyWeight )
@@ -2873,8 +2942,8 @@ Distortion RdCost::xGetHADs( const DistParam &rcDtParam )
   Distortion uiSum = 0;
 
   // It is possible to extract intermediate SATDs based on the value of rcDtParam.extract_rd
-//  if(rcDtParam.print_rd){
-//      printf("Extract the desired values on the following if/else structures\n");
+//  if(rcDtParam.extract_rd){
+//        printf("Extract the desired values on the following if/else structures\n");
 //  }
   
   if( iCols > iRows && ( iRows & 7 ) == 0 && ( iCols & 15 ) == 0 )

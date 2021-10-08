@@ -193,6 +193,7 @@ public:
   Mv             getPredictor            ( )  { return m_mvPredictor; }
   void           setCostScale             ( int iCostScale )           { m_iCostScale = iCostScale; }
   Distortion     getCost                  ( uint32_t b )                   { return Distortion( m_motionLambda * b ); }
+  Distortion     getCost_extract          ( uint32_t b )                   { printf("   Lambda:%f\n",m_motionLambda); return Distortion( m_motionLambda * b ); }
   // for ibc
   void           getMotionCost(int add) { m_dCost = m_dLambdaMotionSAD + add; }
 
@@ -383,6 +384,7 @@ private:
   static Distortion xGetMRHADs        ( const DistParam& pcDtParam );
 
   static Distortion xGetHADs          ( const DistParam& pcDtParam );
+  static Distortion xGetHAD4          ( const DistParam &rcDtParam ); // This distortion is used in affine only when GPU_ME is true
   static Distortion xCalcHADs2x2      ( const Pel *piOrg, const Pel *piCurr, int iStrideOrg, int iStrideCur, int iStep );
   static Distortion xCalcHADs4x4      ( const Pel *piOrg, const Pel *piCurr, int iStrideOrg, int iStrideCur, int iStep );
   static Distortion xCalcHADs8x8      ( const Pel *piOrg, const Pel *piCurr, int iStrideOrg, int iStrideCur, int iStep );
