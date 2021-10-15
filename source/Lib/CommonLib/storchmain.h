@@ -25,7 +25,7 @@
 
 #define EXTRACT_AME_PROGRESS 1
 
-#define GPU_ME 1     // When enabled: Disable AMVP, force predicted MV to 0x0, compute affine distortion using SATD_4x4, and skip the refinement and simplification stages afer Gradient-ME (for both lists L0 and L1)
+#define GPU_ME 0     // When enabled: Disable AMVP, force predicted MV to 0x0, compute affine distortion using SATD_4x4, and skip the refinement and simplification stages afer Gradient-ME (for both lists L0 and L1)
 
 // This typedef is used to control what type of samples are being exported from the encoder
 typedef enum
@@ -74,6 +74,7 @@ public:
     
     storch();
     static void printSummary();
+    static void printParamsSummary();
     static void exportSamplesFrame(PelBuf samples, int POC, SamplesType type);
     static void exportSamplesBlock(CPelBuf samples, SamplesType type);
     static void exportSamples4x4Block(Pel* samples, int xPos, int yPos, int stride, SamplesType type);
@@ -139,6 +140,8 @@ public:
     static void startAffineGradRefSimp_128x128(EAffineModel param, EAffinePred pred);
     static void finishAffineGradRefSimp_128x128(EAffineModel param, EAffinePred pred);
     
+    static void setPROF(int p);
+    
     static int extractedFrames[EXT_NUM][500]; // Maks what frame were already extracted   
     
 private:   
@@ -156,6 +159,8 @@ private:
     static ofstream affine_file;
     static ofstream affine_me_2cps_file, affine_me_3cps_file;
     static char fillerChar;
+    
+    static int prof; // Keep the value of PROF parameter
             
 };
 

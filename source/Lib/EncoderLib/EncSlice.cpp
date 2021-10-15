@@ -1428,7 +1428,7 @@ void EncSlice::compressSlice( Picture* pcPic, const bool bCompressEntireSlice, c
   m_pcInterSearch->resetAffineMVList();
   m_pcInterSearch->resetUniMvList();
   ::memset(g_isReusedUniMVsFilled, 0, sizeof(g_isReusedUniMVsFilled));
-  encodeCtus( pcPic, bCompressEntireSlice, bFastDeltaQP, m_pcLib );
+  encodeCtus( pcPic, bCompressEntireSlice, bFastDeltaQP, m_pcLib );    
   if (checkPLTRatio)
   {
     m_pcLib->checkPltStats(pcPic);
@@ -1523,6 +1523,10 @@ void EncSlice::encodeCtus( Picture* pcPic, const bool bCompressEntireSlice, cons
   const int iQPIndex              = pcSlice->getSliceQpBase();
 #endif
 
+  if(pcPic->getPOC()==0){
+    storch::setPROF(cs.sps->getUsePROF());
+  }
+  
   CABACWriter*    pCABACWriter    = pEncLib->getCABACEncoder()->getCABACEstimator( pcSlice->getSPS() );
   TrQuant*        pTrQuant        = pEncLib->getTrQuant();
   RdCost*         pRdCost         = pEncLib->getRdCost();

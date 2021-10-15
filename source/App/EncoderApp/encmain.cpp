@@ -333,6 +333,7 @@ int main(int argc, char* argv[])
          encTime / 1000.0);
 #endif
 
+  storch::printParamsSummary();
   storch::printSummary();
           
   return 0;

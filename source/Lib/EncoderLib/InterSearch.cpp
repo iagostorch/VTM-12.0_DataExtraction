@@ -5883,7 +5883,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     target &= bBi == false;
     target &= pu.cu->affineType == AFFINEMODEL_4PARAM;
 
-    int extract_rd = 0 & target;
+//    int extract_rd = 0 & target;
 
     // The MV was updated recently based on the gradient. Now it performs the prediction
     // with new MVs, and computes the error to uptade de MV again in next iteration
@@ -5897,6 +5897,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     // get cost with mv
     m_pcRdCost->setCostScale(0);
     uint32_t uiBitsTemp = ruiBits;
+    
     if ( pu.cu->imv == 2 && m_pcEncCfg->getUseAffineAmvrEncOpt() )
     {
       uiBitsTemp  = dirBits + xDetermineBestMvp( pu, acMvTemp, bestMvpIdx, aamvpi );

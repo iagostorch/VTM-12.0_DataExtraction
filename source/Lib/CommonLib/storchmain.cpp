@@ -29,6 +29,8 @@ char storch::fillerChar;
 std::ofstream storch::affine_file;
 std::ofstream storch::affine_me_2cps_file, storch::affine_me_3cps_file;
 
+int storch::prof; // Keep the value of the PROF parameter
+
 storch::storch() {
     fsTime = 0.0;
     aff4pTime = 0.0;
@@ -77,6 +79,8 @@ storch::storch() {
     gradRefSimp4pTime_128x128 = 0.0;
         
     currPoc = 0;
+    
+    prof = 0;
     
     inheritedCand = 0;
     constructedCand = 0;
@@ -127,6 +131,20 @@ storch::storch() {
             extractedFrames[t][f]=0;   // at the start, no frame was extracted
         }
     }
+}
+
+void storch::setPROF(int p){
+  prof = p;
+}
+
+void storch::printParamsSummary(){
+  cout << endl << "---------------------------------------------------------------------" << endl;
+  cout << "Relevant encoding parameters and macros" << endl;
+  cout << "GPU_ME:      " << GPU_ME << endl;
+  cout << "SIMD_ENABLE: " << SIMD_ENABLE << endl;
+  cout << "PROF:        " << prof << endl;
+  
+
 }
 
 // Print extracted encoding information
