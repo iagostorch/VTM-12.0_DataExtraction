@@ -2265,6 +2265,8 @@ bool InterSearch::predInterHashSearch(CodingUnit& cu, Partitioner& partitioner, 
 //! search of the best candidate for inter prediction
 void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
 {
+  // Track all calls to inter prediction
+//  printf("predInterSearch,X=%d,Y=%d,W=%d,H=%d\n", cu.lx(), cu.ly(), cu.lwidth(), cu.lheight());
   CodingStructure& cs = *cu.cs;
 
   AMVPInfo     amvp[2];
@@ -2326,7 +2328,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
   {
     checkAffine = !( bestCU->firstPU->mergeFlag || !bestCU->affine );
   }
-
+  
   if ( pu.cu->imv == 2 && checkNonAffine && pu.cu->slice->getSPS()->getAffineAmvrEnabledFlag() )
   {
     checkNonAffine = m_affineMotion.hevcCost[1] < m_affineMotion.hevcCost[0] * 1.06f;
@@ -2939,7 +2941,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
     // This if decides if affine will be tested or not
     if (cu.Y().width > 8 && cu.Y().height > 8 && cu.slice->getSPS()->getUseAffine() // Minimum block size and affine encoding parameter
       && checkAffine
-      && (bcwIdx == BCW_DEFAULT || m_affineModeSelected || !m_pcEncCfg->getUseBcwFast())
+      && (bcwIdx == BCW_DEFAULT || m_affineModeSelected || !m_pcEncCfg->getUseBcwFast())  // This m_affineModeSelected represents if the current CU is encoded with affine (?)
       )
     {
       m_hevcCost = uiHevcCost;
@@ -3342,7 +3344,7 @@ Distortion InterSearch::xGetAffineTemplateCost( PredictionUnit& pu, PelUnitBuf& 
   enum DFunc distFunc = (pu.cs->slice->getDisableSATDForRD()) ? DF_SAD : DF_HAD;
   
   // For Affine we enforce SATD 4x4 when using GPU_ME
-  if (GPU_ME && pu.lwidth()==128 && pu.lheight()==128 &&  pu.cu->affineType==AFFINEMODEL_4PARAM)
+  if (GPU_ME &&  pu.cu->affineType==AFFINEMODEL_4PARAM)
     distFunc = GPU_ME_DISTORTION;
   
   uiCost  = m_pcRdCost->getDistPart( origBuf.Y(), predBuf.Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA), COMPONENT_Y
@@ -4682,14 +4684,15 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
     
   // Affine is performed for all reference pictures
   // Uni-directional prediction
+  // Probe START of Affine Uniprediction
   storch::startAffineUnipred(AFFINE_PARAMS, UNIPRED);
-  if(pu.lwidth()==128 && pu.lheight()==128)
-    storch::startAffineUnipred_128x128(AFFINE_PARAMS, UNIPRED);
+  storch::startAffineUnipred_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu));
   for ( int iRefList = 0; iRefList < iNumPredDir; iRefList++ )
   {      
     // When GPU_ME is enabled, we force a predicted MV equal to 0x0 and skip the refinement and simplification stages after gradient-me
     int forceZeroMVP;
-    if(GPU_ME && pu.lwidth()==128 && pu.lheight()==128 && pu.cu->affineType==AFFINEMODEL_4PARAM)
+
+    if (GPU_ME &&  pu.cu->affineType==AFFINEMODEL_4PARAM)
       forceZeroMVP = 1;
     else
       forceZeroMVP = 0;
@@ -4709,9 +4712,8 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         }
       }
 
-      // Probe START INIT+AMVP for CUs 128x128 with 2 CPs
-      if(pu.lwidth()==128 && pu.lheight()==128 && pu.cu->affineType==AFFINEMODEL_4PARAM)
-        storch::startAffineAmvpInit_128x128(AFFINE_PARAMS, UNIPRED);
+      // Probe START INIT+AMVP
+      storch::startAffineAmvpInit_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu));
       
       // Do Affine AMVP. The candidates are stored in affiAMVPInfoTemp[eRefPicList], and the best predictors are retured in cMvPred
       // For each reference frame, affiAMVPInfoTemp holds 2 structures (the two candidates), and each structure is composed of 2/3 MVs (in the CPs)
@@ -4918,8 +4920,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       }
       
       // Probe FINISH INIT+AMVP
-      if(pu.lwidth()==128 && pu.lheight()==128 && pu.cu->affineType==AFFINEMODEL_4PARAM)// && iRefList==0)
-        storch::finishAffineAmvpInit_128x128(AFFINE_PARAMS, UNIPRED);
+      storch::finishAffineAmvpInit_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu));
       
       // Initial MV (AMVP or derived after HEVC)
       if(EXTRACT_AME_PROGRESS && pu.cu->imv==0){
@@ -4963,32 +4964,32 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         }
         else
         {
+          // Probe START of Gradient-ME, Refinement and Simplification stage
           storch::startAffineME(AFFINE_PARAMS, UNIPRED);
-          if(pu.lwidth()==128 && pu.lheight()==128 && pu.cu->affineType==AFFINEMODEL_4PARAM)
-            storch::startAffineGradRefSimp_128x128(AFFINE_PARAMS, UNIPRED);
-
+          storch::startAffineGradRefSimp_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu));
+          
           
           xAffineMotionEstimation( pu, origBuf, eRefPicList, cMvPred[iRefList][iRefIdxTemp], iRefIdxTemp, cMvTemp[iRefList][iRefIdxTemp], uiBitsTemp, uiCostTemp
                                    , aaiMvpIdx[iRefList][iRefIdxTemp], affiAMVPInfoTemp[eRefPicList]
           );
           
-          if(pu.lwidth()==128 && pu.lheight()==128 && pu.cu->affineType==AFFINEMODEL_4PARAM)
-            storch::finishAffineGradRefSimp_128x128(AFFINE_PARAMS, UNIPRED);
+          // Probe END of Gradient-ME, Refinement and Simplification stage
+          storch::finishAffineGradRefSimp_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu));
           storch::finishAffineME(AFFINE_PARAMS, UNIPRED);
         }
       }
       else
       {
+        // Probe START of Gradient-ME, Refinement and Simplification stage
         storch::startAffineME(AFFINE_PARAMS, UNIPRED);
-        if(pu.lwidth()==128 && pu.lheight()==128 && pu.cu->affineType==AFFINEMODEL_4PARAM)// && iRefList==0)
-            storch::startAffineGradRefSimp_128x128(AFFINE_PARAMS, UNIPRED);
+        storch::startAffineGradRefSimp_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu));
         
         xAffineMotionEstimation( pu, origBuf, eRefPicList, cMvPred[iRefList][iRefIdxTemp], iRefIdxTemp, cMvTemp[iRefList][iRefIdxTemp], uiBitsTemp, uiCostTemp
                                  , aaiMvpIdx[iRefList][iRefIdxTemp], affiAMVPInfoTemp[eRefPicList]
         );
         
-        if(pu.lwidth()==128 && pu.lheight()==128 && pu.cu->affineType==AFFINEMODEL_4PARAM)// && iRefList==0)
-            storch::finishAffineGradRefSimp_128x128(AFFINE_PARAMS, UNIPRED);
+        // Probe END of Gradient-ME, Refinement and Simplification stage
+        storch::finishAffineGradRefSimp_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu));
         storch::finishAffineME(AFFINE_PARAMS, UNIPRED);
       }
       if(pu.cu->cs->sps->getUseBcw() && pu.cu->BcwIdx == BCW_DEFAULT && pu.cu->slice->isInterB())
@@ -5031,8 +5032,8 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       }
     } // End refIdx loop
   } // end Uni-prediction
-  if(pu.lwidth()==128 && pu.lheight()==128)
-    storch::finishAffineUnipred_128x128(AFFINE_PARAMS, UNIPRED);
+  // Probe END of Affine Uniprediction
+  storch::finishAffineUnipred_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu));
   storch::finishAffineUnipred(AFFINE_PARAMS, UNIPRED);
 
   if ( pu.cu->affineType == AFFINEMODEL_4PARAM )
@@ -5546,9 +5547,9 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
                                            const AffineAMVPInfo& aamvpi,
                                            bool            bBi)
 {
-  // When GPU_ME is true, we will skip the simplifications/refinements for 128x128 CUs
+  // When GPU_ME is true, we will skip the simplifications/refinements
   int skipRefinement;
-  if(GPU_ME && pu.lwidth()==128 && pu.lheight()==128 && bBi==0 && pu.cu->affineType==AFFINEMODEL_4PARAM){
+  if(GPU_ME && bBi==0 && pu.cu->affineType==AFFINEMODEL_4PARAM){
     skipRefinement = 1;
     // Uncomment to print ruiBits
     //    printf("ruiBits %d\n", ruiBits);
@@ -5587,7 +5588,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   enum DFunc distFunc = (pu.cs->slice->getDisableSATDForRD()) ? DF_SAD : DF_HAD;
   
   // For Affine we enforce SATD 4x4 when using GPU_ME
-  if (GPU_ME && pu.lwidth()==128 && pu.lheight()==128 && bBi==0 && pu.cu->affineType==AFFINEMODEL_4PARAM)
+  if (GPU_ME && bBi==0 && pu.cu->affineType==AFFINEMODEL_4PARAM)
     distFunc = GPU_ME_DISTORTION;
   
   m_iRefListIdx = eRefPicList;
@@ -5734,7 +5735,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
       pOrg  += bufStride; // skip to the next row of samples in the buffer
       pPred += predBufStride;
     }
-
+           
     // sobel x direction
     // -1 0 1
     // -2 0 2
@@ -5748,6 +5749,83 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     //  1  2  1
     m_VerticalSobelFilter( pPred, predBufStride, pdDerivate[1], width, width, height );  // pdDerivative[1] holds the horizontal gradient gX
 
+    // This target is used for debugging purposes. It allows exporting:
+    // -- Position and dimensions of the current CU
+    // -- Predicted CU, prediciton error, horizontal gradient, vertical gradient
+    // -- CPMVs at each iteration
+    // -- deltaCPMVs at each iteration
+    // -- System of equations at each iteration
+    int target = 0;
+    target &= pu.cs->picture->poc==1;
+    target &= pu.lwidth()==32;
+    target &= pu.lheight()==64;
+    target &= (pu.lx()==0 || pu.lx()==1504);
+    target &= (pu.ly()==0|| pu.ly()==832);
+    target &= pu.cu->affineType==0;
+    target &= bBi == false;
+    
+    
+    if( target ){
+      printf("\n\n");
+      printf("Iteration %d/%d\n", iter, iIterTime);
+      printf("Prediction SIGNAL for CU XY %dx%d     WH %dx%d\n", pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
+      printf("  LT %dx%d     RT %dx%d\n", acMvTemp[0].hor, acMvTemp[0].ver, acMvTemp[1].hor, acMvTemp[1].ver);
+      printf("{ Begin PREDICTION \n");
+      for ( int j=0; j< height; j++ ) // height and width of current PU
+      {
+        for ( int i=0; i< width; i++ )
+        {
+          printf("%d,",predBuf.Y().buf[j*predBufStride+i]);
+        }
+        printf("\n");
+      }
+      printf("} End PREDICTION\n\n");
+      
+      
+      
+      
+      printf("Prediction error for CU XY %dx%d     WH %dx%d\n", pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
+      printf("  LT %dx%d     RT %dx%d\n", acMvTemp[0].hor, acMvTemp[0].ver, acMvTemp[1].hor, acMvTemp[1].ver);
+      printf("{ Begin error \n");
+      for ( int j=0; j< height; j++ ) // height and width of current PU
+      {
+        for ( int i=0; i< width; i++ )
+        {
+          printf("%d,",piError[i + j * width]);
+        }
+        printf("\n");
+      }
+      printf("} End error\n\n");
+      
+      printf("Prediction gradient HORIZONTAL for CU XY %dx%d     WH %dx%d\n", pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
+      printf("  LT %dx%d     RT %dx%d\n", acMvTemp[0].hor, acMvTemp[0].ver, acMvTemp[1].hor, acMvTemp[1].ver);
+      printf("{ Begin grad horizontal \n");
+      for ( int j=0; j< height; j++ ) // height and width of current PU
+      {
+        for ( int i=0; i< width; i++ )
+        {
+          printf("%d,",pdDerivate[0][i + j * width]);
+        }
+        printf("\n");
+      }
+      printf("} End grad horizontal\n\n");
+      
+      printf("Prediction gradient VERTICAL for CU XY %dx%d     WH %dx%d\n", pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
+      printf("  LT %dx%d     RT %dx%d\n", acMvTemp[0].hor, acMvTemp[0].ver, acMvTemp[1].hor, acMvTemp[1].ver);
+      printf("{ Begin grad vertical \n");
+      for ( int j=0; j< height; j++ ) // height and width of current PU
+      {
+        for ( int i=0; i< width; i++ )
+        {
+          printf("%d,",pdDerivate[1][i + j * width]);
+        }
+        printf("\n");
+      }
+      printf("} End grad vertical\n\n");
+      
+    }
+    
+    
     // solve delta x and y
     for ( int row = 0; row < iParaNum; row++ ) // paraNum is 5 and 7 for 4 params and 6 params, respec. paraNum=7 is described in eq (7) from doc L0260
     {
@@ -5756,11 +5834,11 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     }
 
     // Starts the computation of the (a,b,c,d,e,f) coefficients
-    // This function only fills a matrix with the proper values, "building" the system of equations. This involves some interesting calculations...
+    // This function only fills a matrix with the proper values, "building" the system of equations. This involves some interesting calculations...   
     m_EqualCoeffComputer( piError, width, pdDerivate, width, i64EqualCoeff, width, height
       , (pu.cu->affineType == AFFINEMODEL_6PARAM)
     );
-
+    
     for ( int row = 0; row < iParaNum; row++ )
     {
       for ( int i = 0; i < iParaNum; i++ )
@@ -5774,6 +5852,21 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     Mv acDeltaMv[3]; // This is also the deltas, however, with "Mv" datatype, therefore there are only 3 instances
     // Finished building the system. Starts to solve it and derive the deltaMVs...
     storch::finishAffineMEGradientEquations_build(AFFINE_PARAMS, PRED);
+    
+    if(target){
+      //printf("\n\n");
+      printf("Building system for CU XY %dx%d     WH %dx%d     LT %dx%d     RT %dx%d\n", pu.lx(), pu.ly(), pu.lwidth(), pu.lheight(), acMvTemp[0].hor, acMvTemp[0].ver, acMvTemp[1].hor, acMvTemp[1].ver);
+      for ( int row = 0; row < iParaNum; row++ )
+      {
+        for ( int i = 0; i < iParaNum; i++ )
+        {
+          cout << pdEqualCoeff[row][i] << ",";
+        }
+        cout << endl;
+      }
+    }
+    
+    
     storch::startAffineMEGradientEquations_solve(AFFINE_PARAMS, PRED);
     // This solves the system and stores the proper parameters (a,b,c,d,e,f) on dAffinePara
     solveEqual( pdEqualCoeff, affineParaNum, dAffinePara );
@@ -5804,6 +5897,16 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     {
       acDeltaMv[2] = Mv( ( int ) ( dDeltaMv[4] * multiShift + SIGN( dDeltaMv[4] ) * 0.5 ) << mvShift, ( int ) ( dDeltaMv[5] * multiShift + SIGN( dDeltaMv[5] ) * 0.5 ) << mvShift );
     }
+    
+    
+    if(target){
+      
+      printf("Deltas...\n");
+      printf("   deltaLT: %dx%d\n", acDeltaMv[0].hor, acDeltaMv[0].ver);
+      printf("   deltaRT: %dx%d\n", acDeltaMv[1].hor, acDeltaMv[1].ver);
+    }
+    
+    
     if ( !m_pcEncCfg->getUseAffineAmvrEncOpt() )
     {
       bool bAllZero = false;
@@ -5870,7 +5973,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
       }
     }
 
-    // Used to extract the information of a specific block during the encoding
+    // Used to extract the information of a specific block with a specific CPMV during prediction
     target = 0;
     target &= pu.lwidth()==128;
     target &= pu.lheight()==128;
@@ -5883,12 +5986,16 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     target &= bBi == false;
     target &= pu.cu->affineType == AFFINEMODEL_4PARAM;
 
-//    int extract_rd = 0 & target;
-
     // The MV was updated recently based on the gradient. Now it performs the prediction
     // with new MVs, and computes the error to uptade de MV again in next iteration
+    // This is used to allow debugging INSIDE xPredAffineBlk function, such as sub-MVs and testing if the CPMVs are considered "spread"
+    if(target){
+      storch::target_xPredAffineBlk = 1;
+    }
     xPredAffineBlk( COMPONENT_Y, pu, refPic, acMvTemp, predBuf, false, pu.cu->slice->clpRng( COMPONENT_Y ) );
-
+    
+    storch::target_xPredAffineBlk = 0;
+  
     // get error
     Distortion uiCostTemp = m_pcRdCost->getDistPart(predBuf.Y(), pBuf->Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA), COMPONENT_Y, distFunc);    
 
@@ -6130,7 +6237,7 @@ void InterSearch::xEstimateAffineAMVP( PredictionUnit&  pu,
   iBestIdx = 0;
   
   // When GPU_ME is true, only one candidate should be tested (they are all equal)
-  int skipAMVP = GPU_ME && pu.lwidth()==128 && pu.lheight()==128 && pu.cu->affineType==AFFINEMODEL_4PARAM;
+  int skipAMVP = GPU_ME && pu.cu->affineType==AFFINEMODEL_4PARAM;
   int numCand = skipAMVP ? 1 : affineAMVPInfo.numCand;
   for( int i = 0 ; i < numCand; i++ )
   {

@@ -35,6 +35,8 @@
     \brief    Coding Unit (CU) encoder class
 */
 
+#include "../CommonLib/storchmain.h"
+
 #include "EncCu.h"
 
 #include "EncLib.h"
@@ -59,6 +61,25 @@
 //! \{
 
 // ====================================================================================================================
+
+
+bool isAffineSize(SizeType width, SizeType height){
+  if((width>=32) && (height>=32))
+    return true;
+  else if((width==32) && (height==16))
+    return true;
+  else if((width==16) && (height==32))
+    return true;
+  else if((width==64) && (height==16))
+    return true;
+  else if((width==16) && (height==64))
+    return true;
+  else if((width==16) && (height==16))
+    return true;
+  else
+    return false;
+}
+
 EncCu::EncCu() : m_GeoModeTest
 {
   GeoMotionInfo(0, 1), GeoMotionInfo(1, 0),GeoMotionInfo(0, 2), GeoMotionInfo(1, 2), GeoMotionInfo(2, 0),
@@ -495,10 +516,103 @@ bool EncCu::xCheckBestMode( CodingStructure *&tempCS, CodingStructure *&bestCS, 
   return bestCSUpdated;
 }
 
+// Used for debugging purposes. Print the name of the input encoding mode
+void translateEncTestModeType(EncTestModeType t){
+  
+  switch(t){
+    case(ETM_HASH_INTER):
+      printf("ETM_HASH_INTER,");
+      break;
+    case(ETM_MERGE_SKIP):
+      printf("ETM_MERGE_SKIP,");
+      break;
+    case(ETM_INTER_ME):
+      printf("ETM_INTER_ME,");
+      break;
+    case(ETM_AFFINE):
+      printf("ETM_AFFINE,");
+      break;
+    case(ETM_MERGE_GEO):
+      printf("ETM_MERGE_GEO,");
+      break;
+    case(ETM_INTRA):
+      printf("ETM_INTRA,");
+      break;
+    case(ETM_PALETTE):
+      printf("ETM_PALETTE,");
+      break;
+    case(ETM_SPLIT_QT):
+      printf("ETM_SPLIT_QT,");
+      break;
+    case(ETM_SPLIT_BT_H):
+      printf("ETM_SPLIT_BT_H,");
+      break;
+    case(ETM_SPLIT_BT_V):
+      printf("ETM_SPLIT_BT_V,");
+      break;
+    case(ETM_SPLIT_TT_H):
+      printf("ETM_SPLIT_TT_H,");
+      break;
+    case(ETM_SPLIT_TT_V):
+      printf("ETM_SPLIT_TT_V,");
+      break;      
+    
+    case(ETM_POST_DONT_SPLIT):
+      printf("ETM_POST_DONT_SPLIT,");
+      break; 
+    case(ETM_RECO_CACHED):
+      printf("ETM_RECO_CACHED,");
+      break; 
+    case(ETM_TRIGGER_IMV_LIST):
+      printf("ETM_TRIGGER_IMV_LIST,");
+      break; 
+    case(ETM_IBC):
+      printf("ETM_IBC,");
+      break;  
+    case(ETM_IBC_MERGE):
+      printf("ETM_IBC_MERGE,");
+      break;   
+    case(ETM_INVALID):
+      printf("ETM_INVALID,");
+      break;         
+  }
+  
+  return;
+}
+
+// Used for debugging purposes. Print the name of input partition mode
+void translatePartSplit(PartLevel p){
+  switch(p.split){
+    case(CTU_LEVEL):
+      printf("R,");
+      break;
+    case(CU_QUAD_SPLIT):
+      printf("QT,");
+      break;
+    case(CU_HORZ_SPLIT):
+      printf("BH,");
+      break;
+    case(CU_VERT_SPLIT):
+      printf("BV,");
+      break;
+    case(CU_TRIH_SPLIT):
+      printf("TH,");
+      break;
+    case(CU_TRIV_SPLIT):
+      printf("TV,");
+      break;
+    default:
+      printf("%d,",p.split);
+      break;
+
+  }
+    
+}
+
 void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Partitioner& partitioner, double maxCostAllowed )
 {
   CHECK(maxCostAllowed < 0, "Wrong value of maxCostAllowed!");
-
+    
   uint32_t compBegin;
   uint32_t numComp;
   bool jointPLT = false;
@@ -555,6 +669,34 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
   const UnitArea currCsArea = clipArea( CS::getArea( *bestCS, bestCS->area, partitioner.chType ), *tempCS->picture );
 
   m_modeCtrl->initCULevel( partitioner, *tempCS );
+
+  
+  // Trace all calls of xCompressCU with affine-compatible CU sizes
+  if (0 && tempCS->picture->poc>0 && isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight())){
+    // Print POC, XY position, dimensions
+    printf("xCompressCU,POC=%d,X=%d,Y=%d,W=%d,H=%d,Part,", tempCS->picture->poc, tempCS->area.lx(), tempCS->area.ly(), tempCS->area.lwidth(), tempCS->area.lheight());
+
+    PartitioningStack z = partitioner.getPartStack();
+    
+    // Print the sequence of splits (QT, TH, TV, BH, BV) that led to the current CU
+    for(int i=0; i<z.size(); i++){
+      PartLevel part = z.at(i);
+      translatePartSplit(part);
+    }
+    
+    // Print the set of EncodingModes that will be tested in sequence
+    //*
+    cout << "|||";
+    std::vector<EncTestMode> zz = m_modeCtrl->m_ComprCUCtxList.back().testModes;
+  
+    for(int i=0; i<zz.size(); i++){
+      EncTestMode aa = zz.at(i);
+      translateEncTestModeType(aa.type);
+    }
+    //*/
+    cout << endl;    
+  }  
+  
   if( partitioner.currQtDepth == 0 && partitioner.currMtDepth == 0 && !tempCS->slice->isIntra() && ( sps.getUseSBT() || sps.getUseInterMTS() ) )
   {
     auto slsSbt = dynamic_cast<SaveLoadEncInfoSbt*>( m_modeCtrl );
@@ -723,6 +865,7 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
     }
     else if( currTestMode.type == ETM_INTRA )
     {
+      // Here it conducts intraframe prediction
       if (slice.getSPS()->getUseColorTrans() && !CS::isDualITree(*tempCS))
       {
         bool skipSecColorSpace = false;
@@ -757,11 +900,11 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
         xCheckRDCostIntra(tempCS, bestCS, partitioner, currTestMode, false);
       }
     }
-    else if (currTestMode.type == ETM_PALETTE)
+    else if (currTestMode.type == ETM_PALETTE) // Pallete mode for screen content
     {
       xCheckPLT( tempCS, bestCS, partitioner, currTestMode );
     }
-    else if (currTestMode.type == ETM_IBC)
+    else if (currTestMode.type == ETM_IBC) // IBC -> intra block copy fo screen content
     {
       xCheckRDCostIBCMode(tempCS, bestCS, partitioner, currTestMode);
     }
@@ -769,6 +912,8 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
     {
       xCheckRDCostIBCModeMerge2Nx2N(tempCS, bestCS, partitioner, currTestMode);
     }
+    // This IF tests if the current "mode" is a splitting mode
+    // i.e., instead of conducting some sort of prediction, we should partition the current block
     else if( isModeSplit( currTestMode ) )
     {
       if (bestCS->cus.size() != 0)
@@ -985,6 +1130,8 @@ void EncCu::updateLambda (Slice* slice, const int dQP,
 
 void EncCu::xCheckModeSplit(CodingStructure *&tempCS, CodingStructure *&bestCS, Partitioner &partitioner, const EncTestMode& encTestMode, const ModeType modeTypeParent, bool &skipInterPass )
 {
+  // The "return" statements prevent the encoder from testing further partitionings
+  
   const int qp                = encTestMode.qp;
   const Slice &slice          = *tempCS->slice;
   const int oldPrevQp         = tempCS->prevQP[partitioner.chType];
@@ -995,6 +1142,7 @@ void EncCu::xCheckModeSplit(CodingStructure *&tempCS, CodingStructure *&bestCS, 
 #endif
   const auto oldPLT           = tempCS->prevPLT;
 
+  // Here the variable "split" is assigned a value based on "encTestMode". Since "encTestMode" is a parameter for the current function, we must check how it is updated before the function call
   const PartSplit split = getPartSplit( encTestMode );
   const ModeType modeTypeChild = partitioner.modeType;
 
@@ -1025,6 +1173,9 @@ void EncCu::xCheckModeSplit(CodingStructure *&tempCS, CodingStructure *&bestCS, 
   m_CABACEstimator->getCtx() = SubCtx( Ctx::SplitHvFlag, ctxStartHv );
   m_CABACEstimator->getCtx() = SubCtx( Ctx::Split12Flag, ctxStart12 );
   m_CABACEstimator->getCtx() = SubCtx( Ctx::ModeConsFlag, ctxStartMC );
+  
+  // This "cost" is based on the paper "Recursive partitioning search space pruning using split cost prediction” from 2019 Data Compression Conference (DCC)
+  // When the current cost is larger than the cost of some previous partitionings, we terminate further partitioning
   if (cost > bestCS->cost + bestCS->costDbOffset
 #if ENABLE_QPA_SUB_CTU
     || (m_pcEncCfg->getUsePerceptQPA() && !m_pcEncCfg->getUseRateCtrl() && pps.getUseDQP() && (slice.getCuQpDeltaSubdiv() > 0) && (split == CU_HORZ_SPLIT || split == CU_VERT_SPLIT) &&
@@ -1032,8 +1183,17 @@ void EncCu::xCheckModeSplit(CodingStructure *&tempCS, CodingStructure *&bestCS, 
 #endif
     )
   {
-    xCheckBestMode( tempCS, bestCS, partitioner, encTestMode );
-    return;
+    xCheckBestMode( tempCS, bestCS, partitioner, encTestMode );  
+    
+    if((CUSTOMIZE_TREE_HEURISTICS                                   &&
+      (tempCS->area.lwidth()<16 || tempCS->area.lheight()<16        || // Current block has at least one dimension smaller than 32
+      ( tempCS->area.lwidth()==16 && tempCS->area.lheight()==16 ))) || // Current block is 32x32 -> we can skip smaller blocks using the heuristic
+        ALLOW_TREE_HEURISTICS
+            )
+    { 
+      return;
+    }
+    
   }
 
   const bool chromaNotSplit = modeTypeParent == MODE_TYPE_ALL && modeTypeChild == MODE_TYPE_INTRA ? true : false;
@@ -1091,25 +1251,33 @@ void EncCu::xCheckModeSplit(CodingStructure *&tempCS, CodingStructure *&bestCS, 
       tempSubCS->bestParent = bestSubCS->bestParent = bestCS;
       double newMaxCostAllowed = isLuma(partitioner.chType) ? std::min(encTestMode.maxCostAllowed, bestCS->cost - m_pcRdCost->calcRdCost(tempCS->fracBits, tempCS->dist)) : MAX_DOUBLE;
       newMaxCostAllowed = std::max(0.0, newMaxCostAllowed);
+      // Since xCompressCU is called before the early termination, it is probable that all combinations of sub-blocks were already tested when the early skip is checked and no combination improved the RD, therefore the cost for the BEST subCS is MAX_DOUBLE
       xCompressCU(tempSubCS, bestSubCS, partitioner, newMaxCostAllowed);
       tempSubCS->bestParent = bestSubCS->bestParent = nullptr;
-
-      if( bestSubCS->cost == MAX_DOUBLE )
-      {
-        CHECK( split == CU_QUAD_SPLIT, "Split decision reusing cannot skip quad split" );
-        tempCS->cost = MAX_DOUBLE;
-        tempCS->costDbOffset = 0;
-        tempCS->useDbCost = m_pcEncCfg->getUseEncDbOpt();
-        m_CurrCtx--;
-        partitioner.exitCurrSplit();
-        xCheckBestMode( tempCS, bestCS, partitioner, encTestMode );
-        if( partitioner.chType == CHANNEL_TYPE_LUMA )
+    
+    if( (CUSTOMIZE_TREE_HEURISTICS                                   && // Enforce the use of heuristic based on CUSTOMIZE_TREE_HEURISTICS
+        (tempCS->area.lwidth()<16 || tempCS->area.lheight()<16       || // Current block has at least one dimension smaller than 16
+        ( tempCS->area.lwidth()==16 && tempCS->area.lheight()==16 )))|| // Current block is 16x16 -> we can skip smaller blocks using the heuristic
+        ALLOW_TREE_HEURISTICS
+            ){
+      
+        if( bestSubCS->cost == MAX_DOUBLE )
         {
-          tempCS->motionLut = oldMotionLut;
+          CHECK( split == CU_QUAD_SPLIT, "Split decision reusing cannot skip quad split" );
+          tempCS->cost = MAX_DOUBLE;
+          tempCS->costDbOffset = 0;
+          tempCS->useDbCost = m_pcEncCfg->getUseEncDbOpt();
+          m_CurrCtx--;
+          partitioner.exitCurrSplit();
+          xCheckBestMode( tempCS, bestCS, partitioner, encTestMode );
+          if( partitioner.chType == CHANNEL_TYPE_LUMA )
+          {
+            tempCS->motionLut = oldMotionLut;
+          }
+          return;
         }
-        return;
       }
-
+      
       bool keepResi = KEEP_PRED_AND_RESI_SIGNALS;
       tempCS->useSubStructure( *bestSubCS, partitioner.chType, CS::getArea( *tempCS, subCUArea, partitioner.chType ), KEEP_PRED_AND_RESI_SIGNALS, true, keepResi, keepResi, true );
 
@@ -1131,25 +1299,34 @@ void EncCu::xCheckModeSplit(CodingStructure *&tempCS, CodingStructure *&bestCS, 
           CHECK( bestSubCS->cus[i]->predMode == MODE_INTER, "all CUs must not be inter mode in an Intra coding region (SCIPU)" );
         }
       }
-
-      tempSubCS->releaseIntermediateData();
-      bestSubCS->releaseIntermediateData();
-      if( !tempCS->slice->isIntra() && partitioner.isConsIntra() )
-      {
-        tempCS->cost = m_pcRdCost->calcRdCost( tempCS->fracBits, tempCS->dist );
-        if( tempCS->cost > bestCS->cost )
-        {
-          tempCS->cost = MAX_DOUBLE;
-          tempCS->costDbOffset = 0;
-          tempCS->useDbCost = m_pcEncCfg->getUseEncDbOpt();
-          m_CurrCtx--;
-          partitioner.exitCurrSplit();
-          if( partitioner.chType == CHANNEL_TYPE_LUMA )
+     
+    if( (CUSTOMIZE_TREE_HEURISTICS                                   && // CUSTOMIZE_TREE_HEURISTICS
+        (tempCS->area.lwidth()<16 || tempCS->area.lheight()<16       || // Current block has at least one dimension smaller than 16
+        ( tempCS->area.lwidth()==16 && tempCS->area.lheight()==16 )))|| // Current block is 16x16 -> we can skip smaller blocks using the heuristic
+        ALLOW_TREE_HEURISTICS
+            )
+    {     
+        tempSubCS->releaseIntermediateData();
+        bestSubCS->releaseIntermediateData();
+      
+        // If the partitioner only allows intra pred (constrained to intra) and tempCS is not intra, do something... 
+        if( !tempCS->slice->isIntra() && partitioner.isConsIntra() )
           {
-            tempCS->motionLut = oldMotionLut;
+            tempCS->cost = m_pcRdCost->calcRdCost( tempCS->fracBits, tempCS->dist );
+            if( tempCS->cost > bestCS->cost )
+            {
+              tempCS->cost = MAX_DOUBLE;
+              tempCS->costDbOffset = 0;
+              tempCS->useDbCost = m_pcEncCfg->getUseEncDbOpt();
+              m_CurrCtx--;
+              partitioner.exitCurrSplit();
+              if( partitioner.chType == CHANNEL_TYPE_LUMA )
+              {
+                tempCS->motionLut = oldMotionLut;
+              }
+              return;
+            }
           }
-          return;
-        }
       }
     }
   } while( partitioner.nextPart( *tempCS ) );
@@ -3486,7 +3663,7 @@ void EncCu::xCheckRDCostIBCMode(CodingStructure *&tempCS, CodingStructure *&best
 void EncCu::xCheckRDCostInter( CodingStructure *&tempCS, CodingStructure *&bestCS, Partitioner &partitioner, const EncTestMode& encTestMode )
 {
   tempCS->initStructData( encTestMode.qp );
-
+  
 
   m_pcInterSearch->setAffineModeSelected(false);
 

@@ -35,6 +35,8 @@
     \brief    Encoder controller for trying out specific modes
 */
 
+#include "../CommonLib/storchmain.h"
+
 #include "EncModeCtrl.h"
 
 #include "AQp.h"
@@ -85,16 +87,83 @@ void EncModeCtrl::xExtractFeatures( const EncTestMode encTestmode, CodingStructu
 
 bool EncModeCtrl::nextMode( const CodingStructure &cs, Partitioner &partitioner )
 {
+  
+  // Used for debugging purposes. Lists all encoding modes in the list of "next modes" before they are actualy tested or discarded
+  if(0 && cs.picture->poc>0){
+    printf("CS,X=%d,Y=%d,W=%d,H=%d\n", cs.area.lx(), cs.area.ly(), cs.area.lwidth(), cs.area.lheight());
+    EncTestMode *all = m_ComprCUCtxList.back().testModes.data();
+    for(int el=0; el<m_ComprCUCtxList.back().testModes.size(); el++){
+      EncTestModeType curr = all[el].type;
+      EncTestModeOpts opts = all[el].opts;
+      
+      switch(curr){
+        case ETM_HASH_INTER:
+          printf("ETM_HASH_INTER,%d\n",opts);
+          break;
+        case ETM_MERGE_SKIP:
+          printf("ETM_MERGE_SKIP,%d\n",opts);
+          break;
+        case ETM_INTER_ME:
+          printf("ETM_INTER_ME,%d\n",opts);
+          break;
+        case ETM_AFFINE:
+          printf("ETM_AFFINE,%d\n",opts);
+          break;
+        case ETM_MERGE_GEO:
+          printf("ETM_MERGE_GEO\n");
+          break;          
+        case ETM_INTRA:
+          printf("ETM_INTRA\n");
+          break;
+        case ETM_PALETTE:
+          printf("ETM_PALETTE\n");
+          break;
+          
+        case ETM_SPLIT_QT:
+          printf("ETM_SPLIT_QT\n");
+          break;         
+        case ETM_SPLIT_BT_H:
+          printf("ETM_SPLIT_BT_H\n");
+          break;
+        case ETM_SPLIT_BT_V:
+          printf("ETM_SPLIT_BT_V\n");
+          break;
+        case ETM_SPLIT_TT_H:
+          printf("ETM_SPLIT_TT_H\n");
+          break;
+        case ETM_SPLIT_TT_V:
+          printf("ETM_SPLIT_TT_V\n");
+          break;
+          
+        case ETM_POST_DONT_SPLIT:
+          printf("ETM_POST_DONT_SPLIT\n");
+          break;
+          
+        default:
+          printf("Others\n");
+          break;
+      }
+    } 
+  }
+  
+  // Copy the current mode for "last" position, which is tested first
   m_ComprCUCtxList.back().lastTestMode = m_ComprCUCtxList.back().testModes.back();
-
+  
+  // Removes the current mode
   m_ComprCUCtxList.back().testModes.pop_back();
 
-  while( !m_ComprCUCtxList.back().testModes.empty() && !tryModeMaster( currTestMode(), cs, partitioner ) )
+  // Conducts some manipulations in the list of modes.
+  // In summary, it goes over the list checking if each mode should be tested or not (tryModeMaster)
+  // When a mode SHOULD NOT be tested, it is "popped" out of the list and the next mode is checked
+  // When a mode SHOULD be tested, it exits the loop and this mode is kept in the ".back() position"
+  // After the while, it returns whether the list is empty or not: if it is not empty, a valid mode is in the ".back() position"
+  while( !m_ComprCUCtxList.back().testModes.empty() && !tryModeMaster( currTestMode(), cs, partitioner ) ) 
   {
     m_ComprCUCtxList.back().testModes.pop_back();
   }
 
-  return !m_ComprCUCtxList.back().testModes.empty();
+  // If the list is not empty, the mode in ".back() position" will be tested in xCompressCU
+  return !m_ComprCUCtxList.back().testModes.empty(); 
 }
 
 EncTestMode EncModeCtrl::currTestMode() const
@@ -999,6 +1068,7 @@ void EncModeCtrlMTnoRQT::initCULevel( Partitioner &partitioner, const CodingStru
   const CodingUnit* cuLeft  = cs.getCU( cs.area.blocks[partitioner.chType].pos().offset( -1, 0 ), partitioner.chType );
   const CodingUnit* cuAbove = cs.getCU( cs.area.blocks[partitioner.chType].pos().offset( 0, -1 ), partitioner.chType );
 
+  // Defines if the quaternary tree should be tested before the binary tree
   const bool qtBeforeBt = ( (  cuLeft  &&  cuAbove  && cuLeft ->qtDepth > partitioner.currQtDepth && cuAbove->qtDepth > partitioner.currQtDepth )
                          || (  cuLeft  && !cuAbove  && cuLeft ->qtDepth > partitioner.currQtDepth )
                          || ( !cuLeft  &&  cuAbove  && cuAbove->qtDepth > partitioner.currQtDepth )
@@ -1071,6 +1141,21 @@ void EncModeCtrlMTnoRQT::initCULevel( Partitioner &partitioner, const CodingStru
   //////////////////////////////////////////////////////////////////////////
   // Add unit split modes
 
+  // Used for debugging purposes. Print what partitionings are allowed for a specific block
+  if( 0                    &&
+      cs.picture->poc>=1   &&
+      cs.area.ly() < 192   &&
+      cs.area.ly() >= 128  &&
+      cs.area.lx() >= 192  &&
+      cs.area.lx() < 256
+    ){
+        printf("initCULevel - POC %d, CU %dx%d @ (%d,%d)\n", cs.picture->poc, cs.area.lwidth(), cs.area.lheight(), cs.area.lx(), cs.area.ly());
+        printf("    can(TRI_V) - %d\n", partitioner.canSplit( CU_TRIV_SPLIT, cs ));
+        printf("    can(TRI_H) - %d\n", partitioner.canSplit( CU_TRIH_SPLIT, cs ));
+        printf("    can(BI_V)  - %d\n", partitioner.canSplit( CU_VERT_SPLIT, cs ));
+        printf("    can(BI_H)  - %d\n", partitioner.canSplit( CU_HORZ_SPLIT, cs ));  
+  }
+  
   if( !cuECtx.get<bool>( QT_BEFORE_BT ) )
   {
     for( int qp = maxQP; qp >= minQP; qp-- )
@@ -1096,7 +1181,7 @@ void EncModeCtrlMTnoRQT::initCULevel( Partitioner &partitioner, const CodingStru
       m_ComprCUCtxList.back().testModes.push_back( { ETM_SPLIT_TT_H, ETO_STANDARD, qp } );
     }
   }
-
+    
   int minQPq = minQP;
   int maxQPq = maxQP;
   xGetMinMaxQP( minQP, maxQP, cs, partitioner, baseQP, *cs.sps, *cs.pps, CU_BT_SPLIT );
@@ -1246,7 +1331,8 @@ void EncModeCtrlMTnoRQT::initCULevel( Partitioner &partitioner, const CodingStru
     }
   }
 
-  // ensure to skip unprobable modes
+  // This if tests if the current mode in the ".back() position" should be tested. If not, the nextMode() function will remove as many modes as necessary
+  // until finding a mode that should be tested
   if( !tryModeMaster( m_ComprCUCtxList.back().testModes.back(), cs, partitioner ) )
   {
     nextMode( cs, partitioner );
@@ -1260,26 +1346,37 @@ void EncModeCtrlMTnoRQT::finishCULevel( Partitioner &partitioner )
   m_ComprCUCtxList.pop_back();
 }
 
-
+// Override of tryMode
+// This function decides if the current "mode" will be tested or not, where "mode" can be a prediction or splitting mode
+// Several heuristics are used to skip the evaluation of some modes
+// This function is modified to allow enabling/disabling the heuristics depending if the encoding mode and block size
+// These modifications are intended to enforce the AFFINE PREDICTION OF ALL BLOCKS
 bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingStructure &cs, Partitioner& partitioner )
 {
   ComprCUCtx& cuECtx = m_ComprCUCtxList.back();
-
+  
   // Fast checks, partitioning depended
-  if (cuECtx.isHashPerfectMatch && encTestmode.type != ETM_MERGE_SKIP && encTestmode.type != ETM_INTER_ME && encTestmode.type != ETM_AFFINE && encTestmode.type != ETM_MERGE_GEO)
-  {
-    return false;
-  }
+  // isHashPerfectMatch is used in screen content. We can maintain this heuristic
+    if (cuECtx.isHashPerfectMatch && encTestmode.type != ETM_MERGE_SKIP && encTestmode.type != ETM_INTER_ME && encTestmode.type != ETM_AFFINE && encTestmode.type != ETM_MERGE_GEO)
+    {
+      return false;
+    }
 
   // if early skip detected, skip all modes checking but the splits
-  if( cuECtx.earlySkip && m_pcEncCfg->getUseEarlySkipDetection() && !isModeSplit( encTestmode ) && !( isModeInter( encTestmode ) ) )
-  {
-    return false;
+//  if((CUSTOMIZE_TREE_HEURISTICS && (cs.area.lwidth()<32 || cs.area.lheight()<32))
+  if(( CUSTOMIZE_TREE_HEURISTICS && ( (cs.area.lwidth()==16 && cs.area.lheight()==16) || (cs.area.lwidth()<16 || cs.area.lheight()<16) ) )
+      || ALLOW_TREE_HEURISTICS)
+  { 
+    if( cuECtx.earlySkip && m_pcEncCfg->getUseEarlySkipDetection() && !isModeSplit( encTestmode ) && !( isModeInter( encTestmode ) ) )
+    {
+      return false;
+    }
   }
-
+  
   const PartSplit implicitSplit = partitioner.getImplicitSplit( cs );
   const bool isBoundary         = implicitSplit != CU_DONT_SPLIT;
-
+  
+  // DO NOT use the ALLOW_TREE_HEURISTICS conditional in this if/else
   if( isBoundary && encTestmode.type != ETM_SPLIT_QT )
   {
     return getPartSplit( encTestmode ) == implicitSplit;
@@ -1296,7 +1393,7 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
     {
       return true;
     }
-
+    // DO NOT use the ALLOW_TREE_HEURISTICS conditional in this if/else
     if( isModeNoSplit( encTestmode ) )
     {
       return false;
@@ -1314,15 +1411,20 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
 
   CodedCUInfo    &relatedCU          = getBlkInfo( partitioner.currArea() );
 
-  if( cuECtx.minDepth > partitioner.currQtDepth && partitioner.canSplit( CU_QUAD_SPLIT, cs ) )
+  // This heuristic enforces or avoids a quadtree partition
+  if((CUSTOMIZE_TREE_HEURISTICS && (cs.area.lwidth()<=16 || cs.area.lheight()<=16)) || 
+     ALLOW_TREE_HEURISTICS)
   {
-    // enforce QT
-    return encTestmode.type == ETM_SPLIT_QT;
-  }
-  else if( encTestmode.type == ETM_SPLIT_QT && cuECtx.maxDepth <= partitioner.currQtDepth )
-  {
-    // don't check this QT depth
-    return false;
+    if( cuECtx.minDepth > partitioner.currQtDepth && partitioner.canSplit( CU_QUAD_SPLIT, cs ) )
+    {
+      // enforce QT
+      return encTestmode.type == ETM_SPLIT_QT;
+    }
+    else if( encTestmode.type == ETM_SPLIT_QT && cuECtx.maxDepth <= partitioner.currQtDepth )
+    {
+      // don't check this QT depth
+      return false;
+    }
   }
 
   if( bestCS && bestCS->cus.size() == 1 )
@@ -1331,6 +1433,7 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
     cuECtx.set( BEST_NON_SPLIT_COST, bestCS->cost );
   }
 
+  // All early terminations of ETM_INTRA can be kept since they do not interfere in affine prediction
   if( encTestmode.type == ETM_INTRA )
   {
     if( getFastDeltaQp() )
@@ -1413,6 +1516,7 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
     }
     return true;
   }
+  // All early terminations of ETM_PALETTE (screen content) can be kept since they do not interfere in affine prediction
   else if (encTestmode.type == ETM_PALETTE)
   {
     if (partitioner.currArea().lumaSize().width > 64 || partitioner.currArea().lumaSize().height > 64
@@ -1442,12 +1546,14 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
     // IBC MODES
     return sps.getIBCFlag() && (partitioner.currArea().lumaSize().width < 128 && partitioner.currArea().lumaSize().height < 128);
   }
+  // Here we are conducting early termination in interframes prediction
+  // CAUTION IS REQUIRED
   else if( isModeInter( encTestmode ) )
   {
     // INTER MODES (ME + MERGE/SKIP)
     CHECK( slice.isIntra(), "Inter-mode should not be in the I-Slice mode list!" );
 
-    if( getFastDeltaQp() )
+    if( getFastDeltaQp() ) // "getFastDeltaQp()" is zero, it never enters this if
     {
       if( encTestmode.type == ETM_MERGE_SKIP )
       {
@@ -1465,40 +1571,56 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
     {
       if( encTestmode.opts == ETO_STANDARD )
       {
-        // NOTE: ETO_STANDARD is always done when early SKIP mode detection is enabled
-        if( !m_pcEncCfg->getUseEarlySkipDetection() )
+        if((CUSTOMIZE_TREE_HEURISTICS && (cs.area.lwidth()<16 || cs.area.lheight()<16)) || 
+           ALLOW_TREE_HEURISTICS)
         {
-          if( relatedCU.isSkip || relatedCU.isIntra )
+          // NOTE: ETO_STANDARD is always done when early SKIP mode detection is enabled
+          // It seems that when ESD is disabled and we are conducting inter prediction, in case relatedCU is SKIP or INTRA, we  avoid inter prediction for current block
+          // What is the "relatedCU"?
+          if( !m_pcEncCfg->getUseEarlySkipDetection() )
           {
-            return false;
+            if( relatedCU.isSkip || relatedCU.isIntra )
+            {
+              return false;
+            }
           }
         }
       }
       else if ((encTestmode.opts & ETO_IMV) != 0)
       {
-        int imvOpt = (encTestmode.opts & ETO_IMV) >> ETO_IMV_SHIFT;
-
-        if (imvOpt == 3 && cuECtx.get<double>(BEST_NO_IMV_COST) * 1.06 < cuECtx.get<double>(BEST_IMV_COST))
+        // This avoids testing an encoding mode in case the current RD cost is not good enough (compared to 1.06 threshold)
+        if((CUSTOMIZE_TREE_HEURISTICS && (cs.area.lwidth()<16 || cs.area.lheight()<16)) || 
+           ALLOW_TREE_HEURISTICS)
         {
-          if ( !m_pcEncCfg->getUseAffineAmvr() )
-          return false;
+          int imvOpt = (encTestmode.opts & ETO_IMV) >> ETO_IMV_SHIFT;
+
+          if (imvOpt == 3 && cuECtx.get<double>(BEST_NO_IMV_COST) * 1.06 < cuECtx.get<double>(BEST_IMV_COST))
+          {
+            if ( !m_pcEncCfg->getUseAffineAmvr() )
+            return false;
+          }
         }
       }
     }
 
-    if ( encTestmode.type == ETM_AFFINE && relatedCU.isIntra )
-    {
-      return false;
-    }
+    // This avoids testing AFFINE MERGE in case the parent CU (or maybe the current bestMode) is intra
+    // Since we are not working with affine merge this early termination can be kept
+      if ( encTestmode.type == ETM_AFFINE && relatedCU.isIntra )
+      {
+        return false;
+      }    
     if( encTestmode.type == ETM_MERGE_GEO && ( partitioner.currArea().lwidth() < GEO_MIN_CU_SIZE || partitioner.currArea().lheight() < GEO_MIN_CU_SIZE
                                             || partitioner.currArea().lwidth() > GEO_MAX_CU_SIZE || partitioner.currArea().lheight() > GEO_MAX_CU_SIZE
                                             || partitioner.currArea().lwidth() >= 8 * partitioner.currArea().lheight()
                                             || partitioner.currArea().lheight() >= 8 * partitioner.currArea().lwidth() ) )
     {
+      // Discarding this early termination causes seg fault
       return false;
     }
     return true;
   }
+  // Here we are conducting early termination in the partitioning mechanisms
+  // CAUTION IS REQUIRED
   else if( isModeSplit( encTestmode ) )
   {
     //////////////////////////////////////////////////////////////////////////
@@ -1506,18 +1628,26 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
     //                     in the split tree it was found that skip is the best mode
     //////////////////////////////////////////////////////////////////////////
     int skipScore = 0;
-
-    if ((!slice.isIntra() || slice.getSPS()->getIBCFlag()) && cuECtx.get<bool>(IS_BEST_NOSPLIT_SKIP))
+    
+    // If the 2 parent blocks (parent and grandparent) were encoded with SKIP, we do not conduct further splitting for this  CU
+    if( (CUSTOMIZE_TREE_HEURISTICS                         &&  
+        (cs.area.lwidth()<16 || cs.area.lheight()<16       || // Current block has at least one dimension smaller than 16
+        ( cs.area.lwidth()==16 && cs.area.lheight()==16))) || // Current block is 16x16 -> we can skip smaller blocks using the heuristic
+        ALLOW_TREE_HEURISTICS
+            )
     {
-      for( int i = 2; i < m_ComprCUCtxList.size(); i++ )
+      if ((!slice.isIntra() || slice.getSPS()->getIBCFlag()) && cuECtx.get<bool>(IS_BEST_NOSPLIT_SKIP))
       {
-        if( ( m_ComprCUCtxList.end() - i )->get<bool>( IS_BEST_NOSPLIT_SKIP ) )
+        for( int i = 2; i < m_ComprCUCtxList.size(); i++ )
         {
-          skipScore += 1;
-        }
-        else
-        {
-          break;
+          if( ( m_ComprCUCtxList.end() - i )->get<bool>( IS_BEST_NOSPLIT_SKIP ) )
+          {
+            skipScore += 1;
+          }
+          else
+          {
+            break;
+          }
         }
       }
     }
@@ -1529,9 +1659,13 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
       if( split == CU_VERT_SPLIT ) cuECtx.set( DID_VERT_SPLIT, false );
       if( split == CU_QUAD_SPLIT ) cuECtx.set( DID_QUAD_SPLIT, false );
 
+      // Avoiding this return causes seg fault
       return false;
     }
 
+    // iagostorch BEGIN
+    // Nunca entra nesse if porque o parametro ContentBasedFastQtbt é falso no lowdelay e randomaccess
+    // never enters this if since ContentBasedFastQtbt is FALSE in LOWDELAY and RANDOMACCESS
     if( m_pcEncCfg->getUseContentBasedFastQtbt() )
     {
       const CompArea& currArea = partitioner.currArea().Y();
@@ -1582,9 +1716,19 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
       }
     }
 
-    if( bestCU && bestCU->skip && bestCU->mtDepth >= m_skipThreshold && !isModeSplit( cuECtx.lastTestMode ) )
+    // This if avoids further partitionings if:
+    // (1) Current CU is bestCU and is SKIP and
+    // (2) MTT has already passed through a given depth
+    if((CUSTOMIZE_TREE_HEURISTICS                         &&
+        (cs.area.lwidth()<16 || cs.area.lheight()<16       || // Current block has at least one dimension smaller than 16
+        ( cs.area.lwidth()==16 && cs.area.lheight()==16))) || // Current block is 16x16 -> we can skip smaller blocks using the heuristic
+        ALLOW_TREE_HEURISTICS
+            )
     {
-      return false;
+      if( bestCU && bestCU->skip && bestCU->mtDepth >= m_skipThreshold && !isModeSplit( cuECtx.lastTestMode ) )
+      {
+        return false;
+      }
     }
 
     int featureToSet = -1;
@@ -1593,27 +1737,35 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
     {
       case CU_QUAD_SPLIT:
         {
-          if( !cuECtx.get<bool>( QT_BEFORE_BT ) && bestCU )
+          // This if avoids the quadtree in some cases, such as when the current CU is bestCU and it is encoded with SKIP
+          if((CUSTOMIZE_TREE_HEURISTICS                          &&
+              (cs.area.lwidth()<16 || cs.area.lheight()<16       || // Current block has at least one dimension smaller than 16
+              ( cs.area.lwidth()==16 && cs.area.lheight()==16))) || // Current block is 16x16 -> we can skip smaller blocks using the heuristic
+              ALLOW_TREE_HEURISTICS
+                  )
           {
-            unsigned maxBTD        = cs.pcv->getMaxBtDepth( slice, partitioner.chType );
-            const CodingUnit *cuBR = bestCS->cus.back();
-            unsigned height        = partitioner.currArea().lumaSize().height;
+            if( !cuECtx.get<bool>( QT_BEFORE_BT ) && bestCU )
+            {
+              unsigned maxBTD        = cs.pcv->getMaxBtDepth( slice, partitioner.chType );
+              const CodingUnit *cuBR = bestCS->cus.back();
+              unsigned height        = partitioner.currArea().lumaSize().height;
 
-            if (bestCU && ((bestCU->btDepth == 0 && maxBTD >= ((slice.isIntra() && !slice.getSPS()->getIBCFlag()) ? 3 : 2))
-              || (bestCU->btDepth == 1 && cuBR && cuBR->btDepth == 1 && maxBTD >= ((slice.isIntra() && !slice.getSPS()->getIBCFlag()) ? 4 : 3)))
-              && (width <= MAX_TB_SIZEY && height <= MAX_TB_SIZEY)
-              && cuECtx.get<bool>(DID_HORZ_SPLIT) && cuECtx.get<bool>(DID_VERT_SPLIT))
+              if (bestCU && ((bestCU->btDepth == 0 && maxBTD >= ((slice.isIntra() && !slice.getSPS()->getIBCFlag()) ? 3 : 2))
+                || (bestCU->btDepth == 1 && cuBR && cuBR->btDepth == 1 && maxBTD >= ((slice.isIntra() && !slice.getSPS()->getIBCFlag()) ? 4 : 3)))
+                && (width <= MAX_TB_SIZEY && height <= MAX_TB_SIZEY)
+                && cuECtx.get<bool>(DID_HORZ_SPLIT) && cuECtx.get<bool>(DID_VERT_SPLIT))
+              {
+                return false;
+              }
+            }
+            if( m_pcEncCfg->getUseEarlyCU() && bestCS->cost != MAX_DOUBLE && bestCU && bestCU->skip )
             {
               return false;
             }
-          }
-          if( m_pcEncCfg->getUseEarlyCU() && bestCS->cost != MAX_DOUBLE && bestCU && bestCU->skip )
-          {
-            return false;
-          }
-          if( getFastDeltaQp() && width <= slice.getPPS()->pcv->fastDeltaQPCuMaxSize )
-          {
-            return false;
+            if( getFastDeltaQp() && width <= slice.getPPS()->pcv->fastDeltaQPCuMaxSize )
+            {
+              return false;
+            }
           }
         }
         break;
@@ -1624,25 +1776,41 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
         featureToSet = DID_VERT_SPLIT;
         break;
       case CU_TRIH_SPLIT:
-        if( cuECtx.get<bool>( DID_HORZ_SPLIT ) && bestCU && bestCU->btDepth == partitioner.currBtDepth && !bestCU->rootCbf )
+        // This if avoids a ternary horizontal split based on some conditions, including if this is the bestCU and the depth of binary tree
+        if((CUSTOMIZE_TREE_HEURISTICS                          &&
+            (cs.area.lwidth()<16 || cs.area.lheight()<16       || // Current block has at least one dimension smaller than 16
+            ( cs.area.lwidth()==16 && cs.area.lheight()==16))) || // Current block is 16x16 -> we can skip smaller blocks using the heuristic
+            ALLOW_TREE_HEURISTICS
+                )
         {
-          return false;
-        }
+          if( cuECtx.get<bool>( DID_HORZ_SPLIT ) && bestCU && bestCU->btDepth == partitioner.currBtDepth && !bestCU->rootCbf )
+          {
+            return false;
+          }
 
-        if( !cuECtx.get<bool>( DO_TRIH_SPLIT ) )
-        {
-          return false;
+          if( !cuECtx.get<bool>( DO_TRIH_SPLIT ) )
+          {
+            return false;
+          }
         }
         break;
       case CU_TRIV_SPLIT:
-        if( cuECtx.get<bool>( DID_VERT_SPLIT ) && bestCU && bestCU->btDepth == partitioner.currBtDepth && !bestCU->rootCbf )
+        // This if avoids a ternary verticalsplit based on some conditions, including if this is the bestCU and the depth of binary tree
+        if((CUSTOMIZE_TREE_HEURISTICS                          &&
+            (cs.area.lwidth()<16 || cs.area.lheight()<16       || // Current block has at least one dimension smaller than 16
+            ( cs.area.lwidth()==16 && cs.area.lheight()==16))) || // Current block is 16x16 -> we can skip smaller blocks using the heuristic
+            ALLOW_TREE_HEURISTICS
+                )
         {
-          return false;
-        }
+          if( cuECtx.get<bool>( DID_VERT_SPLIT ) && bestCU && bestCU->btDepth == partitioner.currBtDepth && !bestCU->rootCbf )
+          {
+            return false;
+          }
 
-        if( !cuECtx.get<bool>( DO_TRIV_SPLIT ) )
-        {
-          return false;
+          if( !cuECtx.get<bool>( DO_TRIV_SPLIT ) )
+          {
+            return false;
+          }
         }
         break;
       default:
@@ -1655,23 +1823,39 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
     {
       case CU_HORZ_SPLIT:
       case CU_TRIH_SPLIT:
-        if( cuECtx.get<bool>( QT_BEFORE_BT ) && cuECtx.get<bool>( DID_QUAD_SPLIT ) )
+        // This if avoids a ternary or binary horizontal split
+        if((CUSTOMIZE_TREE_HEURISTICS                          &&
+            (cs.area.lwidth()<16 || cs.area.lheight()<16       || // Current block has at least one dimension smaller than 16
+            ( cs.area.lwidth()==16 && cs.area.lheight()==16))) || // Current block is 16x16 -> we can skip smaller blocks using the heuristic
+            ALLOW_TREE_HEURISTICS
+                )
         {
-          if( cuECtx.get<int>( MAX_QT_SUB_DEPTH ) > partitioner.currQtDepth + 1 )
+          if( cuECtx.get<bool>( QT_BEFORE_BT ) && cuECtx.get<bool>( DID_QUAD_SPLIT ) )
           {
-            if( featureToSet >= 0 ) cuECtx.set( featureToSet, false );
-            return false;
+            if( cuECtx.get<int>( MAX_QT_SUB_DEPTH ) > partitioner.currQtDepth + 1 )
+            {
+              if( featureToSet >= 0 ) cuECtx.set( featureToSet, false );
+              return false;
+            }
           }
-        }
+          }
         break;
       case CU_VERT_SPLIT:
       case CU_TRIV_SPLIT:
-        if( cuECtx.get<bool>( QT_BEFORE_BT ) && cuECtx.get<bool>( DID_QUAD_SPLIT ) )
+        // This if avoids a ternary or binary vertical split
+        if((CUSTOMIZE_TREE_HEURISTICS                          &&
+            (cs.area.lwidth()<16 || cs.area.lheight()<16       || // Current block has at least one dimension smaller than 16
+            ( cs.area.lwidth()==16 && cs.area.lheight()==16))) || // Current block is 16x16 -> we can skip smaller blocks using the heuristic
+            ALLOW_TREE_HEURISTICS
+                )
         {
-          if( cuECtx.get<int>( MAX_QT_SUB_DEPTH ) > partitioner.currQtDepth + 1 )
+          if( cuECtx.get<bool>( QT_BEFORE_BT ) && cuECtx.get<bool>( DID_QUAD_SPLIT ) )
           {
-            if( featureToSet >= 0 ) cuECtx.set( featureToSet, false );
-            return false;
+            if( cuECtx.get<int>( MAX_QT_SUB_DEPTH ) > partitioner.currQtDepth + 1 )
+            {
+              if( featureToSet >= 0 ) cuECtx.set( featureToSet, false );
+              return false;
+            }
           }
         }
         break;
@@ -1680,22 +1864,30 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
     }
 
     if( split == CU_QUAD_SPLIT ) cuECtx.set( DID_QUAD_SPLIT, true );
-    if (cs.sps->getLog2ParallelMergeLevelMinus2())
+    if((CUSTOMIZE_TREE_HEURISTICS                          &&
+        (cs.area.lwidth()<16 || cs.area.lheight()<16       || // Current block has at least one dimension smaller than 16
+        ( cs.area.lwidth()==16 && cs.area.lheight()==16))) || // Current block is 16x16 -> we can skip smaller blocks using the heuristic
+        ALLOW_TREE_HEURISTICS
+            )
     {
-      const CompArea& area = partitioner.currArea().Y();
-      const SizeType size = 1 << (cs.sps->getLog2ParallelMergeLevelMinus2() + 2);
-      if (!cs.slice->isIntra() && (area.width > size || area.height > size))
+      if (cs.sps->getLog2ParallelMergeLevelMinus2())
       {
-        if (area.height <= size && split == CU_HORZ_SPLIT) return false;
-        if (area.width <= size && split == CU_VERT_SPLIT) return false;
-        if (area.height <= 2 * size && split == CU_TRIH_SPLIT) return false;
-        if (area.width <= 2 * size && split == CU_TRIV_SPLIT) return false;
+        const CompArea& area = partitioner.currArea().Y();
+        const SizeType size = 1 << (cs.sps->getLog2ParallelMergeLevelMinus2() + 2);
+        if (!cs.slice->isIntra() && (area.width > size || area.height > size))
+        {
+          if (area.height <= size && split == CU_HORZ_SPLIT) return false;
+          if (area.width <= size && split == CU_VERT_SPLIT) return false;
+          if (area.height <= 2 * size && split == CU_TRIH_SPLIT) return false;
+          if (area.width <= 2 * size && split == CU_TRIV_SPLIT) return false;
+        }
       }
     }
     return true;
-  }
+  } // the end of if( isModeSplit( encTestmode ) )
   else
   {
+    // Only gets here if the encoding mode is ETM_POST_DONT_SPLIT
     CHECK( encTestmode.type != ETM_POST_DONT_SPLIT, "Unknown mode" );
     if ((cuECtx.get<double>(BEST_NO_IMV_COST) == (MAX_DOUBLE * .5) || cuECtx.get<bool>(IS_REUSING_CU)) && !slice.isIntra())
     {
@@ -1708,7 +1900,12 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
     }
     if( !bestCS || ( bestCS && isModeSplit( bestMode ) ) )
     {
-      return false;
+      // This doesnt make much sense... If it is not best, OR if it is best and is a split mode, then we skip the current mode?
+      if((CUSTOMIZE_TREE_HEURISTICS && (cs.area.lwidth()<16 || cs.area.lheight()<16)) || 
+          ALLOW_TREE_HEURISTICS)
+      {
+        return false;
+      }
     }
     else
     {
@@ -1718,7 +1915,10 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
 #endif
       if( partitioner.modeType == MODE_TYPE_INTRA && partitioner.chType == CHANNEL_TYPE_LUMA )
       {
-        return false; //not set best coding mode for intra coding pass
+        // I didnt understand this condition...
+        if((CUSTOMIZE_TREE_HEURISTICS && (cs.area.lwidth()<16 || cs.area.lheight()<16)) || 
+            ALLOW_TREE_HEURISTICS)
+          return false; //not set best coding mode for intra coding pass
       }
       // assume the non-split modes are done and set the marks for the best found mode
       if( bestCS && bestCU )
@@ -1819,7 +2019,7 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
         cuECtx.set( IS_BEST_NOSPLIT_SKIP, bestCU->skip );
       }
     }
-
+    
     return false;
   }
 }

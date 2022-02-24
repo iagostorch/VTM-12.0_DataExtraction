@@ -4216,6 +4216,7 @@ uint32_t PreCalcValues::getMinBtSize( const Slice &slice, const ChannelType chTy
 
 uint32_t PreCalcValues::getMaxBtSize( const Slice &slice, const ChannelType chType ) const
 {
+  // The maximum BT size may be updated if cfg paramenter AMaxBT (adaptive max BT) is enabled
   if (slice.getPicHeader()->getSplitConsOverrideFlag())
     return slice.getPicHeader()->getMaxBTSize( slice.getSliceType(), ISingleTree ? CHANNEL_TYPE_LUMA : chType);
   else

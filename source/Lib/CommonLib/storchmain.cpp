@@ -18,9 +18,43 @@
 
 double storch::fsTime, storch::aff4pTime, storch::aff6pTime, storch::aff4pAMVPTime, storch::aff6pAMVPTime, storch::affUnip4pTime, storch::affBip4pTime, storch::affUnip6pTime, storch::affBip6pTime, storch::affUnip4pInitTime, storch::affBip4pInitTime, storch::affUnip6pInitTime, storch::affBip6pInitTime, storch::affUnip4pMeTime, storch::affBip4pMeTime, storch::affUnip6pMeTime, storch::affBip6pMeTime, storch::affUnip4pMEGradTime, storch::affBip4pMEGradTime, storch::affUnip6pMEGradTime, storch::affBip6pMEGradTime, storch::affUnip4pMERefTime, storch::affBip4pMERefTime, storch::affUnip6pMERefTime, storch::affBip6pMERefTime, storch::affUnip4pMeInitTime, storch::affBip4pMeInitTime, storch::affUnip6pMeInitTime, storch::affBip6pMeInitTime;
 double storch::affUnip4pMEGradTime_pred, storch::affBip4pMEGradTime_pred, storch::affUnip6pMEGradTime_pred, storch::affBip6pMEGradTime_pred, storch::affUnip4pMEGradTime_eq, storch::affBip4pMEGradTime_eq, storch::affUnip6pMEGradTime_eq, storch::affBip6pMEGradTime_eq, storch::affUnip4pMEGradTime_eq_build, storch::affUnip4pMEGradTime_eq_solve, storch::affBip4pMEGradTime_eq_build, storch::affBip4pMEGradTime_eq_solve, storch::affUnip6pMEGradTime_eq_build, storch::affUnip6pMEGradTime_eq_solve, storch::affBip6pMEGradTime_eq_build, storch::affBip6pMEGradTime_eq_solve;
-double storch::affAmvpInit4pTime_128x128, storch::gradRefSimp4pTime_128x128, storch::blockPredTime_128x128, storch::affUnip4pTime_128x128, storch::affUnip6pTime_128x128;
+
+// Used to track the execution time of affine prediction
+double storch::affAmvpInit4pTime_128x128, storch::gradRefSimp4pTime_128x128, storch::affUnip4pTime_128x128;
+double storch::affAmvpInit4pTime_128x64, storch::gradRefSimp4pTime_128x64, storch::affUnip4pTime_128x64;
+double storch::affAmvpInit4pTime_64x128, storch::gradRefSimp4pTime_64x128, storch::affUnip4pTime_64x128;
+double storch::affAmvpInit4pTime_64x64, storch::gradRefSimp4pTime_64x64, storch::affUnip4pTime_64x64;
+double storch::affAmvpInit4pTime_64x32, storch::gradRefSimp4pTime_64x32, storch::affUnip4pTime_64x32;
+double storch::affAmvpInit4pTime_32x64, storch::gradRefSimp4pTime_32x64, storch::affUnip4pTime_32x64;
+double storch::affAmvpInit4pTime_64x16, storch::gradRefSimp4pTime_64x16, storch::affUnip4pTime_64x16;
+double storch::affAmvpInit4pTime_16x64, storch::gradRefSimp4pTime_16x64, storch::affUnip4pTime_16x64;
+double storch::affAmvpInit4pTime_32x32, storch::gradRefSimp4pTime_32x32, storch::affUnip4pTime_32x32;
+double storch::affAmvpInit4pTime_32x16, storch::gradRefSimp4pTime_32x16, storch::affUnip4pTime_32x16;
+double storch::affAmvpInit4pTime_16x32, storch::gradRefSimp4pTime_16x32, storch::affUnip4pTime_16x32;
+double storch::affAmvpInit4pTime_16x16, storch::gradRefSimp4pTime_16x16, storch::affUnip4pTime_16x16;
+
+double storch::affAmvpInit6pTime_128x128, storch::gradRefSimp6pTime_128x128, storch::affUnip6pTime_128x128;
+double storch::affAmvpInit6pTime_128x64, storch::gradRefSimp6pTime_128x64, storch::affUnip6pTime_128x64;
+double storch::affAmvpInit6pTime_64x128, storch::gradRefSimp6pTime_64x128, storch::affUnip6pTime_64x128;
+double storch::affAmvpInit6pTime_64x64, storch::gradRefSimp6pTime_64x64, storch::affUnip6pTime_64x64;
+double storch::affAmvpInit6pTime_64x32, storch::gradRefSimp6pTime_64x32, storch::affUnip6pTime_64x32;
+double storch::affAmvpInit6pTime_32x64, storch::gradRefSimp6pTime_32x64, storch::affUnip6pTime_32x64;
+double storch::affAmvpInit6pTime_64x16, storch::gradRefSimp6pTime_64x16, storch::affUnip6pTime_64x16;
+double storch::affAmvpInit6pTime_16x64, storch::gradRefSimp6pTime_16x64, storch::affUnip6pTime_16x64;
+double storch::affAmvpInit6pTime_32x32, storch::gradRefSimp6pTime_32x32, storch::affUnip6pTime_32x32;
+double storch::affAmvpInit6pTime_32x16, storch::gradRefSimp6pTime_32x16, storch::affUnip6pTime_32x16;
+double storch::affAmvpInit6pTime_16x32, storch::gradRefSimp6pTime_16x32, storch::affUnip6pTime_16x32;
+double storch::affAmvpInit6pTime_16x16, storch::gradRefSimp6pTime_16x16, storch::affUnip6pTime_16x16;
+
+// Allows signaling a "target block" when calling the xPredAffineBlk
+int storch::target_xPredAffineBlk;
+
 struct timeval storch::fs1, storch::fs2, storch::aamvp1, storch::aamvp2, storch::ag1, storch::ag2, storch::a4p1, storch::a4p2, storch::a6p1, storch::a6p2, storch::affme1, storch::affme2, storch::sraffme1, storch::sraffme2, storch::affinit1, storch::affinit2, storch::affunip1, storch::affunip2, storch::affbip1, storch::affbip2, storch::affmeinit1, storch::affmeinit2;
 struct timeval storch::amvpInit_128x128_1, storch::amvpInit_128x128_2, storch::gradRefSimp_128x128_1, storch::gradRefSimp_128x128_2, storch::blockPred_128x128_1, storch::blockPred_128x128_2, storch::affunip_128x128_1, storch::affunip_128x128_2;
+
+// Used to probe the begin/finish times of affine predicitn in each block size
+struct timeval storch::amvpInit_target_1, storch::amvpInit_target_2, storch::gradRefSimp_target_1, storch::gradRefSimp_target_2, storch::affunip_target_1, storch::affunip_target_2;
+
 clock_t storch::clock_agp1, storch::clock_agp2, storch::clock_age1, storch::clock_age2, storch::clock_ageb1, storch::clock_ageb2, storch::clock_ages1, storch::clock_ages2;
 int storch::extractedFrames[EXT_NUM][500];
 int storch::currPoc;
@@ -77,7 +111,102 @@ storch::storch() {
     
     affAmvpInit4pTime_128x128 = 0.0;
     gradRefSimp4pTime_128x128 = 0.0;
-        
+    affUnip4pTime_128x128     = 0.0;
+
+    affAmvpInit4pTime_128x64 = 0.0;
+    gradRefSimp4pTime_128x64 = 0.0;
+    affUnip4pTime_128x64     = 0.0;
+
+    affAmvpInit4pTime_64x128 = 0.0;
+    gradRefSimp4pTime_64x128 = 0.0;
+    affUnip4pTime_64x128     = 0.0;
+
+    affAmvpInit4pTime_64x64 = 0.0;
+    gradRefSimp4pTime_64x64 = 0.0;
+    affUnip4pTime_64x64     = 0.0;
+
+    affAmvpInit4pTime_64x32 = 0.0;
+    gradRefSimp4pTime_64x32 = 0.0;
+    affUnip4pTime_64x32     = 0.0;
+
+    affAmvpInit4pTime_32x64 = 0.0;
+    gradRefSimp4pTime_32x64 = 0.0;
+    affUnip4pTime_32x64     = 0.0;
+
+    affAmvpInit4pTime_64x16 = 0.0;
+    gradRefSimp4pTime_64x16 = 0.0;
+    affUnip4pTime_64x16     = 0.0;
+
+    affAmvpInit4pTime_16x64 = 0.0;
+    gradRefSimp4pTime_16x64 = 0.0;
+    affUnip4pTime_16x64     = 0.0;
+
+    affAmvpInit4pTime_32x32 = 0.0;
+    gradRefSimp4pTime_32x32 = 0.0;
+    affUnip4pTime_32x32     = 0.0;
+
+    affAmvpInit4pTime_32x16 = 0.0;
+    gradRefSimp4pTime_32x16 = 0.0;
+    affUnip4pTime_32x16     = 0.0;
+
+    affAmvpInit4pTime_16x32 = 0.0;
+    gradRefSimp4pTime_16x32 = 0.0;
+    affUnip4pTime_16x32     = 0.0;
+
+    affAmvpInit4pTime_16x16 = 0.0;
+    gradRefSimp4pTime_16x16 = 0.0;
+    affUnip4pTime_16x16     = 0.0;
+    
+    affAmvpInit6pTime_128x128 = 0.0;
+    gradRefSimp6pTime_128x128 = 0.0;
+    affUnip6pTime_128x128     = 0.0;
+
+    affAmvpInit6pTime_128x64 = 0.0;
+    gradRefSimp6pTime_128x64 = 0.0;
+    affUnip6pTime_128x64     = 0.0;
+
+    affAmvpInit6pTime_64x128 = 0.0;
+    gradRefSimp6pTime_64x128 = 0.0;
+    affUnip6pTime_64x128     = 0.0;
+
+    affAmvpInit6pTime_64x64 = 0.0;
+    gradRefSimp6pTime_64x64 = 0.0;
+    affUnip6pTime_64x64     = 0.0;
+
+    affAmvpInit6pTime_64x32 = 0.0;
+    gradRefSimp6pTime_64x32 = 0.0;
+    affUnip6pTime_64x32     = 0.0;
+
+    affAmvpInit6pTime_32x64 = 0.0;
+    gradRefSimp6pTime_32x64 = 0.0;
+    affUnip6pTime_32x64     = 0.0;
+
+    affAmvpInit6pTime_64x16 = 0.0;
+    gradRefSimp6pTime_64x16 = 0.0;
+    affUnip6pTime_64x16     = 0.0;
+
+    affAmvpInit6pTime_16x64 = 0.0;
+    gradRefSimp6pTime_16x64 = 0.0;
+    affUnip6pTime_16x64     = 0.0;
+
+    affAmvpInit6pTime_32x32 = 0.0;
+    gradRefSimp6pTime_32x32 = 0.0;
+    affUnip6pTime_32x32     = 0.0;
+
+    affAmvpInit6pTime_32x16 = 0.0;
+    gradRefSimp6pTime_32x16 = 0.0;
+    affUnip6pTime_32x16     = 0.0;
+
+    affAmvpInit6pTime_16x32 = 0.0;
+    gradRefSimp6pTime_16x32 = 0.0;
+    affUnip6pTime_16x32     = 0.0;
+
+    affAmvpInit6pTime_16x16 = 0.0;
+    gradRefSimp6pTime_16x16 = 0.0;
+    affUnip6pTime_16x16     = 0.0;
+    
+    target_xPredAffineBlk = 0;
+    
     currPoc = 0;
     
     prof = 0;
@@ -140,9 +269,11 @@ void storch::setPROF(int p){
 void storch::printParamsSummary(){
   cout << endl << "---------------------------------------------------------------------" << endl;
   cout << "Relevant encoding parameters and macros" << endl;
-  cout << "GPU_ME:      " << GPU_ME << endl;
-  cout << "SIMD_ENABLE: " << SIMD_ENABLE << endl;
-  cout << "PROF:        " << prof << endl;
+  cout << "GPU_ME:            " << GPU_ME << endl;
+  cout << "SIMD_ENABLE:       " << SIMD_ENABLE << endl;
+  cout << "PROF:              " << prof << endl;
+  cout << "TREE HEURISTICS:   " << ALLOW_TREE_HEURISTICS << endl;
+  cout << "CUSTOM HEURISTICS: " << CUSTOMIZE_TREE_HEURISTICS << endl;
   
 
 }
@@ -207,11 +338,103 @@ void storch::printSummary() {
     cout << "        Pred+RD:        " << affBip6pMEGradTime_pred << endl;    
     cout << "    ME Simp/Refinement  " << affBip6pMERefTime << endl;    
     
+    cout << endl;
+    
     cout << "[!] Target times CUs 128x128" << endl;
     cout << "  128x128 AMVP+Init 2CPs     " << affAmvpInit4pTime_128x128 << endl;
     cout << "  128x128 Grad+Ref+Simp 2CPs " << gradRefSimp4pTime_128x128 << endl;
     cout << "  128x128 Unipred 2 CPs      " << affUnip4pTime_128x128 << endl;
+    cout << "  128x128 AMVP+Init 3CPs     " << affAmvpInit6pTime_128x128 << endl;
+    cout << "  128x128 Grad+Ref+Simp 3CPs " << gradRefSimp6pTime_128x128 << endl;
     cout << "  128x128 Unipred 3 CPs      " << affUnip6pTime_128x128 << endl;
+    
+    cout << "[!] Target times CUs 128x64" << endl;
+    cout << "  128x64 AMVP+Init 2CPs     " << affAmvpInit4pTime_128x64 << endl;
+    cout << "  128x64 Grad+Ref+Simp 2CPs " << gradRefSimp4pTime_128x64 << endl;
+    cout << "  128x64 Unipred 2 CPs      " << affUnip4pTime_128x64 << endl;
+    cout << "  128x64 AMVP+Init 3CPs     " << affAmvpInit6pTime_128x64 << endl;
+    cout << "  128x64 Grad+Ref+Simp 3CPs " << gradRefSimp6pTime_128x64 << endl;
+    cout << "  128x64 Unipred 3 CPs      " << affUnip6pTime_128x64 << endl;
+    
+    cout << "[!] Target times CUs 64x128" << endl;
+    cout << "  64x128 AMVP+Init 2CPs     " << affAmvpInit4pTime_64x128 << endl;
+    cout << "  64x128 Grad+Ref+Simp 2CPs " << gradRefSimp4pTime_64x128 << endl;
+    cout << "  64x128 Unipred 2 CPs      " << affUnip4pTime_64x128 << endl;
+    cout << "  64x128 AMVP+Init 3CPs     " << affAmvpInit6pTime_64x128 << endl;
+    cout << "  64x128 Grad+Ref+Simp 3CPs " << gradRefSimp6pTime_64x128 << endl;
+    cout << "  64x128 Unipred 3 CPs      " << affUnip6pTime_64x128 << endl;
+    
+    cout << "[!] Target times CUs 64x64" << endl;
+    cout << "  64x64 AMVP+Init 2CPs     " << affAmvpInit4pTime_64x64 << endl;
+    cout << "  64x64 Grad+Ref+Simp 2CPs " << gradRefSimp4pTime_64x64 << endl;
+    cout << "  64x64 Unipred 2 CPs      " << affUnip4pTime_64x64 << endl;
+    cout << "  64x64 AMVP+Init 3CPs     " << affAmvpInit6pTime_64x64 << endl;
+    cout << "  64x64 Grad+Ref+Simp 3CPs " << gradRefSimp6pTime_64x64 << endl;
+    cout << "  64x64 Unipred 3 CPs      " << affUnip6pTime_64x64 << endl;
+    
+    cout << "[!] Target times CUs 64x32" << endl;
+    cout << "  64x32 AMVP+Init 2CPs     " << affAmvpInit4pTime_64x32 << endl;
+    cout << "  64x32 Grad+Ref+Simp 2CPs " << gradRefSimp4pTime_64x32 << endl;
+    cout << "  64x32 Unipred 2 CPs      " << affUnip4pTime_64x32 << endl;
+    cout << "  64x32 AMVP+Init 3CPs     " << affAmvpInit6pTime_64x32 << endl;
+    cout << "  64x32 Grad+Ref+Simp 3CPs " << gradRefSimp6pTime_64x32 << endl;
+    cout << "  64x32 Unipred 3 CPs      " << affUnip6pTime_64x32 << endl;
+    
+    cout << "[!] Target times CUs 32x64" << endl;
+    cout << "  32x64 AMVP+Init 2CPs     " << affAmvpInit4pTime_32x64 << endl;
+    cout << "  32x64 Grad+Ref+Simp 2CPs " << gradRefSimp4pTime_32x64 << endl;
+    cout << "  32x64 Unipred 2 CPs      " << affUnip4pTime_32x64 << endl;
+    cout << "  32x64 AMVP+Init 3CPs     " << affAmvpInit6pTime_32x64 << endl;
+    cout << "  32x64 Grad+Ref+Simp 3CPs " << gradRefSimp6pTime_32x64 << endl;
+    cout << "  32x64 Unipred 3 CPs      " << affUnip6pTime_32x64 << endl;
+    
+    cout << "[!] Target times CUs 64x16" << endl;
+    cout << "  64x16 AMVP+Init 2CPs     " << affAmvpInit4pTime_64x16 << endl;
+    cout << "  64x16 Grad+Ref+Simp 2CPs " << gradRefSimp4pTime_64x16 << endl;
+    cout << "  64x16 Unipred 2 CPs      " << affUnip4pTime_64x16 << endl;
+    cout << "  64x16 AMVP+Init 3CPs     " << affAmvpInit6pTime_64x16 << endl;
+    cout << "  64x16 Grad+Ref+Simp 3CPs " << gradRefSimp6pTime_64x16 << endl;
+    cout << "  64x16 Unipred 3 CPs      " << affUnip6pTime_64x16 << endl;
+
+    cout << "[!] Target times CUs 16x64" << endl;
+    cout << "  16x64 AMVP+Init 2CPs     " << affAmvpInit4pTime_16x64 << endl;
+    cout << "  16x64 Grad+Ref+Simp 2CPs " << gradRefSimp4pTime_16x64 << endl;
+    cout << "  16x64 Unipred 2 CPs      " << affUnip4pTime_16x64 << endl;
+    cout << "  16x64 AMVP+Init 3CPs     " << affAmvpInit6pTime_16x64 << endl;
+    cout << "  16x64 Grad+Ref+Simp 3CPs " << gradRefSimp6pTime_16x64 << endl;
+    cout << "  16x64 Unipred 3 CPs      " << affUnip6pTime_16x64 << endl;
+    
+    cout << "[!] Target times CUs 32x32" << endl;
+    cout << "  32x32 AMVP+Init 2CPs     " << affAmvpInit4pTime_32x32 << endl;
+    cout << "  32x32 Grad+Ref+Simp 2CPs " << gradRefSimp4pTime_32x32 << endl;
+    cout << "  32x32 Unipred 2 CPs      " << affUnip4pTime_32x32 << endl;
+    cout << "  32x32 AMVP+Init 3CPs     " << affAmvpInit6pTime_32x32 << endl;
+    cout << "  32x32 Grad+Ref+Simp 3CPs " << gradRefSimp6pTime_32x32 << endl;
+    cout << "  32x32 Unipred 3 CPs      " << affUnip6pTime_32x32 << endl;
+    
+    cout << "[!] Target times CUs 32x16" << endl;
+    cout << "  32x16 AMVP+Init 2CPs     " << affAmvpInit4pTime_32x16 << endl;
+    cout << "  32x16 Grad+Ref+Simp 2CPs " << gradRefSimp4pTime_32x16 << endl;
+    cout << "  32x16 Unipred 2 CPs      " << affUnip4pTime_32x16 << endl;
+    cout << "  32x16 AMVP+Init 3CPs     " << affAmvpInit6pTime_32x16 << endl;
+    cout << "  32x16 Grad+Ref+Simp 3CPs " << gradRefSimp6pTime_32x16 << endl;
+    cout << "  32x16 Unipred 3 CPs      " << affUnip6pTime_32x16 << endl;
+    
+    cout << "[!] Target times CUs 16x32" << endl;
+    cout << "  16x32 AMVP+Init 2CPs     " << affAmvpInit4pTime_16x32 << endl;
+    cout << "  16x32 Grad+Ref+Simp 2CPs " << gradRefSimp4pTime_16x32 << endl;
+    cout << "  16x32 Unipred 2 CPs      " << affUnip4pTime_16x32 << endl;
+    cout << "  16x32 AMVP+Init 3CPs     " << affAmvpInit6pTime_16x32 << endl;
+    cout << "  16x32 Grad+Ref+Simp 3CPs " << gradRefSimp6pTime_16x32 << endl;
+    cout << "  16x32 Unipred 3 CPs      " << affUnip6pTime_16x32 << endl;
+    
+    cout << "[!] Target times CUs 16x16" << endl;
+    cout << "  16x16 AMVP+Init 2CPs     " << affAmvpInit4pTime_16x16 << endl;
+    cout << "  16x16 Grad+Ref+Simp 2CPs " << gradRefSimp4pTime_16x16 << endl;
+    cout << "  16x16 Unipred 2 CPs      " << affUnip4pTime_16x16 << endl;
+    cout << "  16x16 AMVP+Init 3CPs     " << affAmvpInit6pTime_16x16 << endl;
+    cout << "  16x16 Grad+Ref+Simp 3CPs " << gradRefSimp6pTime_16x16 << endl;
+    cout << "  16x16 Unipred 3 CPs      " << affUnip6pTime_16x16 << endl;
     
     
     cout << endl << endl;
@@ -708,6 +931,134 @@ void storch::finishAffineUnipred_128x128(EAffineModel param, EAffinePred pred){
     }     
 }
 
+// Probe start and finish time of complete affine uniprediction in a specific block size
+void storch::startAffineUnipred_size(EAffineModel param, EAffinePred pred, CuSize size){
+  gettimeofday(&affunip_target_1, NULL);
+}
+
+void storch::finishAffineUnipred_size(EAffineModel param, EAffinePred pred, CuSize size){
+  assert((param==AFFINEMODEL_4PARAM || param==AFFINEMODEL_6PARAM) 
+            && (pred==UNIPRED));
+  
+  gettimeofday(&affunip_target_2, NULL);
+  
+  if((param == AFFINEMODEL_4PARAM) && (pred == UNIPRED)){ // 4 params, unipred
+    switch(size){
+      case(_128x128):
+        affUnip4pTime_128x128 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_128x64):
+        affUnip4pTime_128x64 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_64x128):
+        affUnip4pTime_64x128 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_64x64):
+        affUnip4pTime_64x64 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_64x32):
+        affUnip4pTime_64x32 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_32x64):
+        affUnip4pTime_32x64 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_64x16):
+        affUnip4pTime_64x16 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_16x64):
+        affUnip4pTime_16x64 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_32x32):
+        affUnip4pTime_32x32 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_32x16):
+        affUnip4pTime_32x16 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_16x32):
+        affUnip4pTime_16x32 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_16x16):
+        affUnip4pTime_16x16 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      default:
+        printf("ERROR - Wrong CU size in \"finishAffineAmvpInit_size\"\n");
+        break;          
+    }
+  } else if(param == AFFINEMODEL_4PARAM && pred == BIPRED){ // 4 params bipred
+        cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
+  } else if(param == AFFINEMODEL_6PARAM && pred == UNIPRED){ // 6 params unipred
+    switch(size){
+      case(_128x128):
+        affUnip6pTime_128x128 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_128x64):
+        affUnip6pTime_128x64 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_64x128):
+        affUnip6pTime_64x128 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_64x64):
+        affUnip6pTime_64x64 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_64x32):
+        affUnip6pTime_64x32 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_32x64):
+        affUnip6pTime_32x64 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_64x16):
+        affUnip6pTime_64x16 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_16x64):
+        affUnip6pTime_16x64 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_32x32):
+        affUnip6pTime_32x32 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_32x16):
+        affUnip6pTime_32x16 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_16x32):
+        affUnip6pTime_16x32 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      case(_16x16):
+        affUnip6pTime_16x16 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+        break;
+
+      default:
+        printf("ERROR - Wrong CU size in \"finishAffineAmvpInit_size\"\n");
+        break;          
+    }
+  } else if(param == AFFINEMODEL_6PARAM && pred == BIPRED){ // 6 params bipred
+        cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
+  } else{
+        cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
+  }
+}
+
 void storch::startAffineBipred(EAffineModel param, EAffinePred pred){
     gettimeofday(&affbip1, NULL);
 }
@@ -737,7 +1088,7 @@ void storch::startAffineMEInit(EAffineModel param, EAffinePred pred){
     
 void storch::finishAffineMEInit(EAffineModel param, EAffinePred pred){
     assert(((param==AFFINEMODEL_4PARAM) || (param==AFFINEMODEL_6PARAM)) 
-            &&  (pred==BIPRED));     
+            &&  (pred==BIPRED || pred==UNIPRED));     
     
     gettimeofday(&affmeinit2, NULL);
     
@@ -756,6 +1107,253 @@ void storch::finishAffineMEInit(EAffineModel param, EAffinePred pred){
     
 }
 
+// Probe start and finish time of Affine AMVP and initialization of affine uniprediction in a specific block size
+void storch::startAffineAmvpInit_size(EAffineModel param, EAffinePred pred, CuSize size){
+  gettimeofday(&amvpInit_target_1, NULL);
+}
+
+void storch::finishAffineAmvpInit_size(EAffineModel param, EAffinePred pred, CuSize size){
+  assert((param==AFFINEMODEL_4PARAM || param==AFFINEMODEL_6PARAM) && (pred==UNIPRED)); 
+
+  gettimeofday(&amvpInit_target_2, NULL);
+
+  if(param==AFFINEMODEL_4PARAM){
+    switch(size){
+      case(_128x128):
+        affAmvpInit4pTime_128x128 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_128x64):
+        affAmvpInit4pTime_128x64 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_64x128):
+        affAmvpInit4pTime_64x128 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_64x64):
+        affAmvpInit4pTime_64x64 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_64x32):
+        affAmvpInit4pTime_64x32 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_32x64):
+        affAmvpInit4pTime_32x64 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_64x16):
+        affAmvpInit4pTime_64x16 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_16x64):
+        affAmvpInit4pTime_16x64 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_32x32):
+        affAmvpInit4pTime_32x32 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_32x16):
+        affAmvpInit4pTime_32x16 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_16x32):
+        affAmvpInit4pTime_16x32 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_16x16):
+        affAmvpInit4pTime_16x16 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      default:
+        printf("ERROR - Wrong CU size in \"finishAffineAmvpInit_size\"\n");
+        break;          
+    }
+  } else if(param==AFFINEMODEL_6PARAM){
+    switch(size){
+      case(_128x128):
+        affAmvpInit6pTime_128x128 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_128x64):
+        affAmvpInit6pTime_128x64 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_64x128):
+        affAmvpInit6pTime_64x128 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_64x64):
+        affAmvpInit6pTime_64x64 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_64x32):
+        affAmvpInit6pTime_64x32 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_32x64):
+        affAmvpInit6pTime_32x64 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_64x16):
+        affAmvpInit6pTime_64x16 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_16x64):
+        affAmvpInit6pTime_16x64 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_32x32):
+        affAmvpInit6pTime_32x32 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_32x16):
+        affAmvpInit6pTime_32x16 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_16x32):
+        affAmvpInit6pTime_16x32 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      case(_16x16):
+        affAmvpInit6pTime_16x16 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+        break;
+
+      default:
+        printf("ERROR - Wrong CU size in \"finishAffineAmvpInit_size\"\n");
+        break;          
+    }
+  } else{
+    printf("ERROR - Incorrect param in finishAffineAmvpInit_size\n");
+    exit(0);
+  }
+}
+
+
+// Probe start and finish time of Gradient-ME, Simplification and Refinement stages of affine uniprediction in a specific block size
+void storch::startAffineGradRefSimp_size(EAffineModel param, EAffinePred pred, CuSize size){
+    gettimeofday(&gradRefSimp_target_1, NULL);
+}
+
+void storch::finishAffineGradRefSimp_size(EAffineModel param, EAffinePred pred, CuSize size){
+  assert((param==AFFINEMODEL_4PARAM || param==AFFINEMODEL_6PARAM) && (pred==UNIPRED)); 
+  gettimeofday(&gradRefSimp_target_2, NULL);
+  
+  if(param==AFFINEMODEL_4PARAM){
+    switch(size){
+      case(_128x128):
+        gradRefSimp4pTime_128x128 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_128x64):
+        gradRefSimp4pTime_128x64 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_64x128):
+        gradRefSimp4pTime_64x128 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_64x64):
+        gradRefSimp4pTime_64x64 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_64x32):
+        gradRefSimp4pTime_64x32 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_32x64):
+        gradRefSimp4pTime_32x64 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_64x16):
+        gradRefSimp4pTime_64x16 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_16x64):
+        gradRefSimp4pTime_16x64 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_32x32):
+        gradRefSimp4pTime_32x32 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_32x16):
+        gradRefSimp4pTime_32x16 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_16x32):
+        gradRefSimp4pTime_16x32 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_16x16):
+        gradRefSimp4pTime_16x16 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      default:
+        printf("ERROR - Wrong CU size in \"finishAffineGradRefSimp_size\"\n");
+        break;          
+    } 
+  } else if(param==AFFINEMODEL_6PARAM){
+    switch(size){
+      case(_128x128):
+        gradRefSimp6pTime_128x128 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_128x64):
+        gradRefSimp6pTime_128x64 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_64x128):
+        gradRefSimp6pTime_64x128 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_64x64):
+        gradRefSimp6pTime_64x64 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_64x32):
+        gradRefSimp6pTime_64x32 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_32x64):
+        gradRefSimp6pTime_32x64 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_64x16):
+        gradRefSimp6pTime_64x16 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_16x64):
+        gradRefSimp6pTime_16x64 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_32x32):
+        gradRefSimp6pTime_32x32 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_32x16):
+        gradRefSimp6pTime_32x16 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_16x32):
+        gradRefSimp6pTime_16x32 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      case(_16x16):
+        gradRefSimp6pTime_16x16 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+        break;
+
+      default:
+        printf("ERROR - Wrong CU size in \"finishAffineGradRefSimp_size\"\n");
+        break;          
+    }
+  } else{
+    printf("ERROR - Incorrect param in finishAffineGradRefSimp_size\n");
+    exit(0);
+  }
+}
 
 void storch::startAffineAmvpInit_128x128(EAffineModel param, EAffinePred pred){
     gettimeofday(&amvpInit_128x128_1, NULL);
@@ -778,6 +1376,40 @@ void storch::finishAffineGradRefSimp_128x128(EAffineModel param, EAffinePred pre
     gettimeofday(&gradRefSimp_128x128_2, NULL);
     gradRefSimp4pTime_128x128 += (double) (gradRefSimp_128x128_2.tv_usec - gradRefSimp_128x128_1.tv_usec)/1000000 + (double) (gradRefSimp_128x128_2.tv_sec - gradRefSimp_128x128_1.tv_sec);
 }
+
+
+// Allows an easier handling of block sizes with meaninful names and less conditionals
+CuSize storch::getSizeEnum(PredictionUnit pu){
+  if(pu.lwidth()==128 && pu.lheight()==128)
+    return _128x128;
+  else if (pu.lwidth()==128 && pu.lheight()==64)
+    return _128x64;
+  else if (pu.lwidth()==64 && pu.lheight()==128)
+    return _64x128;
+  else if (pu.lwidth()==64 && pu.lheight()==64)
+    return _64x64;
+  else if (pu.lwidth()==64 && pu.lheight()==32)
+    return _64x32;
+  else if (pu.lwidth()==32 && pu.lheight()==64)
+    return _32x64;
+  else if (pu.lwidth()==64 && pu.lheight()==16)
+    return _64x16;
+  else if (pu.lwidth()==16 && pu.lheight()==64)
+    return _16x64;
+  else if (pu.lwidth()==32 && pu.lheight()==32)
+    return _32x32;
+  else if (pu.lwidth()==32 && pu.lheight()==16)
+    return _32x16;
+  else if (pu.lwidth()==16 && pu.lheight()==32)
+    return _16x32;
+  else if (pu.lwidth()==16 && pu.lheight()==16)
+    return _16x16;
+  else{
+    printf("ERROR - Wrong PU size in getSizeEnum\n");
+    exit(0);
+  }
+}
+
 
 #if EXAMPLE || EXAMPLE
 void storch::exampleFunct() {

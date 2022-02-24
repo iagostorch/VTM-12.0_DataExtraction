@@ -2350,6 +2350,7 @@ void EncGOP::compressGOP( int iPOCLast, int iNumPicRcvd, PicList& rcListPic,
 
     xPicInitHashME( pcPic, pcSlice->getPPS(), rcListPic );
 
+    // When AMaxBT (Adaptive Maximum BT size) is being used, the maximum BT size may be modified during the encoding
     if( m_pcCfg->getUseAMaxBT() )
     {
       if (!pcSlice->isIRAP())

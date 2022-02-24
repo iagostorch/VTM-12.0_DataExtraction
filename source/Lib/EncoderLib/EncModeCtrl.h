@@ -53,6 +53,9 @@
 //////////////////////////////////////////////////////////////////////////
 
 
+// This enum is used inside a loop that tests many encoding modes
+// First the loop tries the inter, intra, palette, etc
+// Then, it tries the ETM_SPLIT_ options to test the RD performance of partiitoning the block into smaller ones
 enum EncTestModeType
 {
   ETM_HASH_INTER,
@@ -278,13 +281,15 @@ protected:
   int                   m_lumaQPOffset;
 #endif
   bool                  m_fastDeltaQP;
-  static_vector<ComprCUCtx, ( MAX_CU_DEPTH << 2 )> m_ComprCUCtxList;
+  // This vector was made public to allow debugging and interfering in the list of encoding modes more easily
+//  static_vector<ComprCUCtx, ( MAX_CU_DEPTH << 2 )> m_ComprCUCtxList;
   InterSearch*          m_pcInterSearch;
 
   bool                  m_doPlt;
 
 public:
 
+  static_vector<ComprCUCtx, ( MAX_CU_DEPTH << 2 )> m_ComprCUCtxList;
   virtual ~EncModeCtrl              () {}
 
   virtual void create               ( const EncCfg& cfg )                                                                   = 0;

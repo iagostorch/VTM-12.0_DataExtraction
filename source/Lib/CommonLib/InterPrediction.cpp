@@ -889,7 +889,7 @@ void InterPrediction::xPredInterBlk ( const ComponentID& compID, const Predictio
 
 void InterPrediction::xPredAffineBlk(const ComponentID &compID, const PredictionUnit &pu, const Picture *refPic, const Mv *_mv, PelUnitBuf &dstPic, const bool &bi, const ClpRng &clpRng, bool genChromaMv, const std::pair<int, int> scalingRatio)
 {
-
+  
   JVET_J0090_SET_REF_PICTURE( refPic, compID );
   const ChromaFormat chFmt = pu.chromaFormat;
   int iScaleX = ::getComponentScaleX( compID, chFmt );
@@ -904,24 +904,6 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
   const int height = pu.Y().height;
   int blockWidth = AFFINE_MIN_BLOCK_SIZE;   // these are always 4, since MVs are distributed in 4x4 blocks
   int blockHeight = AFFINE_MIN_BLOCK_SIZE;
-
-// THE FOLLOWING VARIABLES ARE USED TO EXPORT INFORMATION OF BLOCKS WITH SPECIFIC PROPERTIES (SIZE, MVS, POSITION, ...)
-  int targetSize = 128;
-  int targetCp = AFFINEMODEL_4PARAM; //AFFINEMODEL_6PARAM
-  
-  target = 1;
-  target &= pu.cu->lwidth() == targetSize;
-  target &= pu.cu->lheight() == targetSize;
-  target &= pu.cu->affineType == targetCp;
-  target &= pu.cu->cs->picture->getPOC() == 1;
-  target &= pu.cu->lx() == 1792;
-  target &= pu.cu->ly() == 896;
-  target &= mvLT.hor == 52;
-  target &= mvLT.ver == 92;
-  target &= mvRT.hor == 52;
-  target &= mvRT.ver == 92;
-//  target &= mvLB.hor == 4;
-//  target &= mvLB.ver == -44;
     
   CHECK(blockWidth  > (width >> iScaleX ), "Sub Block width  > Block width");
   CHECK(blockHeight > (height >> iScaleY), "Sub Block height > Block height");
@@ -959,6 +941,13 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
   bool      wrapRef = false;
   const bool subblkMVSpreadOverLimit = isSubblockVectorSpreadOverLimit( iDMvHorX, iDMvHorY, iDMvVerX, iDMvVerY, pu.interDir );
 
+  // Export info from xPredAffineBlk. The storch::target_xPredAffineBlk variable is controle from InterSearch::xAffineMotionEstimation
+  if(storch::target_xPredAffineBlk){
+    printf("Testing spreadOverLimits...\n");
+    cout<< "  iBit: " << iBit << "   cxWidth: " << cxWidth << "   log(cxWidth): " << floorLog2(cxWidth) << endl;
+    printf("  XY: %dx%d  LT: %dx%d  RT: %dx%d -> Spread: %d\n", pu.cu->lx(), pu.cu->ly(), mvLT.hor, mvLT.ver, mvRT.hor, mvRT.ver, subblkMVSpreadOverLimit);
+  }
+  
   // PROF is the affine prediction refinement with optical flow. It is performed after AME
   bool enablePROF = (sps.getUsePROF()) && (!m_skipPROF) && (compID == COMPONENT_Y);
   enablePROF &= (!pu.cs->picHeader->getProfDisabledFlag());
@@ -1073,7 +1062,7 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
     }
 
     const bool subblkMVSpreadOverLimitLuma = isSubblockVectorSpreadOverLimit(dMvHorXLuma, dMvHorYLuma, dMvVerXLuma, dMvVerYLuma, pu.interDir);
-
+    
     // Here it computes the MV for each sub-block (probably)
     // get luma MV block by block
     for (int h = 0; h < cxHeightLuma; h += lumaBlockHeight)
@@ -1160,6 +1149,14 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
             iMvScaleTmpVer = tmpMv.getVer();
           }
         }
+        
+        /*
+        // Export the sub-MV for the current subblock
+        if(storch::target_xPredAffineBlk){
+          printf("  subMV @ (%dx%d) = %dx%d\n", w,h,iMvScaleTmpHor,iMvScaleTmpVer);
+        }
+        //*/
+        
         if(EXTRACT_AFFINE_MV){
             
             // REMINDER

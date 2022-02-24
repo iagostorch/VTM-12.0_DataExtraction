@@ -2121,7 +2121,8 @@ void PU::fillAffineMvpCand(PredictionUnit &pu, const RefPicList &eRefPicList, co
   // WHen GPU_ME is true and the CU is 128x128, then the predicted MV must be zero for our algorithm
   // This variable controls if we are going to check the availability of AMVP candidates. When forcing zeroMVP, all availability tests are skipped
   
-  if(GPU_ME && pu.lwidth()==128 && pu.lheight()==128 && pu.cu->affineType==AFFINEMODEL_4PARAM)
+  // If GPU_ME is enabled, we disable the Affine AMVP and use a zero-MV as MVP
+  if(GPU_ME && pu.cu->affineType==AFFINEMODEL_4PARAM)
     forceZeroMVP = 1;
   else
     forceZeroMVP = 0;
