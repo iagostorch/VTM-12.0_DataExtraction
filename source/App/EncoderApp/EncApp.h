@@ -120,7 +120,11 @@ public:
   std::chrono::duration<long long, ratio<1, 1000000000>> getMetricTime()    const { return m_metricTime; };
 #endif
   VPS * getVPS() { return m_cEncLib.getVPS(); }
-  int   getChromaFormatIDC() const { return m_cEncLib.getChromaFormatIdc(); }
+  #if REUSE_CU_RESULTS
+    int   getChromaFormatIDC() const { return m_cEncLib.getChromaFormatIdc(); }
+  #else
+    int   getChromaFormatIDC() { return m_cEncLib.getChromaFormatIdc(); }
+  #endif
   int   getBitDepth() const { return m_cEncLib.getBitDepth(CHANNEL_TYPE_LUMA); }
 };// END CLASS DEFINITION EncApp
 

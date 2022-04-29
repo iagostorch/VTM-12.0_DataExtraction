@@ -300,7 +300,10 @@ public:
 
 protected:
 
+  // This function was modified to accomodate customized heuristics of block partitioning and prediction modes
   virtual bool tryMode              ( const EncTestMode& encTestmode, const CodingStructure &cs, Partitioner& partitioner ) = 0;
+  // This is the original function, using the standard heuristics
+  virtual bool tryMode_original     ( const EncTestMode& encTestmode, const CodingStructure &cs, Partitioner& partitioner ) = 0;
 
 public:
 
@@ -308,8 +311,11 @@ public:
   virtual bool checkSkipOtherLfnst  ( const EncTestMode& encTestmode, CodingStructure*& tempCS,  Partitioner& partitioner ) = 0;
 
   void         init                 ( EncCfg *pCfg, RateCtrl *pRateCtrl, RdCost *pRdCost );
-  bool         tryModeMaster        ( const EncTestMode& encTestmode, const CodingStructure &cs, Partitioner& partitioner );
-  bool         nextMode             ( const CodingStructure &cs, Partitioner &partitioner );
+  
+  // The following two functions were modified to receive an additional parameter "onlyAllowAffine"
+  // When this is true, the encoder enforces the testing of all block sizes compatible with affine, and the early terminations for INTER_ME prediciton are disabled (merge/skip can still be terminated)
+  bool         tryModeMaster        ( const EncTestMode& encTestmode, const CodingStructure &cs, Partitioner& partitioner, bool onlyAllowAffine = false );
+  bool         nextMode             ( const CodingStructure &cs, Partitioner &partitioner, bool onlyAllowAffine = false);
   EncTestMode  currTestMode         () const;
   EncTestMode  lastTestMode         () const;
   void         setEarlySkipDetected ();
@@ -542,7 +548,10 @@ public:
   virtual void initCULevel        ( Partitioner &partitioner, const CodingStructure& cs );
   virtual void finishCULevel      ( Partitioner &partitioner );
 
+  // This function was modified to accomodate customized heuristics of block partitioning and prediction modes
   virtual bool tryMode            ( const EncTestMode& encTestmode, const CodingStructure &cs, Partitioner& partitioner );
+  // This is the original function, using the standard heuristics
+  virtual bool tryMode_original   ( const EncTestMode& encTestmode, const CodingStructure &cs, Partitioner& partitioner );
   virtual bool useModeResult      ( const EncTestMode& encTestmode, CodingStructure*& tempCS,  Partitioner& partitioner );
 
   virtual bool checkSkipOtherLfnst( const EncTestMode& encTestmode, CodingStructure*& tempCS, Partitioner& partitioner );

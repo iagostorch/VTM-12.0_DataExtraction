@@ -969,7 +969,7 @@ void PU::getIBCMergeCandidates(const PredictionUnit &pu, MergeCtx& mrgCtx, const
     {
       // get Inter Dir
       mrgCtx.interDirNeighbours[cnt] = miAbove.interDir;
-      // get Mv from Above
+      // get Mv from Above      
       mrgCtx.mvFieldNeighbours[cnt << 1].setMvField(miAbove.mv[0], miAbove.refIdx[0]);
       if (mrgCandIdx == cnt)
       {
@@ -1127,7 +1127,7 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx,
       mrgCtx.interDirNeighbours[cnt] = miAboveRight.interDir;
       mrgCtx.useAltHpelIf[cnt] = miAboveRight.useAltHpelIf;
       // get Mv from Above-right
-      mrgCtx.BcwIdx[cnt] = (mrgCtx.interDirNeighbours[cnt] == 3) ? puAboveRight->cu->BcwIdx : BCW_DEFAULT;
+      mrgCtx.BcwIdx[cnt] = (mrgCtx.interDirNeighbours[cnt] == 3) ? puAboveRight->cu->BcwIdx : BCW_DEFAULT;      
       mrgCtx.mvFieldNeighbours[cnt << 1].setMvField( miAboveRight.mv[0], miAboveRight.refIdx[0] );
 
       if( slice.isInterB() )
@@ -1164,7 +1164,7 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx,
       mrgCtx.interDirNeighbours[cnt] = miBelowLeft.interDir;
       mrgCtx.useAltHpelIf[cnt] = miBelowLeft.useAltHpelIf;
       mrgCtx.BcwIdx[cnt] = (mrgCtx.interDirNeighbours[cnt] == 3) ? puLeftBottom->cu->BcwIdx : BCW_DEFAULT;
-      // get Mv from Bottom-Left
+      // get Mv from Bottom-Left      
       mrgCtx.mvFieldNeighbours[cnt << 1].setMvField( miBelowLeft.mv[0], miBelowLeft.refIdx[0] );
 
       if( slice.isInterB() )
@@ -1346,18 +1346,18 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx,
           Mv avgMv = MvI;
           avgMv += MvJ;
           roundAffineMv(avgMv.hor, avgMv.ver, 1);
-
+          
           mrgCtx.mvFieldNeighbours[cnt * 2 + refListId].setMvField( avgMv, refIdxI );
         }
         // only one MV is valid, take the only one MV
         else if( refIdxI != NOT_VALID )
         {
-          Mv singleMv = mrgCtx.mvFieldNeighbours[0 * 2 + refListId].mv;
+          Mv singleMv = mrgCtx.mvFieldNeighbours[0 * 2 + refListId].mv;         
           mrgCtx.mvFieldNeighbours[cnt * 2 + refListId].setMvField( singleMv, refIdxI );
         }
         else if( refIdxJ != NOT_VALID )
         {
-          Mv singleMv = mrgCtx.mvFieldNeighbours[1 * 2 + refListId].mv;
+          Mv singleMv = mrgCtx.mvFieldNeighbours[1 * 2 + refListId].mv;          
           mrgCtx.mvFieldNeighbours[cnt * 2 + refListId].setMvField( singleMv, refIdxJ );
         }
       }
@@ -2118,11 +2118,10 @@ void PU::xInheritedAffineMv( const PredictionUnit &pu, const PredictionUnit* puN
 void PU::fillAffineMvpCand(PredictionUnit &pu, const RefPicList &eRefPicList, const int &refIdx, AffineAMVPInfo &affiAMVPInfo)
 {
   int forceZeroMVP;
-  // WHen GPU_ME is true and the CU is 128x128, then the predicted MV must be zero for our algorithm
   // This variable controls if we are going to check the availability of AMVP candidates. When forcing zeroMVP, all availability tests are skipped
-  
   // If GPU_ME is enabled, we disable the Affine AMVP and use a zero-MV as MVP
-  if(GPU_ME && pu.cu->affineType==AFFINEMODEL_4PARAM)
+  if( ( GPU_ME_2CPs && pu.cu->affineType==AFFINEMODEL_4PARAM)
+    ||( GPU_ME_3CPs && pu.cu->affineType==AFFINEMODEL_6PARAM))
     forceZeroMVP = 1;
   else
     forceZeroMVP = 0;
@@ -2663,7 +2662,7 @@ void PU::getAffineMergeCand( const PredictionUnit &pu, AffineMergeCtx& affMrgCtx
   for ( int i = 0; i < maxNumAffineMergeCand; i++ )
   {
     for ( int mvNum = 0; mvNum < 3; mvNum++ )
-    {
+    {     
       affMrgCtx.mvFieldNeighbours[(i << 1) + 0][mvNum].setMvField( Mv(), -1 );
       affMrgCtx.mvFieldNeighbours[(i << 1) + 1][mvNum].setMvField( Mv(), -1 );
     }
@@ -2701,7 +2700,7 @@ void PU::getAffineMergeCand( const PredictionUnit &pu, AffineMergeCtx& affMrgCtx
       // get Inter Dir
       mrgCtx.interDirNeighbours[pos] = miLeft.interDir;
 
-      // get Mv from Left
+      // get Mv from Left     
       mrgCtx.mvFieldNeighbours[pos << 1].setMvField( miLeft.mv[0], miLeft.refIdx[0] );
 
       if ( slice.isInterB() )
@@ -2717,7 +2716,7 @@ void PU::getAffineMergeCand( const PredictionUnit &pu, AffineMergeCtx& affMrgCtx
     if ( isAvailableSubPu )
     {
       for ( int mvNum = 0; mvNum < 3; mvNum++ )
-      {
+      {        
         affMrgCtx.mvFieldNeighbours[(affMrgCtx.numValidMergeCand << 1) + 0][mvNum].setMvField( mrgCtx.mvFieldNeighbours[(pos << 1) + 0].mv, mrgCtx.mvFieldNeighbours[(pos << 1) + 0].refIdx );
         affMrgCtx.mvFieldNeighbours[(affMrgCtx.numValidMergeCand << 1) + 1][mvNum].setMvField( mrgCtx.mvFieldNeighbours[(pos << 1) + 1].mv, mrgCtx.mvFieldNeighbours[(pos << 1) + 1].refIdx );
       }

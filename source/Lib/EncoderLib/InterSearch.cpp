@@ -2328,12 +2328,17 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
   {
     checkAffine = !( bestCU->firstPU->mergeFlag || !bestCU->affine );
   }
-  
+   
   if ( pu.cu->imv == 2 && checkNonAffine && pu.cu->slice->getSPS()->getAffineAmvrEnabledFlag() )
   {
     checkNonAffine = m_affineMotion.hevcCost[1] < m_affineMotion.hevcCost[0] * 1.06f;
   }
+  
 
+  // Skips the nonAffine prediction. This is selected based on CUSTOMIZE_TREE_HEURISTICS and ENFORCE_AFFINE_ON_EXTRA_BLOCK
+  if(storch::skipNonAffineUnipred_Current)  
+    checkNonAffine = 0;
+  
   {
     if (pu.cu->cs->bestParent != nullptr && pu.cu->cs->bestParent->getCU(CHANNEL_TYPE_LUMA) != nullptr && pu.cu->cs->bestParent->getCU(CHANNEL_TYPE_LUMA)->affine == false)
     {
@@ -2384,6 +2389,8 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
     unsigned imvShift = pu.cu->imv == IMV_HPEL ? 1 : (pu.cu->imv << 1);
     if ( checkNonAffine )
     {
+      if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && cu.cs->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight())))
+        printf("  INTER / UNIPRED\n");
       //  Uni-directional prediction
       // This loop goes over the two reference lists
       for ( int iRefList = 0; iRefList < iNumPredDir; iRefList++ )
@@ -2392,6 +2399,9 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
         // This loop goes over each frame for current reference list
         for (int iRefIdxTemp = 0; iRefIdxTemp < cs.slice->getNumRefIdx(eRefPicList); iRefIdxTemp++)
         {
+//          if(TRACE_ENC_MODES && cu.cs->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight())))
+//            printf("INTER / UNIPRED / L %d R %d\n", iRefList, iRefIdxTemp);
+          
           uiBitsTemp = uiMbBits[iRefList];
           if ( cs.slice->getNumRefIdx(eRefPicList) > 1 )
           {
@@ -2474,7 +2484,11 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
           }
         }
       }
-
+      
+      if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize( cu.cs->area.lwidth(), cu.cs->area.lheight()))){
+	printf("    Cost inter unipred. L0 %ld || L1 %ld\n", uiCost[0], uiCost[1] );
+      }
+      
       ::memcpy(cMvHevcTemp, cMvTemp, sizeof(cMvTemp));
       if (cu.imv == 0 && (!cu.slice->getSPS()->getUseBcw() || bcwIdx == BCW_DEFAULT))
       {
@@ -2490,6 +2504,9 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
         && (cu.slice->getCheckLDC() || bcwIdx == BCW_DEFAULT || !m_affineModeSelected || !m_pcEncCfg->getUseBcwFast())
         )
       {
+        if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && cu.cs->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight())))
+          printf("  INTER / BIPRED\n");
+        
         bool doBiPred = true;
         tryBipred = 1;
         cMvBi[0] = cMv[0];
@@ -2570,6 +2587,9 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
           enforceBcwPred = (bcwIdx != BCW_DEFAULT);
           for (int iIter = 0; iIter < iNumIter; iIter++)
           {
+//            if(TRACE_ENC_MODES && cu.cs->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight())))
+//                printf("INTER / BIPRED / Iter %d\n", iIter);
+            
             int iRefList = iIter % 2;
 
             if (m_pcEncCfg->getFastInterSearchMode() == FASTINTERSEARCH_MODE1
@@ -2686,6 +2706,11 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
               break;
             }
           }   // for loop-iter
+        
+          if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight()))){
+//            printf("    Cost inter bipred normal: %ld\n", uiCostBi);
+          }
+          
         }
         cu.refIdxBi[0] = iRefIdxBi[0];
         cu.refIdxBi[1] = iRefIdxBi[1];
@@ -2693,6 +2718,9 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
         // This if is related to using the symmetric motion vector difference (SMVD)
         if ( cs.slice->getBiDirPred() && trySmvd )
         {
+          if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && cu.cs->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight())))
+            printf("  INTER / BIPRED / Symmetric MVD\n");
+          
           Distortion symCost;
           Mv cMvPredSym[2];
           int mvpIdxSym[2];
@@ -2718,7 +2746,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
           for ( int i = 0; i < aacAMVPInfo[curRefList][refIdxCur].numCand; i++ )
           {
             for ( int j = 0; j < aacAMVPInfo[tarRefList][refIdxTar].numCand; j++ )
-            {
+            {                
               cCurMvField.setMvField( aacAMVPInfo[curRefList][refIdxCur].mvCand[i], refIdxCur );
               cTarMvField.setMvField( aacAMVPInfo[tarRefList][refIdxTar].mvCand[j], refIdxTar );
               Distortion cost = xGetSymmetricCost( pu, origBuf, eCurRefList, cCurMvField, cTarMvField, bcwIdx );
@@ -2824,7 +2852,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
           bits = uiMbBits[2];
           bits += 1; // add one bit for #symmetrical MVD mode
           bits += ((cs.slice->getSPS()->getUseBcw() == true) ? getWeightIdxBits(bcwIdx) : 0);
-          symCost += m_pcRdCost->getCost(bits);
+          symCost += m_pcRdCost->getCost(bits);          
           cTarMvField.setMvField(cCurMvField.mv.getSymmvdMv(cMvPredSym[curRefList], cMvPredSym[tarRefList]), refIdxTar);
 
           if( m_pcEncCfg->getMCTSEncConstraint() )
@@ -2850,7 +2878,13 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
             aaiMvpIdxBi[tarRefList][cTarMvField.refIdx] = mvpIdxSym[tarRefList];
             cMvPredBi[tarRefList][iRefIdxBi[tarRefList]] = cMvPredSym[tarRefList];
           }
+          if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(pu.cs->area.lwidth(), pu.cs->area.lheight()))){
+//            printf("  Cost inter bipred symmetric: %ld\n", symCost );
+          }
         }
+	if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(pu.cs->area.lwidth(), pu.cs->area.lheight()))){
+          printf("    Cost inter bipred: %ld\n", uiCostBi );
+	}
       } // if (B_SLICE)
 
 
@@ -2889,7 +2923,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
       {
         uiCost[0] = uiCost[1] = MAX_UINT;
       }
-
+      
       uiLastModeTemp = uiLastMode;
       if ( uiCostBi <= uiCost[0] && uiCostBi <= uiCost[1])
       {
@@ -2937,6 +2971,9 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
       uiHevcCost = (uiCostBi <= uiCost[0] && uiCostBi <= uiCost[1])
                      ? uiCostBi
                      : ((uiCost[0] <= uiCost[1]) ? uiCost[0] : uiCost[1]);
+      if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight()))){
+          printf("    Cost final inter nonAffine: %ld\n", uiHevcCost );
+      }
     }
     // This if decides if affine will be tested or not
     if (cu.Y().width > 8 && cu.Y().height > 8 && cu.slice->getSPS()->getUseAffine() // Minimum block size and affine encoding parameter
@@ -2944,6 +2981,10 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
       && (bcwIdx == BCW_DEFAULT || m_affineModeSelected || !m_pcEncCfg->getUseBcwFast())  // This m_affineModeSelected represents if the current CU is encoded with affine (?)
       )
     {
+      if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && cu.cs->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight())))
+        printf("  AFFINE\n");
+      
+      
       m_hevcCost = uiHevcCost;
       // save normal hevc result
       uint32_t uiMRGIndex = pu.mergeIdx;
@@ -2960,7 +3001,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
       cMvd[0]     = pu.mvd[REF_PIC_LIST_0];
       cMvd[1]     = pu.mvd[REF_PIC_LIST_1];
 
-      MvField cHevcMvField[2];
+      MvField cHevcMvField[2];      
       cHevcMvField[0].setMvField( pu.mv[REF_PIC_LIST_0], pu.refIdx[REF_PIC_LIST_0] );
       cHevcMvField[1].setMvField( pu.mv[REF_PIC_LIST_1], pu.refIdx[REF_PIC_LIST_1] );
 
@@ -2983,7 +3024,8 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
       if ( cu.slice->getSPS()->getUseAffineType() )
       {
         // This threshold is used to avoid 6 parameters affine when it is not likely to produce a better result
-        if ( uiAffineCost < uiHevcCost * 1.05 ) ///< condition for 6 parameter affine ME
+        // ENFORCE_3_CPS enforce the usage of 3 CPs irrespective of 2 CPs performance
+        if ( ENFORCE_3_CPS || (uiAffineCost < uiHevcCost * 1.05 ) ) ///< condition for 6 parameter affine ME
         {
           // save 4 parameter results
           Mv bestMv[2][3], bestMvd[2][3];
@@ -3344,8 +3386,10 @@ Distortion InterSearch::xGetAffineTemplateCost( PredictionUnit& pu, PelUnitBuf& 
   enum DFunc distFunc = (pu.cs->slice->getDisableSATDForRD()) ? DF_SAD : DF_HAD;
   
   // For Affine we enforce SATD 4x4 when using GPU_ME
-  if (GPU_ME &&  pu.cu->affineType==AFFINEMODEL_4PARAM)
-    distFunc = GPU_ME_DISTORTION;
+  if (( GPU_ME_2CPs && pu.cu->affineType==AFFINEMODEL_4PARAM)
+     ||(GPU_ME_3CPs && pu.cu->affineType==AFFINEMODEL_6PARAM)){
+        distFunc = GPU_ME_DISTORTION;
+  }
   
   uiCost  = m_pcRdCost->getDistPart( origBuf.Y(), predBuf.Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA), COMPONENT_Y
     , distFunc
@@ -4687,12 +4731,17 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
   // Probe START of Affine Uniprediction
   storch::startAffineUnipred(AFFINE_PARAMS, UNIPRED);
   storch::startAffineUnipred_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu));
+  
+  if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES)
+    printf("  AFFINE / Unipred %d CPs\n", pu.cu->affineType ? 3 : 2);
+  
   for ( int iRefList = 0; iRefList < iNumPredDir; iRefList++ )
   {      
     // When GPU_ME is enabled, we force a predicted MV equal to 0x0 and skip the refinement and simplification stages after gradient-me
     int forceZeroMVP;
 
-    if (GPU_ME &&  pu.cu->affineType==AFFINEMODEL_4PARAM)
+    if (  ( GPU_ME_2CPs &&  pu.cu->affineType==AFFINEMODEL_4PARAM)
+        ||( GPU_ME_3CPs &&  pu.cu->affineType==AFFINEMODEL_6PARAM))
       forceZeroMVP = 1;
     else
       forceZeroMVP = 0;
@@ -4701,6 +4750,9 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
     pu.interDir = ( iRefList ? 2 : 1 );
     for (int iRefIdxTemp = 0; iRefIdxTemp < slice.getNumRefIdx(eRefPicList); iRefIdxTemp++)
     {
+      
+//      printf("AFFINE / Unipred %d CPs / R %d L %d\n", pu.cu->affineType ? 3 : 2, iRefList, iRefIdxTemp);
+        
       // Get RefIdx bits
       uiBitsTemp = uiMbBits[iRefList];
       if ( slice.getNumRefIdx(eRefPicList) > 1 )
@@ -5069,10 +5121,22 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       }
     }
   }
-
+  if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(pu.cs->area.lwidth(), pu.cs->area.lheight()))){
+    printf("    Cost affine %d params unipred, L0 %ld || L1 %ld\n", pu.cu->affineType == AFFINEMODEL_4PARAM ? 4 : 6, uiCost[0], uiCost[1] );
+  }
+  
+  // This mechanism is used to allow enabling/disabling the affine biprediction based on storch::skipNonAffineUnipred_Current
+  int x = 1;
+  if(1 && storch::skipNonAffineUnipred_Current)
+      x=0;
+      
   // Bi-directional prediction
-  if ( slice.isInterB() && !PU::isBipredRestriction(pu) )
+  if ( (ENFORCE_AFFINE_ON_EXTRA_BLOCKS==0 || x) &&
+          slice.isInterB() && !PU::isBipredRestriction(pu) )
   {
+    if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES)
+      printf("  AFFINE / Bipred %d CPs\n", pu.cu->affineType ? 3 : 2);
+    
     storch::startAffineBipred(AFFINE_PARAMS, BIPRED);
     tryBipred = 1;
     pu.interDir = 3;
@@ -5163,6 +5227,9 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
 
     for ( int iIter = 0; iIter < iNumIter; iIter++ )
     {
+      
+//      printf("AFFINE / Bipred %d CPs / Iter %d\n", pu.cu->affineType ? 3 : 2, iIter);
+        
       // Set RefList
       int iRefList = iIter % 2;
       if ( m_pcEncCfg->getFastInterSearchMode()==FASTINTERSEARCH_MODE1 || m_pcEncCfg->getFastInterSearchMode()==FASTINTERSEARCH_MODE2 )
@@ -5294,6 +5361,9 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
     }
     m_isBi = false;
     storch::finishAffineBipred(AFFINE_PARAMS, BIPRED);
+    if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(pu.cs->area.lwidth(), pu.cs->area.lheight()))){
+      printf("    Cost affine %d params bipred: %ld\n", pu.cu->affineType == AFFINEMODEL_4PARAM ? 4 : 6, uiCostBi );
+    }
   } // if (B_SLICE)
 
   pu.mv    [REF_PIC_LIST_0] = Mv();
@@ -5407,6 +5477,9 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
   if( bcwIdx != BCW_DEFAULT )
   {
     pu.cu->BcwIdx = BCW_DEFAULT;
+  }
+  if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(pu.cs->area.lwidth(), pu.cs->area.lheight()))){
+    printf("    Cost final affine %d params: %ld\n", pu.cu->affineType == AFFINEMODEL_4PARAM ? 4 : 6, affineCost );
   }
 }
 
@@ -5549,7 +5622,8 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
 {
   // When GPU_ME is true, we will skip the simplifications/refinements
   int skipRefinement;
-  if(GPU_ME && bBi==0 && pu.cu->affineType==AFFINEMODEL_4PARAM){
+  if( ( GPU_ME_2CPs && bBi==0 && pu.cu->affineType==AFFINEMODEL_4PARAM)
+    ||( GPU_ME_3CPs && bBi==0 && pu.cu->affineType==AFFINEMODEL_6PARAM)){
     skipRefinement = 1;
     // Uncomment to print ruiBits
     //    printf("ruiBits %d\n", ruiBits);
@@ -5588,7 +5662,8 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   enum DFunc distFunc = (pu.cs->slice->getDisableSATDForRD()) ? DF_SAD : DF_HAD;
   
   // For Affine we enforce SATD 4x4 when using GPU_ME
-  if (GPU_ME && bBi==0 && pu.cu->affineType==AFFINEMODEL_4PARAM)
+  if ( ( GPU_ME_2CPs && bBi==0 && pu.cu->affineType==AFFINEMODEL_4PARAM)
+     ||( GPU_ME_3CPs && bBi==0 && pu.cu->affineType==AFFINEMODEL_6PARAM))
     distFunc = GPU_ME_DISTORTION;
   
   m_iRefListIdx = eRefPicList;
@@ -6237,7 +6312,7 @@ void InterSearch::xEstimateAffineAMVP( PredictionUnit&  pu,
   iBestIdx = 0;
   
   // When GPU_ME is true, only one candidate should be tested (they are all equal)
-  int skipAMVP = GPU_ME && pu.cu->affineType==AFFINEMODEL_4PARAM;
+  int skipAMVP = (GPU_ME_2CPs && pu.cu->affineType==AFFINEMODEL_4PARAM) || ( GPU_ME_3CPs && pu.cu->affineType==AFFINEMODEL_6PARAM);
   int numCand = skipAMVP ? 1 : affineAMVPInfo.numCand;
   for( int i = 0 ; i < numCand; i++ )
   {
@@ -8355,7 +8430,7 @@ void InterSearch::symmvdCheckBestMvp(
   int32_t refIdxCur = pu.cu->slice->getSymRefIdx(curRefList);
   int32_t refIdxTar = pu.cu->slice->getSymRefIdx(tarRefList);
 
-  MvField cCurMvField, cTarMvField;
+  MvField cCurMvField, cTarMvField;  
   cCurMvField.setMvField(curMv, refIdxCur);
   AMVPInfo& amvpCur = amvpInfo[curRefList][refIdxCur];
   AMVPInfo& amvpTar = amvpInfo[tarRefList][refIdxTar];
@@ -8396,7 +8471,7 @@ void InterSearch::symmvdCheckBestMvp(
       {
         continue;
       }
-
+      
       cTarMvField.setMvField(curMv.getSymmvdMv(amvpCur.mvCand[i], amvpTar.mvCand[j]), refIdxTar);
 
       // get prediction of eTarRefPicList

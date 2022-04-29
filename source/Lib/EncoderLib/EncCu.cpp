@@ -63,22 +63,6 @@
 // ====================================================================================================================
 
 
-bool isAffineSize(SizeType width, SizeType height){
-  if((width>=32) && (height>=32))
-    return true;
-  else if((width==32) && (height==16))
-    return true;
-  else if((width==16) && (height==32))
-    return true;
-  else if((width==64) && (height==16))
-    return true;
-  else if((width==16) && (height==64))
-    return true;
-  else if((width==16) && (height==16))
-    return true;
-  else
-    return false;
-}
 
 EncCu::EncCu() : m_GeoModeTest
 {
@@ -324,6 +308,15 @@ void EncCu::compressCtu( CodingStructure& cs, const UnitArea& area, const unsign
   tempCS->prevQP[CH_L] = bestCS->prevQP[CH_L] = prevQP[CH_L];
 
   xCompressCU(tempCS, bestCS, partitioner);
+  
+  if(TRACE_CTU_COSTS && cs.picture->poc>0){
+    printf("Finished CTU Luma @(%dx%d) [%dx%d]. Cost=", bestCS->area.lx(), bestCS->area.ly(), bestCS->area.lwidth(), bestCS->area.lheight());
+    cout << bestCS->cost << endl; 
+  }
+  
+  // iagostorch debug
+//  printf("Came back to CTU @(%dx%d) [%dx%d]\n", tempCS->area.lx(), tempCS->area.ly(), tempCS->area.lwidth(), tempCS->area.lheight());
+          
   cs.slice->m_mapPltCost[0].clear();
   cs.slice->m_mapPltCost[1].clear();
   // all signals were already copied during compression if the CTU was split - at this point only the structures are copied to the top level CS
@@ -344,6 +337,12 @@ void EncCu::compressCtu( CodingStructure& cs, const UnitArea& area, const unsign
     tempCS->prevQP[CH_C] = bestCS->prevQP[CH_C] = prevQP[CH_C];
 
     xCompressCU(tempCS, bestCS, partitioner);
+    if(TRACE_CTU_COSTS && cs.picture->poc>0){
+      printf("Finished CTU Luma @(%dx%d) [%dx%d]. Cost=", bestCS->area.lx(), bestCS->area.ly(), bestCS->area.lwidth(), bestCS->area.lheight());
+      cout << bestCS->cost << endl; 
+    }
+    // iagostorch debug
+//    printf("Came back to CTU @(%dx%d) [%dx%d]\n", tempCS->area.lx(), tempCS->area.ly(), tempCS->area.lwidth(), tempCS->area.lheight());
 
     const bool copyUnsplitCTUSignals = bestCS->cus.size() == 1;
     cs.useSubStructure(*bestCS, partitioner.chType, CS::getArea(*bestCS, area, partitioner.chType),
@@ -516,6 +515,8 @@ bool EncCu::xCheckBestMode( CodingStructure *&tempCS, CodingStructure *&bestCS, 
   return bestCSUpdated;
 }
 
+
+// TODO: Move this to class storchmain
 // Used for debugging purposes. Print the name of the input encoding mode
 void translateEncTestModeType(EncTestModeType t){
   
@@ -560,9 +561,11 @@ void translateEncTestModeType(EncTestModeType t){
     case(ETM_POST_DONT_SPLIT):
       printf("ETM_POST_DONT_SPLIT,");
       break; 
+    #if REUSE_CU_RESULTS
     case(ETM_RECO_CACHED):
       printf("ETM_RECO_CACHED,");
       break; 
+    #endif
     case(ETM_TRIGGER_IMV_LIST):
       printf("ETM_TRIGGER_IMV_LIST,");
       break; 
@@ -580,6 +583,7 @@ void translateEncTestModeType(EncTestModeType t){
   return;
 }
 
+// TODO: Move this to class storchmain
 // Used for debugging purposes. Print the name of input partition mode
 void translatePartSplit(PartLevel p){
   switch(p.split){
@@ -608,6 +612,22 @@ void translatePartSplit(PartLevel p){
   }
     
 }
+
+// TODO: Move this to class storchmain
+bool isChildrenAffineCompatible_BAK(CodingStructure*& cs, EncTestModeType type){
+  if(
+         (cs->area.lwidth()<CUSTOM_SIZE || cs->area.lheight()<CUSTOM_SIZE)        // Current block has at least one dimension smaller than 16 and is not supported by affine
+      || (cs->area.lwidth()==CUSTOM_SIZE    && cs->area.lheight()==CUSTOM_SIZE)     // Current block is the smallest size supported by affine, smaller blocks are unsupported
+      || (cs->area.lwidth()<=CUSTOM_SIZE    && ((type==ETM_SPLIT_QT) || (type==ETM_SPLIT_BT_V) || (type==ETM_SPLIT_TT_V) ) ) // Smallest width and any vertical partitioning produces unsupported
+      || (cs->area.lheight()<=CUSTOM_SIZE   && ((type==ETM_SPLIT_QT) || (type==ETM_SPLIT_BT_H) || (type==ETM_SPLIT_TT_H) ) ) // Smallest height and any vertical partitioning produces unsupported
+      || (cs->area.lwidth()<=2*CUSTOM_SIZE  && (type==ETM_SPLIT_TT_V) ) // Width 32 and ternary partition produces CUs with width=8
+      || (cs->area.lheight()<=2*CUSTOM_SIZE && (type==ETM_SPLIT_TT_H) ) // Height 32 and ternary partition produces CUs with height=8
+    )
+    return false;
+  else
+    return true;
+}
+
 
 void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Partitioner& partitioner, double maxCostAllowed )
 {
@@ -671,8 +691,8 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
   m_modeCtrl->initCULevel( partitioner, *tempCS );
 
   
-  // Trace all calls of xCompressCU with affine-compatible CU sizes
-  if (0 && tempCS->picture->poc>0 && isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight())){
+  // Trace all calls of xCompressCU
+  if (TRACE_XCOMPRESSCU && tempCS->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight()))){    
     // Print POC, XY position, dimensions
     printf("xCompressCU,POC=%d,X=%d,Y=%d,W=%d,H=%d,Part,", tempCS->picture->poc, tempCS->area.lx(), tempCS->area.ly(), tempCS->area.lwidth(), tempCS->area.lheight());
 
@@ -725,6 +745,17 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
   if( !m_modeCtrl->anyMode() )
   {
     m_modeCtrl->finishCULevel( partitioner );
+    // Finished encoding the CU that "triggered" the skipping of non affine modes
+    // For the next CUs we can use all encoding possibilities, and the skipping is disabled
+    if(storch::skipNonAffineUnipred_Children == 1 &&
+            storch::skipNonAffineUnipred_Children_Area==tempCS->area)
+    {
+      storch::skipNonAffineUnipred_Children = 0;
+      if(DEBUG_ENABLE_DISABLE_CHILDREN)
+        printf(">> DISABLED CHILDREN AFFINE (!anyMode em xCompressCU @(%dx%d) [%dx%d])\n", tempCS->area.lx(), tempCS->area.ly(), tempCS->area.lwidth(), tempCS->area.lheight());
+    }
+    // iagostorch debug
+    //    printf("finished CU @(%dx%d) [%dx%d]: ", tempCS->area.lx(), tempCS->area.ly(), tempCS->area.lwidth(), tempCS->area.lheight());
     return;
   }
 
@@ -767,10 +798,32 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
     m_bestBcwCost[0] = m_bestBcwCost[1] = std::numeric_limits<double>::max();
     m_bestBcwIdx[0] = m_bestBcwIdx[1] = -1;
   }
+
+  // Before testing multiple encoding modes for the current CU, we must disable the skipping of non affine modes
+  // It will be enabled depending on skipNonAffineUnipred_Children
+  storch::skipNonAffineUnipred_Current=0; 
+  if(tempCS->picture->poc>0){
+    if(DEBUG_ENABLE_DISABLE_CHILDREN){
+      printf(">> DISABLED CURRENT AFFINE  (Before do-while)\n");
+    }
+  }
+    
+
   // It seems like this loop performs the encoding of current CU. Each iteration 
-  // tests a different mode (intra, inter, affine, etc)
+  // tests a different mode (intra, inter, affine, split QT, split BTV, etc)
   do    
   {
+    
+    // If we are skipping nonAffine prediction for this region, set the skip for current block
+    if(storch::skipNonAffineUnipred_Children==1 &&
+            storch::skipNonAffineUnipred_Children_Area.contains( tempCS->area ) )
+    {
+        storch::skipNonAffineUnipred_Current=1; 
+        if(DEBUG_ENABLE_DISABLE_CHILDREN)
+          printf(">> ENABLED CURRENT AFFINE (Due to CHILDREN)\n");
+    }
+        
+  
     for (int i = compBegin; i < (compBegin + numComp); i++)
     {
       ComponentID comID = jointPLT ? (ComponentID)compBegin : ((i > 0) ? COMPONENT_Cb : COMPONENT_Y);
@@ -779,7 +832,7 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
     }
     EncTestMode currTestMode = m_modeCtrl->currTestMode();
     currTestMode.maxCostAllowed = maxCostAllowed;
-
+    
     if (pps.getUseDQP() && partitioner.isSepTree(*tempCS) && isChroma( partitioner.chType ))
     {
       const Position chromaCentral(tempCS->area.Cb().chromaPos().offset(tempCS->area.Cb().chromaSize().width >> 1, tempCS->area.Cb().chromaSize().height >> 1));
@@ -818,6 +871,7 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
 
     if( currTestMode.type == ETM_INTER_ME )
     {
+      // The test to skip non affine modes is inside xCheckRDCostInter and xCheckRDCostInterIMV
       if( ( currTestMode.opts & ETO_IMV ) != 0 )
       {
         const bool skipAltHpelIF = ( int( ( currTestMode.opts & ETO_IMV ) >> ETO_IMV_SHIFT ) == 4 ) && ( bestIntPelCost > 1.25 * bestCS->cost );
@@ -838,20 +892,33 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
     }
     else if (currTestMode.type == ETM_HASH_INTER)
     {
+      if(storch::skipNonAffineUnipred_Current)            
+        continue;
+        
       xCheckRDCostHashInter( tempCS, bestCS, partitioner, currTestMode );
     }
     else if( currTestMode.type == ETM_AFFINE )
     {
+      // This is affine MERGE
+      if(storch::skipNonAffineUnipred_Current)            
+        continue;
+        
       xCheckRDCostAffineMerge2Nx2N( tempCS, bestCS, partitioner, currTestMode );
     }
 #if REUSE_CU_RESULTS
     else if( currTestMode.type == ETM_RECO_CACHED )
     {
+      // Skipping this mode (i.e., using continue statement) causes some problems
+      // Maybe this fetches the results obtained earlier, for the same block but created following a different sequence of splits
+      
       xReuseCachedResult( tempCS, bestCS, partitioner );
     }
 #endif
     else if( currTestMode.type == ETM_MERGE_SKIP )
     {
+      if(storch::skipNonAffineUnipred_Current)            
+        continue;
+        
       xCheckRDCostMerge2Nx2N( tempCS, bestCS, partitioner, currTestMode );
       CodingUnit* cu = bestCS->getCU(partitioner.chType);
       if (cu)
@@ -861,10 +928,16 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
     }
     else if( currTestMode.type == ETM_MERGE_GEO )
     {
+      if(storch::skipNonAffineUnipred_Current)            
+        continue;
+
       xCheckRDCostMergeGeo2Nx2N( tempCS, bestCS, partitioner, currTestMode );
     }
     else if( currTestMode.type == ETM_INTRA )
     {
+      if(storch::skipNonAffineUnipred_Current)            
+          continue;
+
       // Here it conducts intraframe prediction
       if (slice.getSPS()->getUseColorTrans() && !CS::isDualITree(*tempCS))
       {
@@ -902,20 +975,37 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
     }
     else if (currTestMode.type == ETM_PALETTE) // Pallete mode for screen content
     {
+      if(storch::skipNonAffineUnipred_Current)            
+        continue;
+
       xCheckPLT( tempCS, bestCS, partitioner, currTestMode );
     }
     else if (currTestMode.type == ETM_IBC) // IBC -> intra block copy fo screen content
     {
+      if(storch::skipNonAffineUnipred_Current)            
+        continue;
+        
       xCheckRDCostIBCMode(tempCS, bestCS, partitioner, currTestMode);
     }
     else if (currTestMode.type == ETM_IBC_MERGE)
     {
+      if(storch::skipNonAffineUnipred_Current)            
+        continue;
+
       xCheckRDCostIBCModeMerge2Nx2N(tempCS, bestCS, partitioner, currTestMode);
     }
     // This IF tests if the current "mode" is a splitting mode
     // i.e., instead of conducting some sort of prediction, we should partition the current block
     else if( isModeSplit( currTestMode ) )
     {
+       
+      if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && tempCS->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight())))
+      {
+        printf("  SPLIT @(%dx%d) [%dx%d]  ", tempCS->area.lx(), tempCS->area.ly(), tempCS->area.lwidth(), tempCS->area.lheight());
+        translateEncTestModeType(currTestMode.type);
+        printf("\n");
+      }
+        
       if (bestCS->cus.size() != 0)
       {
         splitmode = bestCS->cus[0]->splitSeries;
@@ -958,7 +1048,14 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
           }
         }
 
+        // This tests the current splitting mode
+        // xCheckModeSplit calls xCompressCu multiple times for the different children blocks created from the split
+        // xCheckModeSplit also has some heuristics that avoid conducting some splits
         xCheckModeSplit( tempCS, bestCS, partitioner, currTestMode, modeTypeParent, skipInterPass );
+
+        // iagostorch debug
+        // printf("Came back to xCompressCU after xCheckModeSplit @(%dx%d) [%dx%d]\n", tempCS->area.lx(), tempCS->area.ly(), tempCS->area.lwidth(), tempCS->area.lheight());
+        
         //recover cons modes
         tempCS->modeType = partitioner.modeType = modeTypeParent;
         tempCS->treeType = partitioner.treeType = treeTypeParent;
@@ -993,7 +1090,35 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
     {
       THROW( "Don't know how to handle mode: type = " << currTestMode.type << ", options = " << currTestMode.opts );
     }
-  } while( m_modeCtrl->nextMode( *tempCS, partitioner ) );
+    
+    // Reset the flag for current block after testing current encMode
+    if(tempCS->picture->poc>0 && storch::skipNonAffineUnipred_Current==1){
+      if(DEBUG_ENABLE_DISABLE_CHILDREN)
+        printf(">> DISABLED CURRENT AFFINE (Fim de uma iteração do-while)\n");
+  
+      storch::skipNonAffineUnipred_Current = 0; 
+    }
+
+    // Finished encoding the split that "triggered" the skipping of non affine modes
+    // For the next splits we can use all encoding possibilities
+    if(     storch::skipNonAffineUnipred_Children==1                 &&
+            storch::skipNonAffineUnipred_Children_Area==tempCS->area && // Equal areas means we are in the same block that triggered the flag
+            storch::skipNonAffineUnipred_Children_TriggerMode==currTestMode.type)
+    {
+      storch::skipNonAffineUnipred_Children = 0; 
+      
+      if(DEBUG_ENABLE_DISABLE_CHILDREN){
+        printf(">> DISABLED CHILDREN AFFINE (final de uma iteração do-while quando acaba o split trigger @(%dx%d) [%dx%d] Mode )\n", tempCS->area.lx(), tempCS->area.ly(), tempCS->area.lwidth(), tempCS->area.lheight());
+        translateEncTestModeType(currTestMode.type);
+        printf("\n");
+      }
+    }
+    
+    
+    // The last parameter represents onlyAllowAffine
+    // When ENFORCE_AFFINE_ON_EXTRA_BLOCKS is true, all extra blocks (i.e., blocks that the original encoder would not test but we are testing) can only be encoded with affine prediction
+    // If ENFORCE_AFFINE_ON_EXTRA_BLOCKS is false, then all prediction modes are allowed
+  } while( m_modeCtrl->nextMode( *tempCS, partitioner, ENFORCE_AFFINE_ON_EXTRA_BLOCKS ) );
 
 
   //////////////////////////////////////////////////////////////////////////
@@ -1003,6 +1128,16 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
     //although some coding modes were planned to be tried in RDO, no coding mode actually finished encoding due to early termination
     //thus tempCS->cost and bestCS->cost are both MAX_DOUBLE; in this case, skip the following process for normal case
     m_modeCtrl->finishCULevel( partitioner );
+
+    // Finished encoding the CU that "triggered" the skipping of non affine modes
+    // For the next CUs we can use all encoding possibilities
+    if(storch::skipNonAffineUnipred_Children==1 &&
+            storch::skipNonAffineUnipred_Children_Area==tempCS->area) // Equal areas means that we are in the same block that triggered the flag
+    {
+        storch::skipNonAffineUnipred_Children=0;
+        if(DEBUG_ENABLE_DISABLE_CHILDREN)
+          printf(">> DISABLED CHILDREN AFFINE (Finishing CU xCompressCU @(%dx%d) [%dx%d])\n", tempCS->area.lx(), tempCS->area.ly(), tempCS->area.lwidth(), tempCS->area.lheight());
+    }
     return;
   }
 
@@ -1079,6 +1214,16 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
   CHECK( bestCS->cus.empty()                                   , "No possible encoding found" );
   CHECK( bestCS->cus[0]->predMode == NUMBER_OF_PREDICTION_MODES, "No possible encoding found" );
   CHECK( bestCS->cost             == MAX_DOUBLE                , "No possible encoding found" );
+  
+  // Finished encoding the CU that "triggered" the skipping of non affine modes
+  // For the next CUs we can use all encoding possibilities
+  if(storch::skipNonAffineUnipred_Children==1 &&
+          storch::skipNonAffineUnipred_Children_Area==tempCS->area) // Equal areas means we are in the same block that triggered the flag
+  {
+    storch::skipNonAffineUnipred_Children = 0; 
+    if(DEBUG_ENABLE_DISABLE_CHILDREN)
+      printf(">> DISABLED CHILDREN AFFINE (final de xCompressCU @(%dx%d) [%dx%d])\n", tempCS->area.lx(), tempCS->area.ly(), tempCS->area.lwidth(), tempCS->area.lheight());
+  }
 }
 
 #if SHARP_LUMA_DELTA_QP || ENABLE_QPA_SUB_CTU
@@ -1174,6 +1319,19 @@ void EncCu::xCheckModeSplit(CodingStructure *&tempCS, CodingStructure *&bestCS, 
   m_CABACEstimator->getCtx() = SubCtx( Ctx::Split12Flag, ctxStart12 );
   m_CABACEstimator->getCtx() = SubCtx( Ctx::ModeConsFlag, ctxStartMC );
   
+  // This is NOT AN EARLY TERMINATION. If we are only testing the affine for children blocks, and the children blocks are not compatible with affine
+  // Then the current partitioning is not allowed
+  if(storch::skipNonAffineUnipred_Children==1
+          && ENFORCE_AFFINE_ON_EXTRA_BLOCKS
+          && !isChildrenAffineCompatible_BAK(tempCS, encTestMode.type)
+    ){
+    // iagostorch debug
+    // printf("SKIP SPLIT BECAUSE THE BLOCK SIZE IS NOT COMPATIBLE WITH AFFINE @(%dx%d) [%dx%d] -> ", tempCS->area.lx(), tempCS->area.ly(), tempCS->area.lwidth(), tempCS->area.lheight());
+    // translateEncTestModeType(encTestMode.type); printf("\n");
+    return;
+  }
+  
+  
   // This "cost" is based on the paper "Recursive partitioning search space pruning using split cost prediction” from 2019 Data Compression Conference (DCC)
   // When the current cost is larger than the cost of some previous partitionings, we terminate further partitioning
   if (cost > bestCS->cost + bestCS->costDbOffset
@@ -1184,16 +1342,31 @@ void EncCu::xCheckModeSplit(CodingStructure *&tempCS, CodingStructure *&bestCS, 
     )
   {
     xCheckBestMode( tempCS, bestCS, partitioner, encTestMode );  
-    
-    if((CUSTOMIZE_TREE_HEURISTICS                                   &&
-      (tempCS->area.lwidth()<16 || tempCS->area.lheight()<16        || // Current block has at least one dimension smaller than 32
-      ( tempCS->area.lwidth()==16 && tempCS->area.lheight()==16 ))) || // Current block is 32x32 -> we can skip smaller blocks using the heuristic
-        ALLOW_TREE_HEURISTICS
-            )
+
+       
+    // This is a modified early termination of VTM. If we are allowing all heuristics (standard procedure in original VTM) or it is an I-Slice, conduct early termination
+    // If the sub-blocks that will result from this partitioning are not compatible with affine, conduct early termination also
+    // The Early termination is only avoided if we are forcing the encoder to test all block sizes compatible with affine and the children blocks will be compatible
+    if( 
+              ORIGINAL_TREE_HEURISTICS || tempCS->picture->poc==0 // I-Slice or standard heuristics, we do not interfere on the splitting
+          || (CUSTOMIZE_TREE_HEURISTICS && !isChildrenAffineCompatible_BAK(tempCS, encTestMode.type))
+      )
     { 
       return;
     }
-    
+    // The original encoder would have conducted an early termination if we didnt interfere, so the children blocks are "extra blocks"
+    // If ENFORCE_AFFINE_ON_EXTRA_BLOCKS is enabled, then the children blocks (i.e., extra blocks) can only be predicted using affine prediction
+    // Otherwise, the children blocks can be predicted with any encoding mode
+    if(CUSTOMIZE_TREE_HEURISTICS && ENFORCE_AFFINE_ON_EXTRA_BLOCKS && storch::skipNonAffineUnipred_Children==0){
+      storch::skipNonAffineUnipred_Children = 1;
+      storch::skipNonAffineUnipred_Children_Area = tempCS->area; // Position that triggered the skipping of nonAffine prediction
+      storch::skipNonAffineUnipred_Children_TriggerMode = encTestMode.type; // Store the split that triggered the condition. We may not interfere in other splits for the same root block
+      if(DEBUG_ENABLE_DISABLE_CHILDREN){
+        printf(">> ENABLED CHILDREN AFFINE (xCheckModeSplit 1) @(%dx%d) (%dx%d) Part ", tempCS->area.lx(),tempCS->area.ly(), tempCS->area.lwidth(), tempCS->area.lheight());
+        translateEncTestModeType(encTestMode.type);
+        printf("\n");
+      }
+    }
   }
 
   const bool chromaNotSplit = modeTypeParent == MODE_TYPE_ALL && modeTypeChild == MODE_TYPE_INTRA ? true : false;
@@ -1234,6 +1407,7 @@ void EncCu::xCheckModeSplit(CodingStructure *&tempCS, CodingStructure *&bestCS, 
     m_pcInterSearch->savePrevUniMvInfo(tempCS->area.Y(), tmpUniMvInfo, isUniMvInfoSaved);
   }
 
+  // This do-while loop will call xCompressCU for each sub-CU of the current block
   do
   {
     const auto &subCUArea  = partitioner.currArea();
@@ -1253,29 +1427,55 @@ void EncCu::xCheckModeSplit(CodingStructure *&tempCS, CodingStructure *&bestCS, 
       newMaxCostAllowed = std::max(0.0, newMaxCostAllowed);
       // Since xCompressCU is called before the early termination, it is probable that all combinations of sub-blocks were already tested when the early skip is checked and no combination improved the RD, therefore the cost for the BEST subCS is MAX_DOUBLE
       xCompressCU(tempSubCS, bestSubCS, partitioner, newMaxCostAllowed);
+      
+      if(TRACE_XCOMPRESSCU && TRACE_CU_COSTS && bestSubCS->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight()))){
+        printf("Finished sub-CU Luma @(%dx%d) [%dx%d]. Cost=", bestSubCS->area.lx(), bestSubCS->area.ly(), bestSubCS->area.lwidth(), bestSubCS->area.lheight());
+        cout << bestSubCS->cost << endl; 
+      }
+      
+//      if (tempCS->picture->poc>0 && storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight()))
+//      {
+//        // iagostorch debug
+//        printf("Came back to xCheckModeSplit do-while @(%dx%d) [%dx%d]\n", tempCS->area.lx(), tempCS->area.ly(), tempCS->area.lwidth(), tempCS->area.lheight());
+//      }
+
       tempSubCS->bestParent = bestSubCS->bestParent = nullptr;
     
-    if( (CUSTOMIZE_TREE_HEURISTICS                                   && // Enforce the use of heuristic based on CUSTOMIZE_TREE_HEURISTICS
-        (tempCS->area.lwidth()<16 || tempCS->area.lheight()<16       || // Current block has at least one dimension smaller than 16
-        ( tempCS->area.lwidth()==16 && tempCS->area.lheight()==16 )))|| // Current block is 16x16 -> we can skip smaller blocks using the heuristic
-        ALLOW_TREE_HEURISTICS
-            ){
       
-        if( bestSubCS->cost == MAX_DOUBLE )
-        {
-          CHECK( split == CU_QUAD_SPLIT, "Split decision reusing cannot skip quad split" );
-          tempCS->cost = MAX_DOUBLE;
-          tempCS->costDbOffset = 0;
-          tempCS->useDbCost = m_pcEncCfg->getUseEncDbOpt();
-          m_CurrCtx--;
-          partitioner.exitCurrSplit();
-          xCheckBestMode( tempCS, bestCS, partitioner, encTestMode );
-          if( partitioner.chType == CHANNEL_TYPE_LUMA )
+      if( bestSubCS->cost == MAX_DOUBLE )
+      {
+        // If we are testing all blocks compatible with affine but the children blocks will not be compatible, then we can conduct the early termination
+        if( 
+              ORIGINAL_TREE_HEURISTICS || tempCS->picture->poc==0 // If it is an I-Slice or the standard split heuristics are enabled, we do not interfere
+           || (CUSTOMIZE_TREE_HEURISTICS && !isChildrenAffineCompatible_BAK(tempCS, encTestMode.type))
+          )
           {
-            tempCS->motionLut = oldMotionLut;
+            CHECK( split == CU_QUAD_SPLIT, "Split decision reusing cannot skip quad split" );
+            tempCS->cost = MAX_DOUBLE;
+            tempCS->costDbOffset = 0;
+            tempCS->useDbCost = m_pcEncCfg->getUseEncDbOpt();
+            m_CurrCtx--;
+            partitioner.exitCurrSplit();
+            xCheckBestMode( tempCS, bestCS, partitioner, encTestMode );
+            if( partitioner.chType == CHANNEL_TYPE_LUMA )
+            {
+              tempCS->motionLut = oldMotionLut;
+            }
+            return;
           }
-          return;
-        }
+          // The original encoder would have conducted an early termination if we didnt interfere, so the children blocks are "extra blocks"
+          // If ENFORCE_AFFINE_ON_EXTRA_BLOCKS is enabled, then the children blocks (i.e., extra blocks) can only be predicted using affine prediction
+          // Otherwise, the children blocks can be predicted with any encoding mode
+          if(CUSTOMIZE_TREE_HEURISTICS && ENFORCE_AFFINE_ON_EXTRA_BLOCKS && storch::skipNonAffineUnipred_Children == 0){
+            storch::skipNonAffineUnipred_Children = 1;
+            storch::skipNonAffineUnipred_Children_Area = tempCS->area;
+            storch::skipNonAffineUnipred_Children_TriggerMode = encTestMode.type; // Store the split that triggered the condition. We may not interfere in other splits for the same root block
+            if(DEBUG_ENABLE_DISABLE_CHILDREN){
+              printf(">> ENABLED CHILDREN AFFINE (xCheckModeSplit 2  @(%dx%d [%dx%d]) Part \n", tempCS->area.lx(), tempCS->area.ly(), tempCS->area.lwidth(), tempCS->area.lheight());
+              translateEncTestModeType(encTestMode.type);
+              printf("\n");
+            }
+          } 
       }
       
       bool keepResi = KEEP_PRED_AND_RESI_SIGNALS;
@@ -1299,21 +1499,21 @@ void EncCu::xCheckModeSplit(CodingStructure *&tempCS, CodingStructure *&bestCS, 
           CHECK( bestSubCS->cus[i]->predMode == MODE_INTER, "all CUs must not be inter mode in an Intra coding region (SCIPU)" );
         }
       }
-     
-    if( (CUSTOMIZE_TREE_HEURISTICS                                   && // CUSTOMIZE_TREE_HEURISTICS
-        (tempCS->area.lwidth()<16 || tempCS->area.lheight()<16       || // Current block has at least one dimension smaller than 16
-        ( tempCS->area.lwidth()==16 && tempCS->area.lheight()==16 )))|| // Current block is 16x16 -> we can skip smaller blocks using the heuristic
-        ALLOW_TREE_HEURISTICS
+        
+      tempSubCS->releaseIntermediateData();
+      bestSubCS->releaseIntermediateData();
+
+      // If the partitioner only allows intra pred (constrained to intra) and tempCS is not intra, do something... 
+      if( !tempCS->slice->isIntra() && partitioner.isConsIntra() )
+        {
+        tempCS->cost = m_pcRdCost->calcRdCost( tempCS->fracBits, tempCS->dist );
+        if( tempCS->cost > bestCS->cost )
+        {         
+          // If we are testing all blocks compatible with affine but the children blocks will not be compatible, then we can conduct the early termination
+          if( 
+                  ORIGINAL_TREE_HEURISTICS || tempCS->picture->poc==0 // If it is an I-Slice or the standard split heuristics are enabled, we do not interfere
+              ||  (CUSTOMIZE_TREE_HEURISTICS && !isChildrenAffineCompatible_BAK(tempCS, encTestMode.type)) 
             )
-    {     
-        tempSubCS->releaseIntermediateData();
-        bestSubCS->releaseIntermediateData();
-      
-        // If the partitioner only allows intra pred (constrained to intra) and tempCS is not intra, do something... 
-        if( !tempCS->slice->isIntra() && partitioner.isConsIntra() )
-          {
-            tempCS->cost = m_pcRdCost->calcRdCost( tempCS->fracBits, tempCS->dist );
-            if( tempCS->cost > bestCS->cost )
             {
               tempCS->cost = MAX_DOUBLE;
               tempCS->costDbOffset = 0;
@@ -1325,8 +1525,21 @@ void EncCu::xCheckModeSplit(CodingStructure *&tempCS, CodingStructure *&bestCS, 
                 tempCS->motionLut = oldMotionLut;
               }
               return;
+            }          
+          // The original encoder would have conducted an early termination if we didnt interfere, so the children blocks are "extra blocks"
+          // If ENFORCE_AFFINE_ON_EXTRA_BLOCKS is enabled, then the children blocks (i.e., extra blocks) can only be predicted using affine prediction
+          // Otherwise, the children blocks can be predicted with any encoding mode
+          if(CUSTOMIZE_TREE_HEURISTICS && ENFORCE_AFFINE_ON_EXTRA_BLOCKS && storch::skipNonAffineUnipred_Children == 0){
+            storch::skipNonAffineUnipred_Children = 1;
+            storch::skipNonAffineUnipred_Children_Area = tempCS->area; // Block that triggered the skipping of nonAffine predictin
+            storch::skipNonAffineUnipred_Children_TriggerMode = encTestMode.type; // Store the split that triggered the condition. We may not interfere in other splits for the same root block
+            if(DEBUG_ENABLE_DISABLE_CHILDREN){
+              printf(">> ENABLED CHILDREN AFFINE (xCheckModeSplit 3  @(%dx%d [%dx%d]) Part \n", tempCS->area.lx(), tempCS->area.ly(), tempCS->area.lwidth(), tempCS->area.lheight());
+              translateEncTestModeType(encTestMode.type);
+              printf("\n");
             }
           }
+        }
       }
     }
   } while( partitioner.nextPart( *tempCS ) );
@@ -1419,7 +1632,16 @@ void EncCu::xCheckModeSplit(CodingStructure *&tempCS, CodingStructure *&bestCS, 
       tempCS->initSubStructure(*bestCSChroma, partitioner.chType, partitioner.currArea(), false);
       tempCS->treeType = TREE_D;
       xCompressCU(tempCSChroma, bestCSChroma, partitioner);
-
+      
+      if(TRACE_XCOMPRESSCU && TRACE_CU_COSTS && tempCSChroma->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCSChroma->area.lwidth(), tempCSChroma->area.lheight()))){
+        printf("Finished sub-CU Chroma @(%dx%d) [%dx%d]. Cost=", bestCSChroma->area.lx(), bestCSChroma->area.ly(), bestCSChroma->area.lwidth(), bestCSChroma->area.lheight());
+        cout << bestCS->cost << endl; 
+      }
+//  iagostorch debug      
+//      if (tempCS->picture->poc>0 && storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight())){
+//        printf("Came back to xCheckModeSplit chroma @(%dx%d) Y[%dx%d] Ch[%dx%d]\n", tempCS->area.lx(), tempCS->area.ly(), tempCS->area.lwidth(), tempCS->area.lheight(), tempCSChroma->area.lwidth(), tempCSChroma->area.lheight());
+//      }
+       
       // attach chromaCS to luma CS and update cost
       bool keepResi = KEEP_PRED_AND_RESI_SIGNALS;
       // bestCSChroma->treeType = tempCSChroma->treeType = TREE_C;
@@ -1490,7 +1712,7 @@ void EncCu::xCheckModeSplit(CodingStructure *&tempCS, CodingStructure *&bestCS, 
   // Check Delta QP bits for splitted structure
   if( !qgEnableChildren ) // check at deepest QG level only
   {
-    xCheckDQP(*tempCS, partitioner, true);
+        xCheckDQP(*tempCS, partitioner, true);
   }
 
   // If the configuration being tested exceeds the maximum number of bytes for a slice / slice-segment, then
@@ -1542,6 +1764,9 @@ void EncCu::xCheckModeSplit(CodingStructure *&tempCS, CodingStructure *&bestCS, 
 
 bool EncCu::xCheckRDCostIntra(CodingStructure *&tempCS, CodingStructure *&bestCS, Partitioner &partitioner, const EncTestMode& encTestMode, bool adaptiveColorTrans)
 {
+  if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && tempCS->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight())))
+    printf("  INTRA\n");
+  
   double          bestInterCost             = m_modeCtrl->getBestInterCost();
   double          costSize2Nx2NmtsFirstPass = m_modeCtrl->getMtsSize2Nx2NFirstPassCost();
   bool            skipSecondMtsPass         = m_modeCtrl->getSkipSecondMTSPass();
@@ -1591,7 +1816,7 @@ bool EncCu::xCheckRDCostIntra(CodingStructure *&tempCS, CodingStructure *&bestCS
     CHECK(tempCS->modeType != MODE_TYPE_ALL || partitioner.modeType != MODE_TYPE_ALL, "localtree should not be applied when adaptive color transform is enabled");
     CHECK(adaptiveColorTrans && (CS::isDualITree(*tempCS) || partitioner.chType != CHANNEL_TYPE_LUMA), "adaptive color transform cannot be applied to dual-tree");
   }
-
+  
   for( int trGrpIdx = 0; trGrpIdx < grpNumMax; trGrpIdx++ )
   {
     const uint8_t startMtsFlag = trGrpIdx > 0;
@@ -1906,6 +2131,9 @@ bool EncCu::xCheckRDCostIntra(CodingStructure *&tempCS, CodingStructure *&bestCS
   {
     m_modeCtrl->setBestNonDCT2Cost(bestNonDCT2Cost);
   }
+  if(tempCS->picture->poc>0 && TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight()))){
+    printf("    Cost final INTRA: %f\n", bestCS->cost);    
+  }
   return foundZeroRootCbf;
 }
 
@@ -2151,6 +2379,10 @@ void EncCu::xCheckChromaQPOffset( CodingStructure& cs, Partitioner& partitioner 
 
 void EncCu::xCheckRDCostHashInter( CodingStructure *&tempCS, CodingStructure *&bestCS, Partitioner &partitioner, const EncTestMode& encTestMode )
 {
+
+  if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && tempCS->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight())))
+    printf("  HashInter\n");
+  
   bool isPerfectMatch = false;
 
   tempCS->initStructData(encTestMode.qp);
@@ -2189,10 +2421,16 @@ void EncCu::xCheckRDCostHashInter( CodingStructure *&tempCS, CodingStructure *&b
     isPerfectMatch = false;
   }
   m_modeCtrl->setIsHashPerfectMatch(isPerfectMatch);
+  if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight()))){
+    printf("    Cost HASH INTER: %f\n", tempCS->cost);
+  }
 }
 
 void EncCu::xCheckRDCostMerge2Nx2N( CodingStructure *&tempCS, CodingStructure *&bestCS, Partitioner &partitioner, const EncTestMode& encTestMode )
 {
+  if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && tempCS->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight())))
+    printf("  Normal Merge/Skip\n");
+  
   const Slice &slice = *tempCS->slice;
 
   CHECK( slice.getSliceType() == I_SLICE, "Merge modes not available for I-slices" );
@@ -2763,10 +3001,17 @@ void EncCu::xCheckRDCostMerge2Nx2N( CodingStructure *&tempCS, CodingStructure *&
   {
     xCalDebCost( *bestCS, partitioner );
   }
+  if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight()))){
+    printf("    Cost MERGE/SKIP: %f\n", bestCS->cost );
+  }
 }
 
 void EncCu::xCheckRDCostMergeGeo2Nx2N(CodingStructure *&tempCS, CodingStructure *&bestCS, Partitioner &pm, const EncTestMode& encTestMode)
 {
+   
+  if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && tempCS->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight())))
+    printf("  MergeGeo\n");
+  
   const Slice &slice = *tempCS->slice;
   CHECK(slice.getSliceType() == I_SLICE, "Merge modes not available for I-slices");
 
@@ -2849,6 +3094,9 @@ void EncCu::xCheckRDCostMergeGeo2Nx2N(CodingStructure *&tempCS, CodingStructure 
     if (m_pcEncCfg->getMCTSEncConstraint() && (!(MCTSHelper::checkMvBufferForMCTSConstraint(pu))))
     {
       tempCS->initStructData(encTestMode.qp);
+      if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight()))){
+	printf("    Early return #1\n" );
+      }
       return;
     }
     m_pcInterSearch->motionCompensation(pu, geoBuffer[mergeCand]);
@@ -2872,6 +3120,9 @@ void EncCu::xCheckRDCostMergeGeo2Nx2N(CodingStructure *&tempCS, CodingStructure 
   }
   if (isGeo)
   {
+    if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight()))){
+	printf("    Early return #2\n" );
+    }
     return;
   }
 
@@ -2932,6 +3183,9 @@ void EncCu::xCheckRDCostMergeGeo2Nx2N(CodingStructure *&tempCS, CodingStructure 
   }
   if (comboList.list.empty())
   {
+    if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight()))){
+      printf("    Early return #3\n" );
+    }
     return;
   }
   comboList.sortByCost();
@@ -3042,17 +3296,29 @@ void EncCu::xCheckRDCostMergeGeo2Nx2N(CodingStructure *&tempCS, CodingStructure 
   {
     xCalDebCost(*bestCS, pm);
   }
+  if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight()))){
+    printf("    Cost MergeGeo: %f\n", bestCS->cost );
+  }
 }
 
 void EncCu::xCheckRDCostAffineMerge2Nx2N( CodingStructure *&tempCS, CodingStructure *&bestCS, Partitioner &partitioner, const EncTestMode& encTestMode )
 {
+  if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && tempCS->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight())))
+    printf("  AFFINE MERGE\n");
+  
   if( m_modeCtrl->getFastDeltaQp() )
   {
+    if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight()))){
+      printf("    Early return #1\n");
+    }
     return;
   }
 
   if ( bestCS->area.lumaSize().width < 8 || bestCS->area.lumaSize().height < 8 )
   {
+    if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight()))){
+      printf("    Early return #2\n" );
+    }
     return;
   }
   m_bestModeUpdated = tempCS->useDbCost = bestCS->useDbCost = false;
@@ -3066,6 +3332,9 @@ void EncCu::xCheckRDCostAffineMerge2Nx2N( CodingStructure *&tempCS, CodingStruct
   const SPS &sps = *tempCS->sps;
   if (sps.getMaxNumAffineMergeCand() == 0)
   {
+    if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight()))){
+      printf("    Early return #3\n");
+    }
     return;
   }
 
@@ -3096,6 +3365,9 @@ void EncCu::xCheckRDCostAffineMerge2Nx2N( CodingStructure *&tempCS, CodingStruct
 
     if ( affineMergeCtx.numValidMergeCand <= 0 )
     {
+      if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight()))){
+	printf("    Early return #4\n");
+      }
       return;
     }
   }
@@ -3273,6 +3545,9 @@ void EncCu::xCheckRDCostAffineMerge2Nx2N( CodingStructure *&tempCS, CodingStruct
       {
         // Do not use this mode
         tempCS->initStructData( encTestMode.qp );
+	if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight()))){
+	  printf("    Early return #5\n");
+	}
         return;
       }
       if ( mrgTempBufSet )
@@ -3328,6 +3603,9 @@ void EncCu::xCheckRDCostAffineMerge2Nx2N( CodingStructure *&tempCS, CodingStruct
   if ( m_bestModeUpdated && bestCS->cost != MAX_DOUBLE )
   {
     xCalDebCost( *bestCS, partitioner );
+  }
+  if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight()))){
+      printf("    Cost MERGE AFFINE: %f\n", bestCS->cost );
   }
 }
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -3723,6 +4001,7 @@ void EncCu::xCheckRDCostInter( CodingStructure *&tempCS, CodingStructure *&bestC
     uint8_t bcwIdx  = cu.BcwIdx;
     bool    testBcw = (bcwIdx != BCW_DEFAULT);
 
+    // Inter prediction is conducted here, where it tests multiple modes (affin and nonAffine, unipred and bipred)
     m_pcInterSearch->predInterSearch(cu, partitioner);
 
     bcwIdx = CU::getValidBcwIdx(cu);
@@ -3872,6 +4151,7 @@ bool EncCu::xCheckRDCostInterIMV(CodingStructure *&tempCS, CodingStructure *&bes
 
   cu.firstPU->interDir = 10;
 
+  // Inter prediction is conducted here, where it tests multiple modes (affin and nonAffine, unipred and bipred)
   m_pcInterSearch->predInterSearch( cu, partitioner );
 
   if ( cu.firstPU->interDir <= 3 )
@@ -4576,6 +4856,9 @@ void EncCu::xEncodeDontSplit( CodingStructure &cs, Partitioner &partitioner )
 #if REUSE_CU_RESULTS
 void EncCu::xReuseCachedResult( CodingStructure *&tempCS, CodingStructure *&bestCS, Partitioner &partitioner )
 {
+  if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && tempCS->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight())))
+    printf("  Cached results\n");
+  
   m_pcRdCost->setChromaFormat(tempCS->sps->getChromaFormatIdc());
   BestEncInfoCache* bestEncCache = dynamic_cast<BestEncInfoCache*>( m_modeCtrl );
   CHECK( !bestEncCache, "If this mode is chosen, mode controller has to implement the mode caching capabilities" );
@@ -4670,6 +4953,9 @@ void EncCu::xReuseCachedResult( CodingStructure *&tempCS, CodingStructure *&best
   else
   {
     THROW( "Should never happen!" );
+  }
+  if(tempCS->picture->poc>0 && TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight()))){
+    printf("    Cost CACHED: %lf\n", tempCS->cost );
   }
 }
 #endif

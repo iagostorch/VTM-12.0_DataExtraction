@@ -15,7 +15,29 @@
 #define STORCHMAIN_H 1
 
 
-// My Directives
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// 
+//  MACROS USED TO TRACE AND DEBUG ENCODER DECISIONS
+//
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#define TRACE_XCOMPRESSCU 0 // When ebabled: print all calls to xCompressCU, including the block dimension, position, current split series, and encoding modes to be tested
+
+#define TRACE_CTU_COSTS 0 // Trace the best RDCost for each CTU. Works independently from TRACE_XCOMPRESSCU
+
+#define TRACE_CU_COSTS 0 // Trace the best RDCost for each CU. Only works when TRACE_XCOMPRESSCU is enabled
+
+#define TRACE_ENC_MODES 0 // When enabled: print all encoding modes tested by the encoder in each CU (INTRA, INTER, MERGE, SPLITs, ...). Only works when TRACE_XCOMPRESSCU is enabled
+
+#define ONLY_TRACE_AFFINE_SIZES 0 // When enabled: TRACE_ENC_MODES and TRACE_CU_COSTS are used only for block sizes compatible with affine prediction inter_me (16x16 or larger). Only works when TRACE_XCOMPRESSCU is enabled
+
+#define TRACE_INNER_RESULTS_PRED 0 // When enabled: trace the approximate rdcost of the encoding modes. Only works when TRACE_XCOMPRESSCU and TRACE_ENC_MODES is enabled
+
+#define DEBUG_ENABLE_DISABLE_CHILDREN 0 // When enabled: print the modifications on the mechanism used to control when all prediction types are allowed and when only affine prediction is allowed. Only works if CUSTOMIZE_TREE_HEURISTICS and ENFORCE_AFFINE_ON_EXTRA_BLOCKS are enabled
+
+#define TRACE_TRYMODE_DIVERGENCE 0 // When enabled: Shows the divergence between the original and customized tryMode. Only works if TRACE_XCOMPRESSCU and TRACE_ENC_MODES is enabled, while ORIGINAL_TREE_HEURISTICS is disabled
+
+
 #define EXTRACT_FRAME 0
 #define EXTRACT_BLOCK 0
 #define EXTRACT_BLOCK_WIDTH 8
@@ -25,11 +47,38 @@
 
 #define EXTRACT_AME_PROGRESS 0
 
-#define GPU_ME 0     // When enabled: Disable AMVP, force predicted MV to 0x0, compute affine distortion using SATD_4x4, and skip the refinement and simplification stages afer Gradient-ME (for both lists L0 and L1)
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// 
+//  MACROS THAT MODIFY THE ENCODER DECISIONS
+//
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-#define ALLOW_TREE_HEURISTICS 0 // When enabled, ALL HEURISTICS ARE USED. When disabled, a subset of heuristics can be used based on CUSTOMIZE_TREE_HEURISTICS
+#define CUSTOM_SIZE 16
 
-#define CUSTOMIZE_TREE_HEURISTICS 0 // When ALLOW_TREE_HEURISTICS=1, this has no effect. Otherwise, enable a subset of heuristics applied to intra prediction and merge, in addition to inter in blocks smaller than 32x32 mostly
+// One of these three MUST ALWAYS BE TRUE. They control what split heuristics are being used
+#define ORIGINAL_TREE_HEURISTICS 0   // When enabled, ALL HEURISTICS OF VTM ARE USED
+#define CUSTOMIZE_TREE_HEURISTICS 1  // When enabled, the split heuristics are disabled for blocks with dimensions at least CUSTOM_SIZExCUSTOM_SIZE (i.e., we test all blocks >=CUSTOM_SIZExCUSTOM_SIZE). It ALSO DISABLES some early terminations applied to affine inter prediction. Early terminations for other prediciton modes are not changed.
+#define NO_TREE_HEURISTICS 0         // When this is enabled, we AVOID ALL EARLY TERMINATIONS OF BLOCK PARTITIONING. The TERMINATIONS FOR INTER_ME ARE AVOIDED AS WELL. Early terminations for other prediction modes are maintained
+
+
+// Controls whether the encoder is simulating the corresponding GPU implementation of affine, for 2 and 3CPs independently
+// When enabled: Disable AMVP, force predicted MV to 0x0, compute affine distortion using SATD_4x4, and skip the refinement and simplification stages afer Gradient-ME (for both lists L0 and L1)
+// When disabled: Conduct affine prediction as the original VTM encoder
+#define GPU_ME_2CPs 0 // !!! IMPORTANT !!! IF ANY OF THESE IS TRUE, SIMD_ENABLE MUST BE DISABLED. OTHERWISE THE SATD COMPUTATION IS NOT MODIFIED    
+#define GPU_ME_3CPs 0 // !!! IMPORTANT !!! IF ANY OF THESE IS TRUE, SIMD_ENABLE MUST BE DISABLED. OTHERWISE THE SATD COMPUTATION IS NOT MODIFIED    
+
+
+// This is only valid when CUSTOMIZE_TREE_HEURISTICS==1. Controls what prediciton modes are evailable for extra blocks.
+// When enabled: All blocks that the original encoder would not test but we are testing (i.e., we are testing splits that would not be tested, evaluating EXTA BLOCKS) can only be predicted with affine uniprediction
+// When disabled: These extra blocks can be predicted with any prediction type (inter, intra, SKIP, ...)
+#define ENFORCE_AFFINE_ON_EXTRA_BLOCKS 0
+
+
+// Controls wheter we are forcing the encoder to test affine with 3 CPs or not
+// When enabled: whenever affine with 2 CPs is conducted, we enforce conducting affine with 3 CPs
+// When disabled: the original condition for testing 3 CPs is maintained (RD reasonably good when compared to translational ME)
+#define ENFORCE_3_CPS 0
+
 
 // This typedef is used to control what type of samples are being exported from the encoder
 typedef enum
@@ -78,12 +127,20 @@ typedef enum{
 #include <string>
 
 #include "CommonLib/Unit.h"
+#include "../EncoderLib/EncModeCtrl.h"
 
 using namespace std;
 
 class storch {
     
 public:
+
+    static int skipNonAffineUnipred_Current;
+    static UnitArea skipNonAffineUnipred_Current_Area;
+    static int skipNonAffineUnipred_Children;
+    static UnitArea skipNonAffineUnipred_Children_Area;
+    static EncTestModeType skipNonAffineUnipred_Children_TriggerMode;
+    
     static int currPoc;
     static int inheritedCand;
     static int constructedCand;
@@ -106,6 +163,8 @@ public:
     static void exportAmeProgressFlag(int is3CPs, int flag);
     static void exportAmeProgressMVs(int is3CPs, Mv mvs[3], int isFiller, int isFinal);
     static void exportAmeProgressBlock(int is3CPs, int refList, int refIdx, PredictionUnit& pu);
+    
+    static bool isAffineSize(SizeType width, SizeType height);
     
 #if EXAMPLE || EXAMPLE
     static void exampleFunct();
@@ -180,6 +239,11 @@ public:
     static int extractedFrames[EXT_NUM][500]; // Maks what frame were already extracted   
     
 private:   
+    //Functions used to verify if the combination of macros is correct
+    static void verifyTreeHeuristicsGpuMeMacros();
+    static void verifyTraceMacros();
+  
+  
     static double fsTime, aff4pTime, aff6pTime, aff4pAMVPTime, aff6pAMVPTime, affUnip4pTime, affBip4pTime, affUnip6pTime, affBip6pTime, affUnip4pInitTime, affBip4pInitTime, affUnip6pInitTime, affBip6pInitTime, affUnip4pMeTime, affBip4pMeTime, affUnip6pMeTime, affBip6pMeTime, affUnip4pMEGradTime, affBip4pMEGradTime, affUnip6pMEGradTime, affBip6pMEGradTime, affUnip4pMERefTime, affBip4pMERefTime, affUnip6pMERefTime, affBip6pMERefTime, affUnip4pMeInitTime, affBip4pMeInitTime, affUnip6pMeInitTime, affBip6pMeInitTime;
     static double affUnip4pMEGradTime_pred, affBip4pMEGradTime_pred, affUnip6pMEGradTime_pred, affBip6pMEGradTime_pred, affUnip4pMEGradTime_eq, affBip4pMEGradTime_eq, affUnip6pMEGradTime_eq, affBip6pMEGradTime_eq, affUnip4pMEGradTime_eq_build, affUnip4pMEGradTime_eq_solve, affBip4pMEGradTime_eq_build, affBip4pMEGradTime_eq_solve, affUnip6pMEGradTime_eq_build, affUnip6pMEGradTime_eq_solve, affBip6pMEGradTime_eq_build, affBip6pMEGradTime_eq_solve;
     
