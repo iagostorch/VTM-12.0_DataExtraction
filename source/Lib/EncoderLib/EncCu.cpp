@@ -703,7 +703,11 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
       PartLevel part = z.at(i);
       translatePartSplit(part);
     }
+    printf("|||");
     
+    cout << partitioner.getSplitSeries();
+            
+            
     // Print the set of EncodingModes that will be tested in sequence
     //*
     cout << "|||";
@@ -809,6 +813,10 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
   }
     
 
+  storch::testedAffine2CP = false;  // Used to test if the affine was conducted or not during the encoding of a given block
+  storch::testedAffine3CP = false;
+  storch::currSplitSeries = partitioner.getSplitSeries(); // This is used to track the current split series in functions where it is not directly available
+  
   // It seems like this loop performs the encoding of current CU. Each iteration 
   // tests a different mode (intra, inter, affine, split QT, split BTV, etc)
   do    
@@ -998,6 +1006,60 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
     // i.e., instead of conducting some sort of prediction, we should partition the current block
     else if( isModeSplit( currTestMode ) )
     {
+      // Se chegou aqui é porque nós já testamos todos os modos de predição e agora vamos testar os splits
+      // É hora de contabilizar a affine pro bloco atual caso ela tenha ocorrido
+      // Caso seja a primeira vez que fazemos affine nesse bloco vamos incrementar uniqBlocks
+      // Sempre incrementamos o contador geral (allBlocks)
+      
+      // When the encoder gets here it has already tested all prediction modes for the current CU and it will start testing the split modes
+      // Now we can verify if affine prediction was tested for the current block or not
+      // In case it is the first time affine is conducted for this block (position, size and splitSeries) we can increment uniqBlocks counter
+      // We always increment the general counter (allBlocks)
+      
+      
+      if(storch::testedAffine2CP){ // If we have tested affine with 2 CPs for the current block
+        CuSize currSize = storch::getSizeEnum(tempCS->area);
+        
+        // This is the general counter
+        storch::calls_unipred[AFFINEMODEL_4PARAM][currSize]++; // Affine was conducted one more time with 2 CPs and current size
+        
+        // Create a temp struct to hold the info of current CU
+        positionAndSplitseries tempStruct;
+        tempStruct.x = tempCS->area.lx();
+        tempStruct.y = tempCS->area.ly();
+        tempStruct.split = partitioner.getSplitSeries();
+        
+        if(storch::cusTestedWithAffine[AFFINEMODEL_4PARAM][currSize].count(tempStruct)){ // If the current CU was tested with affine before we will not account it in uniq
+          printf("ALREADY ENCODED THIS CU\n");
+        }
+        else{ // This CU was not tested in affine before, and it is the first time. We must add this CU to the set. It is not necessary to account for its time now because it was done in finishAffineUnipred_size in an earlier moment
+          storch::cusTestedWithAffine[AFFINEMODEL_4PARAM][currSize].insert(tempStruct);
+        }
+      }
+      
+      if(storch::testedAffine3CP){ // If we have tested affine with 3 CPs for the current block
+        CuSize currSize = storch::getSizeEnum(tempCS->area);  
+        
+        // This is the general counter
+        storch::calls_unipred[AFFINEMODEL_6PARAM][currSize]++; // Affine was conducted one more time with 3 CPs and current size
+        
+        // Create a temp struct to hold the info of current CU
+        positionAndSplitseries tempStruct;
+        tempStruct.x = tempCS->area.lx();
+        tempStruct.y = tempCS->area.ly();
+        tempStruct.split = partitioner.getSplitSeries();
+        
+        if(storch::cusTestedWithAffine[AFFINEMODEL_6PARAM][currSize].count(tempStruct)){ // If the current CU was tested with affine before we will not account it in uniq
+          printf("ALREADY ENCODED THIS CU\n");
+        }
+        else{ // This CU was not tested in affine before, and it is the first time. We must add this CU to the set. It is not necessary to account for its time now because it was done in finishAffineUnipred_size in an earlier moment
+          storch::cusTestedWithAffine[AFFINEMODEL_6PARAM][currSize].insert(tempStruct);
+        }
+      }
+      
+      // Now we can turn off the testedAffine flag to avoid trying to add the same CU in another part of the code
+      storch::testedAffine2CP = false;
+      storch::testedAffine3CP = false;
        
       if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && tempCS->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(tempCS->area.lwidth(), tempCS->area.lheight())))
       {
@@ -1121,6 +1183,53 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
   } while( m_modeCtrl->nextMode( *tempCS, partitioner, ENFORCE_AFFINE_ON_EXTRA_BLOCKS ) );
 
 
+  
+  
+  
+  if(storch::testedAffine2CP){ // If we have tested affine with 2 CPs for the current block
+    CuSize currSize = storch::getSizeEnum(tempCS->area);
+    
+    // This is the general counter
+    storch::calls_unipred[AFFINEMODEL_4PARAM][currSize]++; // Affine was conducted one more time with 2 CPs and current size
+    
+    // Create a temp struct to hold the info of current CU
+    positionAndSplitseries tempStruct;
+    tempStruct.x = tempCS->area.lx();
+    tempStruct.y = tempCS->area.ly();
+    tempStruct.split = partitioner.getSplitSeries();
+    
+    if(storch::cusTestedWithAffine[AFFINEMODEL_4PARAM][currSize].count(tempStruct)){ // If the current CU was tested with affine before we will not account it in uniq
+      printf("ALREADY ENCODED THIS CU\n");
+    }
+    else{ // This CU was not tested in affine before, and it is the first time. We must add this CU to the set. It is not necessary to account for its time now because it was done in finishAffineUnipred_size in an earlier moment
+      storch::cusTestedWithAffine[AFFINEMODEL_4PARAM][currSize].insert(tempStruct);
+    }
+  }
+  
+  if(storch::testedAffine3CP){ // If we have tested affine with 3 CPs for the current block
+    CuSize currSize = storch::getSizeEnum(tempCS->area);  
+    
+    // This is the general counter
+    storch::calls_unipred[AFFINEMODEL_6PARAM][currSize]++; // Affine was conducted one more time with 2 CPs and current size
+    
+    // Create a temp struct to hold the info of current CU
+    positionAndSplitseries tempStruct;
+    tempStruct.x = tempCS->area.lx();
+    tempStruct.y = tempCS->area.ly();
+    tempStruct.split = partitioner.getSplitSeries();
+    
+    if(storch::cusTestedWithAffine[AFFINEMODEL_6PARAM][currSize].count(tempStruct)){ // If the current CU was tested with affine before we will not account it in uniq
+      printf("ALREADY ENCODED THIS CU\n");
+    }
+    else{ // This CU was not tested in affine before, and it is the first time. We must add this CU to the set. It is not necessary to account for its time now because it was done in finishAffineUnipred_size in an earlier moment
+      storch::cusTestedWithAffine[AFFINEMODEL_6PARAM][currSize].insert(tempStruct);
+    }
+  }
+    
+  // Now we can turn off the testedAffine flag to avoid trying to add the same CU in another part of the code
+  storch::testedAffine2CP = false;
+  storch::testedAffine3CP = false;
+  
   //////////////////////////////////////////////////////////////////////////
   // Finishing CU
   if( tempCS->cost == MAX_DOUBLE && bestCS->cost == MAX_DOUBLE )

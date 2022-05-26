@@ -333,8 +333,10 @@ int main(int argc, char* argv[])
          encTime / 1000.0);
 #endif
 
-  storch::printParamsSummary();
+  storch::printParamsSummary(); // Summary of custom encoding parameter and macros
   storch::printSummary();
+  storch::printDetailedTimeSummary(0); // Values separated by spaces in a human-readable fashion
+  storch::printDetailedTimeSummary(1); // Comma-separated values
           
   return 0;
 }

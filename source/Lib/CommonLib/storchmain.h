@@ -56,8 +56,8 @@
 #define CUSTOM_SIZE 16
 
 // One of these three MUST ALWAYS BE TRUE. They control what split heuristics are being used
-#define ORIGINAL_TREE_HEURISTICS 0   // When enabled, ALL HEURISTICS OF VTM ARE USED
-#define CUSTOMIZE_TREE_HEURISTICS 1  // When enabled, the split heuristics are disabled for blocks with dimensions at least CUSTOM_SIZExCUSTOM_SIZE (i.e., we test all blocks >=CUSTOM_SIZExCUSTOM_SIZE). It ALSO DISABLES some early terminations applied to affine inter prediction. Early terminations for other prediciton modes are not changed.
+#define ORIGINAL_TREE_HEURISTICS 1   // When enabled, ALL HEURISTICS OF VTM ARE USED
+#define CUSTOMIZE_TREE_HEURISTICS 0  // When enabled, the split heuristics are disabled for blocks with dimensions at least CUSTOM_SIZExCUSTOM_SIZE (i.e., we test all blocks >=CUSTOM_SIZExCUSTOM_SIZE). It ALSO DISABLES some early terminations applied to affine inter prediction. Early terminations for other prediciton modes are not changed.
 #define NO_TREE_HEURISTICS 0         // When this is enabled, we AVOID ALL EARLY TERMINATIONS OF BLOCK PARTITIONING. The TERMINATIONS FOR INTER_ME ARE AVOIDED AS WELL. Early terminations for other prediction modes are maintained
 
 
@@ -129,6 +129,24 @@ typedef enum{
 #include "CommonLib/Unit.h"
 #include "../EncoderLib/EncModeCtrl.h"
 
+
+// This is used to represent the position and splitSeries of a CU in a single structure
+// A set is used to keep track of what CUs have already been tested by affine prediction
+struct positionAndSplitseries{
+  int x, y;
+  uint64_t split;
+
+  // Order of precedence: X, Y, split
+  // V1 < V2 if:
+  // v1.x<v2.x OR ( v1.x=v2.x AND v1.y<v2.y) OR ( v1.x=v2.x AND v1.y=v2.y AND v1.split<v2.split)
+  // To avoid v1.x=v2.x, we test !(v2.x<v1.x))
+  bool operator <(const positionAndSplitseries& sp) const
+  {
+    return (x < sp.x) || ((!(sp.x < x)) && (y < sp.y)) || (!(sp.x < x) && !(sp.y < y) && (split < sp.split));
+  }
+};
+
+
 using namespace std;
 
 class storch {
@@ -140,6 +158,17 @@ public:
     static int skipNonAffineUnipred_Children;
     static UnitArea skipNonAffineUnipred_Children_Area;
     static EncTestModeType skipNonAffineUnipred_Children_TriggerMode;
+
+    static bool testedAffine2CP, testedAffine3CP; // Used to track if affine mode was tested for a given CU
+    
+    static int calls_unipred[2][NUM_SIZES]; // Number of times affine unipred is conducted for each CP and CU Size
+    
+    static int numberUniqBlocks[2][NUM_SIZES]; // Number of times affine unipred is conducted for each CP and CU Size with an UNIQUE SPLIT SERIES. If the sabe CU with the same split is tested a second time, it is not counted here
+    static double unipredTimeUniqueBlocks[2][NUM_SIZES];
+    
+    static SplitSeries currSplitSeries;
+    
+    static set<positionAndSplitseries> cusTestedWithAffine[2][NUM_SIZES]; // Used to track if a block with SIZE, at position @(x,y), was already encoded with a specific split series
     
     static int currPoc;
     static int inheritedCand;
@@ -151,9 +180,12 @@ public:
     
     // Allows signaling a "target block" when callingxPredAffineBlk
     static int target_xPredAffineBlk;
+    
+    static int targetAffine;
         
     storch();
     static void printSummary();
+    static void printDetailedTimeSummary(bool isCommaSep);
     static void printParamsSummary();
     static void exportSamplesFrame(PelBuf samples, int POC, SamplesType type);
     static void exportSamplesBlock(CPelBuf samples, SamplesType type);
@@ -165,6 +197,9 @@ public:
     static void exportAmeProgressBlock(int is3CPs, int refList, int refIdx, PredictionUnit& pu);
     
     static bool isAffineSize(SizeType width, SizeType height);
+    
+    static void resetUnipredUniqControl();
+    
     
 #if EXAMPLE || EXAMPLE
     static void exampleFunct();
@@ -229,10 +264,11 @@ public:
     static void finishAffineGradRefSimp_size(EAffineModel param, EAffinePred pred, CuSize size);
     
     static void startAffineUnipred_size(EAffineModel param, EAffinePred pred, CuSize size);
-    static void finishAffineUnipred_size(EAffineModel param, EAffinePred pred, CuSize size);
-    
+    static void finishAffineUnipred_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu);
+        
     // Returns an ENUM based on block size for easier handling
     static CuSize getSizeEnum(PredictionUnit pu);
+    static CuSize getSizeEnum(UnitArea area);
     
     static void setPROF(int p);
     

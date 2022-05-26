@@ -58,6 +58,7 @@
 #include "CommonLib/ProfileLevelTier.h"
 
 #include "DecoderLib/DecLib.h"
+#include "storchmain.h"
 
 using namespace std;
 
@@ -2020,6 +2021,9 @@ void EncGOP::compressGOP( int iPOCLast, int iNumPicRcvd, PicList& rcListPic,
   // This for goes over all frames in a GOP
   for( int iGOPid = picIdInGOP; iGOPid <= picIdInGOP; iGOPid++ )
   {
+    
+    storch::resetUnipredUniqControl();
+    
     // reset flag indicating whether pictures have been encoded
     m_pcCfg->setEncodedFlag( iGOPid, false );
     if (m_pcCfg->getEfficientFieldIRAPEnabled())
