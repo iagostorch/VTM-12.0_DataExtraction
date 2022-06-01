@@ -1019,9 +1019,12 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
       
       if(storch::testedAffine2CP){ // If we have tested affine with 2 CPs for the current block
         CuSize currSize = storch::getSizeEnum(tempCS->area);
+        // Alignment of current CU
+        Alignment align = storch::getAlignment(tempCS->area);
         
         // This is the general counter
-        storch::calls_unipred[AFFINEMODEL_4PARAM][currSize]++; // Affine was conducted one more time with 2 CPs and current size
+        storch::calls_unipred[AFFINEMODEL_4PARAM][currSize][COMBINED]++; // Affine was conducted one more time with 2 CPs and current size
+        storch::calls_unipred[AFFINEMODEL_4PARAM][currSize][align]++; // Affine was conducted one more time with 2 CPs and current size
         
         // Create a temp struct to hold the info of current CU
         positionAndSplitseries tempStruct;
@@ -1029,19 +1032,24 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
         tempStruct.y = tempCS->area.ly();
         tempStruct.split = partitioner.getSplitSeries();
         
-        if(storch::cusTestedWithAffine[AFFINEMODEL_4PARAM][currSize].count(tempStruct)){ // If the current CU was tested with affine before we will not account it in uniq
+        if(storch::cusTestedWithAffine[AFFINEMODEL_4PARAM][currSize][COMBINED].count(tempStruct)){ // If the current CU was tested with affine before we will not account it in uniq
           printf("ALREADY ENCODED THIS CU\n");
         }
         else{ // This CU was not tested in affine before, and it is the first time. We must add this CU to the set. It is not necessary to account for its time now because it was done in finishAffineUnipred_size in an earlier moment
-          storch::cusTestedWithAffine[AFFINEMODEL_4PARAM][currSize].insert(tempStruct);
+          // We add the current CU into the combined and alignment-specific sets
+          storch::cusTestedWithAffine[AFFINEMODEL_4PARAM][currSize][COMBINED].insert(tempStruct);
+          storch::cusTestedWithAffine[AFFINEMODEL_4PARAM][currSize][align].insert(tempStruct);
         }
       }
       
       if(storch::testedAffine3CP){ // If we have tested affine with 3 CPs for the current block
         CuSize currSize = storch::getSizeEnum(tempCS->area);  
+        // Alignment of current CU
+        Alignment align = storch::getAlignment(tempCS->area);
         
         // This is the general counter
-        storch::calls_unipred[AFFINEMODEL_6PARAM][currSize]++; // Affine was conducted one more time with 3 CPs and current size
+        storch::calls_unipred[AFFINEMODEL_6PARAM][currSize][COMBINED]++; // Affine was conducted one more time with 3 CPs and current size
+        storch::calls_unipred[AFFINEMODEL_6PARAM][currSize][align]++; // Affine was conducted one more time with 3 CPs and current size
         
         // Create a temp struct to hold the info of current CU
         positionAndSplitseries tempStruct;
@@ -1049,11 +1057,13 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
         tempStruct.y = tempCS->area.ly();
         tempStruct.split = partitioner.getSplitSeries();
         
-        if(storch::cusTestedWithAffine[AFFINEMODEL_6PARAM][currSize].count(tempStruct)){ // If the current CU was tested with affine before we will not account it in uniq
+        if(storch::cusTestedWithAffine[AFFINEMODEL_6PARAM][currSize][COMBINED].count(tempStruct)){ // If the current CU was tested with affine before we will not account it in uniq
           printf("ALREADY ENCODED THIS CU\n");
         }
         else{ // This CU was not tested in affine before, and it is the first time. We must add this CU to the set. It is not necessary to account for its time now because it was done in finishAffineUnipred_size in an earlier moment
-          storch::cusTestedWithAffine[AFFINEMODEL_6PARAM][currSize].insert(tempStruct);
+          // We add the current CU into the combined and alignment-specific sets
+          storch::cusTestedWithAffine[AFFINEMODEL_6PARAM][currSize][COMBINED].insert(tempStruct);
+          storch::cusTestedWithAffine[AFFINEMODEL_6PARAM][currSize][align].insert(tempStruct);
         }
       }
       
@@ -1188,9 +1198,12 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
   
   if(storch::testedAffine2CP){ // If we have tested affine with 2 CPs for the current block
     CuSize currSize = storch::getSizeEnum(tempCS->area);
+    // Alignment of current CU
+    Alignment align = storch::getAlignment(tempCS->area);
     
     // This is the general counter
-    storch::calls_unipred[AFFINEMODEL_4PARAM][currSize]++; // Affine was conducted one more time with 2 CPs and current size
+    storch::calls_unipred[AFFINEMODEL_4PARAM][currSize][COMBINED]++; // Affine was conducted one more time with 2 CPs and current size
+    storch::calls_unipred[AFFINEMODEL_4PARAM][currSize][align]++; // Affine was conducted one more time with 3 CPs and current size
     
     // Create a temp struct to hold the info of current CU
     positionAndSplitseries tempStruct;
@@ -1198,19 +1211,24 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
     tempStruct.y = tempCS->area.ly();
     tempStruct.split = partitioner.getSplitSeries();
     
-    if(storch::cusTestedWithAffine[AFFINEMODEL_4PARAM][currSize].count(tempStruct)){ // If the current CU was tested with affine before we will not account it in uniq
+    if(storch::cusTestedWithAffine[AFFINEMODEL_4PARAM][currSize][COMBINED].count(tempStruct)){ // If the current CU was tested with affine before we will not account it in uniq
       printf("ALREADY ENCODED THIS CU\n");
     }
     else{ // This CU was not tested in affine before, and it is the first time. We must add this CU to the set. It is not necessary to account for its time now because it was done in finishAffineUnipred_size in an earlier moment
-      storch::cusTestedWithAffine[AFFINEMODEL_4PARAM][currSize].insert(tempStruct);
+      // We add the current CU into the combined and alignment-specific sets
+      storch::cusTestedWithAffine[AFFINEMODEL_4PARAM][currSize][COMBINED].insert(tempStruct);
+      storch::cusTestedWithAffine[AFFINEMODEL_4PARAM][currSize][align].insert(tempStruct);
     }
   }
   
   if(storch::testedAffine3CP){ // If we have tested affine with 3 CPs for the current block
     CuSize currSize = storch::getSizeEnum(tempCS->area);  
+    // Alignment of current CU
+    Alignment align = storch::getAlignment(tempCS->area);
     
     // This is the general counter
-    storch::calls_unipred[AFFINEMODEL_6PARAM][currSize]++; // Affine was conducted one more time with 2 CPs and current size
+    storch::calls_unipred[AFFINEMODEL_6PARAM][currSize][COMBINED]++; // Affine was conducted one more time with 2 CPs and current size
+    storch::calls_unipred[AFFINEMODEL_6PARAM][currSize][align]++; // Affine was conducted one more time with 3 CPs and current size
     
     // Create a temp struct to hold the info of current CU
     positionAndSplitseries tempStruct;
@@ -1218,11 +1236,13 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
     tempStruct.y = tempCS->area.ly();
     tempStruct.split = partitioner.getSplitSeries();
     
-    if(storch::cusTestedWithAffine[AFFINEMODEL_6PARAM][currSize].count(tempStruct)){ // If the current CU was tested with affine before we will not account it in uniq
+    if(storch::cusTestedWithAffine[AFFINEMODEL_6PARAM][currSize][COMBINED].count(tempStruct)){ // If the current CU was tested with affine before we will not account it in uniq
       printf("ALREADY ENCODED THIS CU\n");
     }
     else{ // This CU was not tested in affine before, and it is the first time. We must add this CU to the set. It is not necessary to account for its time now because it was done in finishAffineUnipred_size in an earlier moment
-      storch::cusTestedWithAffine[AFFINEMODEL_6PARAM][currSize].insert(tempStruct);
+      // We add the current CU into the combined and alignment-specific sets
+      storch::cusTestedWithAffine[AFFINEMODEL_6PARAM][currSize][COMBINED].insert(tempStruct);
+      storch::cusTestedWithAffine[AFFINEMODEL_6PARAM][currSize][align].insert(tempStruct);
     }
   }
     

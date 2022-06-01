@@ -3542,10 +3542,8 @@ void InterSearch::xMotionEstimation(PredictionUnit& pu, PelUnitBuf& origBuf, Ref
       xSetSearchRange(pu, bestInitMv, iSrchRng, cStruct.searchRange, cStruct);
     }
        
-    // Here it invokes full search ME. Probe execution time.
-    storch::startFullSearch();    
+    // Here it invokes full search ME
     xPatternSearch( cStruct, rcMv, ruiCost);
-    storch::finishFullSearch();
     
   }
   else if( bQTBTMV2 )
@@ -4734,7 +4732,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
   {
     pu.cu->BcwIdx = bcwIdx;
   }
-    
+  
   // Affine is performed for all reference pictures
   // Uni-directional prediction
   // Probe START of Affine Uniprediction
@@ -4982,7 +4980,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       }
       
       // Probe FINISH INIT+AMVP
-      storch::finishAffineAmvpInit_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu));
+      storch::finishAffineAmvpInit_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu), pu);
            
       // Initial MV (AMVP or derived after HEVC)
       if(EXTRACT_AME_PROGRESS && pu.cu->imv==0){
@@ -5036,7 +5034,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
           );
           
           // Probe END of Gradient-ME, Refinement and Simplification stage
-          storch::finishAffineGradRefSimp_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu));
+          storch::finishAffineGradRefSimp_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu), pu);
           storch::finishAffineME(AFFINE_PARAMS, UNIPRED);
         }
       }
@@ -5051,7 +5049,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         );
         
         // Probe END of Gradient-ME, Refinement and Simplification stage
-        storch::finishAffineGradRefSimp_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu));
+        storch::finishAffineGradRefSimp_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu), pu);
         storch::finishAffineME(AFFINE_PARAMS, UNIPRED);
       }
       if(pu.cu->cs->sps->getUseBcw() && pu.cu->BcwIdx == BCW_DEFAULT && pu.cu->slice->isInterB())

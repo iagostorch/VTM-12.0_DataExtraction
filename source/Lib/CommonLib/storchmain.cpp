@@ -18,47 +18,26 @@
 
 using namespace std;
 
-double storch::fsTime, storch::aff4pTime, storch::aff6pTime, storch::aff4pAMVPTime, storch::aff6pAMVPTime, storch::affUnip4pTime, storch::affBip4pTime, storch::affUnip6pTime, storch::affBip6pTime, storch::affUnip4pInitTime, storch::affBip4pInitTime, storch::affUnip6pInitTime, storch::affBip6pInitTime, storch::affUnip4pMeTime, storch::affBip4pMeTime, storch::affUnip6pMeTime, storch::affBip6pMeTime, storch::affUnip4pMEGradTime, storch::affBip4pMEGradTime, storch::affUnip6pMEGradTime, storch::affBip6pMEGradTime, storch::affUnip4pMERefTime, storch::affBip4pMERefTime, storch::affUnip6pMERefTime, storch::affBip6pMERefTime, storch::affUnip4pMeInitTime, storch::affBip4pMeInitTime, storch::affUnip6pMeInitTime, storch::affBip6pMeInitTime;
+double storch::aff4pTime, storch::aff6pTime, storch::aff4pAMVPTime, storch::aff6pAMVPTime, storch::affUnip4pTime, storch::affBip4pTime, storch::affUnip6pTime, storch::affBip6pTime, storch::affUnip4pInitTime, storch::affBip4pInitTime, storch::affUnip6pInitTime, storch::affBip6pInitTime, storch::affUnip4pMeTime, storch::affBip4pMeTime, storch::affUnip6pMeTime, storch::affBip6pMeTime, storch::affUnip4pMEGradTime, storch::affBip4pMEGradTime, storch::affUnip6pMEGradTime, storch::affBip6pMEGradTime, storch::affUnip4pMERefTime, storch::affBip4pMERefTime, storch::affUnip6pMERefTime, storch::affBip6pMERefTime, storch::affUnip4pMeInitTime, storch::affBip4pMeInitTime, storch::affUnip6pMeInitTime, storch::affBip6pMeInitTime;
 double storch::affUnip4pMEGradTime_pred, storch::affBip4pMEGradTime_pred, storch::affUnip6pMEGradTime_pred, storch::affBip6pMEGradTime_pred, storch::affUnip4pMEGradTime_eq, storch::affBip4pMEGradTime_eq, storch::affUnip6pMEGradTime_eq, storch::affBip6pMEGradTime_eq, storch::affUnip4pMEGradTime_eq_build, storch::affUnip4pMEGradTime_eq_solve, storch::affBip4pMEGradTime_eq_build, storch::affBip4pMEGradTime_eq_solve, storch::affUnip6pMEGradTime_eq_build, storch::affUnip6pMEGradTime_eq_solve, storch::affBip6pMEGradTime_eq_build, storch::affBip6pMEGradTime_eq_solve;
 
 // These are used to track if affine was conducted for the current block, and to track what is the current split series (i.e., sequence of splits) when it is not directly available
 bool storch::testedAffine2CP, storch::testedAffine3CP;
 SplitSeries storch::currSplitSeries;
 
-int storch::calls_unipred[2][NUM_SIZES]; // Number of times affine unipred is conducted for each CP and CU Size (multiple INTER_ME on the same CU count only once)
-int storch::numberUniqBlocks[2][NUM_SIZES]; // Number of times affine unipred is conducted for each CP and CU Size with unique split series(multiple INTER_ME on the same CU count only once, if the same split series is aplied a second time it is not computed here)
-double storch::unipredTimeUniqueBlocks[2][NUM_SIZES]; // Affine time for each CP and cu size considering only unique blocks
+int storch::calls_unipred[2][NUM_SIZES][NUM_ALIGNMENTS]; // Number of times affine unipred is conducted for each CP and CU Size (multiple INTER_ME on the same CU count only once)
+int storch::numberUniqBlocks[2][NUM_SIZES][NUM_ALIGNMENTS]; // Number of times affine unipred is conducted for each CP and CU Size with unique split series(multiple INTER_ME on the same CU count only once, if the same split series is aplied a second time it is not computed here)
+double storch::unipredTimeUniqueBlocks[2][NUM_SIZES][NUM_ALIGNMENTS]; // Affine time for each CP and cu size considering only unique blocks
 
 // positionAndSplitseries is a struct that holds the block position and splitSeries
-set<positionAndSplitseries> storch::cusTestedWithAffine[2][NUM_SIZES]; // Used to track if a block with SIZE, at position @(x,y), was already encoded with a SPECIFIC split series
+set<positionAndSplitseries> storch::cusTestedWithAffine[2][NUM_SIZES][NUM_ALIGNMENTS]; // Used to track if a block with SIZE, at position @(x,y), was already encoded with a SPECIFIC split series
 
 
 // Used to track the execution time of affine prediction
-double storch::affAmvpInit4pTime_128x128, storch::gradRefSimp4pTime_128x128, storch::affUnip4pTime_128x128;
-double storch::affAmvpInit4pTime_128x64, storch::gradRefSimp4pTime_128x64, storch::affUnip4pTime_128x64;
-double storch::affAmvpInit4pTime_64x128, storch::gradRefSimp4pTime_64x128, storch::affUnip4pTime_64x128;
-double storch::affAmvpInit4pTime_64x64, storch::gradRefSimp4pTime_64x64, storch::affUnip4pTime_64x64;
-double storch::affAmvpInit4pTime_64x32, storch::gradRefSimp4pTime_64x32, storch::affUnip4pTime_64x32;
-double storch::affAmvpInit4pTime_32x64, storch::gradRefSimp4pTime_32x64, storch::affUnip4pTime_32x64;
-double storch::affAmvpInit4pTime_64x16, storch::gradRefSimp4pTime_64x16, storch::affUnip4pTime_64x16;
-double storch::affAmvpInit4pTime_16x64, storch::gradRefSimp4pTime_16x64, storch::affUnip4pTime_16x64;
-double storch::affAmvpInit4pTime_32x32, storch::gradRefSimp4pTime_32x32, storch::affUnip4pTime_32x32;
-double storch::affAmvpInit4pTime_32x16, storch::gradRefSimp4pTime_32x16, storch::affUnip4pTime_32x16;
-double storch::affAmvpInit4pTime_16x32, storch::gradRefSimp4pTime_16x32, storch::affUnip4pTime_16x32;
-double storch::affAmvpInit4pTime_16x16, storch::gradRefSimp4pTime_16x16, storch::affUnip4pTime_16x16;
 
-double storch::affAmvpInit6pTime_128x128, storch::gradRefSimp6pTime_128x128, storch::affUnip6pTime_128x128;
-double storch::affAmvpInit6pTime_128x64, storch::gradRefSimp6pTime_128x64, storch::affUnip6pTime_128x64;
-double storch::affAmvpInit6pTime_64x128, storch::gradRefSimp6pTime_64x128, storch::affUnip6pTime_64x128;
-double storch::affAmvpInit6pTime_64x64, storch::gradRefSimp6pTime_64x64, storch::affUnip6pTime_64x64;
-double storch::affAmvpInit6pTime_64x32, storch::gradRefSimp6pTime_64x32, storch::affUnip6pTime_64x32;
-double storch::affAmvpInit6pTime_32x64, storch::gradRefSimp6pTime_32x64, storch::affUnip6pTime_32x64;
-double storch::affAmvpInit6pTime_64x16, storch::gradRefSimp6pTime_64x16, storch::affUnip6pTime_64x16;
-double storch::affAmvpInit6pTime_16x64, storch::gradRefSimp6pTime_16x64, storch::affUnip6pTime_16x64;
-double storch::affAmvpInit6pTime_32x32, storch::gradRefSimp6pTime_32x32, storch::affUnip6pTime_32x32;
-double storch::affAmvpInit6pTime_32x16, storch::gradRefSimp6pTime_32x16, storch::affUnip6pTime_32x16;
-double storch::affAmvpInit6pTime_16x32, storch::gradRefSimp6pTime_16x32, storch::affUnip6pTime_16x32;
-double storch::affAmvpInit6pTime_16x16, storch::gradRefSimp6pTime_16x16, storch::affUnip6pTime_16x16;
+// Affine time for each CP and cu size
+double storch::affAmvpInitTime[2][NUM_SIZES][NUM_ALIGNMENTS], storch::gradRefSimpTime[2][NUM_SIZES][NUM_ALIGNMENTS], storch::affUnipTime[2][NUM_SIZES][NUM_ALIGNMENTS];
+
 
 // Allows signaling a "target block" when calling the xPredAffineBlk
 int storch::target_xPredAffineBlk;
@@ -70,7 +49,7 @@ int storch::skipNonAffineUnipred_Current, storch::skipNonAffineUnipred_Children;
 UnitArea storch::skipNonAffineUnipred_Current_Area, storch::skipNonAffineUnipred_Children_Area;
 EncTestModeType storch::skipNonAffineUnipred_Children_TriggerMode;
 
-struct timeval storch::fs1, storch::fs2, storch::aamvp1, storch::aamvp2, storch::ag1, storch::ag2, storch::a4p1, storch::a4p2, storch::a6p1, storch::a6p2, storch::affme1, storch::affme2, storch::sraffme1, storch::sraffme2, storch::affinit1, storch::affinit2, storch::affunip1, storch::affunip2, storch::affbip1, storch::affbip2, storch::affmeinit1, storch::affmeinit2;
+struct timeval storch::aamvp1, storch::aamvp2, storch::ag1, storch::ag2, storch::a4p1, storch::a4p2, storch::a6p1, storch::a6p2, storch::affme1, storch::affme2, storch::sraffme1, storch::sraffme2, storch::affinit1, storch::affinit2, storch::affunip1, storch::affunip2, storch::affbip1, storch::affbip2, storch::affmeinit1, storch::affmeinit2;
 struct timeval storch::amvpInit_128x128_1, storch::amvpInit_128x128_2, storch::gradRefSimp_128x128_1, storch::gradRefSimp_128x128_2, storch::blockPred_128x128_1, storch::blockPred_128x128_2, storch::affunip_128x128_1, storch::affunip_128x128_2;
 
 // Used to probe the begin/finish times of affine predicitn in each block size
@@ -87,7 +66,6 @@ std::ofstream storch::affine_me_2cps_file, storch::affine_me_3cps_file;
 int storch::prof; // Keep the value of the PROF parameter
 
 storch::storch() {
-    fsTime = 0.0;
     aff4pTime = 0.0;
     aff6pTime = 0.0;
     aff4pAMVPTime = 0.0;
@@ -130,116 +108,28 @@ storch::storch() {
     affBip6pMEGradTime_eq_build = 0.0;
     affBip6pMEGradTime_eq_solve = 0.0;
     
-    affAmvpInit4pTime_128x128 = 0.0;
-    gradRefSimp4pTime_128x128 = 0.0;
-    affUnip4pTime_128x128     = 0.0;
-
-    affAmvpInit4pTime_128x64 = 0.0;
-    gradRefSimp4pTime_128x64 = 0.0;
-    affUnip4pTime_128x64     = 0.0;
-
-    affAmvpInit4pTime_64x128 = 0.0;
-    gradRefSimp4pTime_64x128 = 0.0;
-    affUnip4pTime_64x128     = 0.0;
-
-    affAmvpInit4pTime_64x64 = 0.0;
-    gradRefSimp4pTime_64x64 = 0.0;
-    affUnip4pTime_64x64     = 0.0;
-
-    affAmvpInit4pTime_64x32 = 0.0;
-    gradRefSimp4pTime_64x32 = 0.0;
-    affUnip4pTime_64x32     = 0.0;
-
-    affAmvpInit4pTime_32x64 = 0.0;
-    gradRefSimp4pTime_32x64 = 0.0;
-    affUnip4pTime_32x64     = 0.0;
-
-    affAmvpInit4pTime_64x16 = 0.0;
-    gradRefSimp4pTime_64x16 = 0.0;
-    affUnip4pTime_64x16     = 0.0;
-
-    affAmvpInit4pTime_16x64 = 0.0;
-    gradRefSimp4pTime_16x64 = 0.0;
-    affUnip4pTime_16x64     = 0.0;
-
-    affAmvpInit4pTime_32x32 = 0.0;
-    gradRefSimp4pTime_32x32 = 0.0;
-    affUnip4pTime_32x32     = 0.0;
-
-    affAmvpInit4pTime_32x16 = 0.0;
-    gradRefSimp4pTime_32x16 = 0.0;
-    affUnip4pTime_32x16     = 0.0;
-
-    affAmvpInit4pTime_16x32 = 0.0;
-    gradRefSimp4pTime_16x32 = 0.0;
-    affUnip4pTime_16x32     = 0.0;
-
-    affAmvpInit4pTime_16x16 = 0.0;
-    gradRefSimp4pTime_16x16 = 0.0;
-    affUnip4pTime_16x16     = 0.0;
-    
-    affAmvpInit6pTime_128x128 = 0.0;
-    gradRefSimp6pTime_128x128 = 0.0;
-    affUnip6pTime_128x128     = 0.0;
-
-    affAmvpInit6pTime_128x64 = 0.0;
-    gradRefSimp6pTime_128x64 = 0.0;
-    affUnip6pTime_128x64     = 0.0;
-
-    affAmvpInit6pTime_64x128 = 0.0;
-    gradRefSimp6pTime_64x128 = 0.0;
-    affUnip6pTime_64x128     = 0.0;
-
-    affAmvpInit6pTime_64x64 = 0.0;
-    gradRefSimp6pTime_64x64 = 0.0;
-    affUnip6pTime_64x64     = 0.0;
-
-    affAmvpInit6pTime_64x32 = 0.0;
-    gradRefSimp6pTime_64x32 = 0.0;
-    affUnip6pTime_64x32     = 0.0;
-
-    affAmvpInit6pTime_32x64 = 0.0;
-    gradRefSimp6pTime_32x64 = 0.0;
-    affUnip6pTime_32x64     = 0.0;
-
-    affAmvpInit6pTime_64x16 = 0.0;
-    gradRefSimp6pTime_64x16 = 0.0;
-    affUnip6pTime_64x16     = 0.0;
-
-    affAmvpInit6pTime_16x64 = 0.0;
-    gradRefSimp6pTime_16x64 = 0.0;
-    affUnip6pTime_16x64     = 0.0;
-
-    affAmvpInit6pTime_32x32 = 0.0;
-    gradRefSimp6pTime_32x32 = 0.0;
-    affUnip6pTime_32x32     = 0.0;
-
-    affAmvpInit6pTime_32x16 = 0.0;
-    gradRefSimp6pTime_32x16 = 0.0;
-    affUnip6pTime_32x16     = 0.0;
-
-    affAmvpInit6pTime_16x32 = 0.0;
-    gradRefSimp6pTime_16x32 = 0.0;
-    affUnip6pTime_16x32     = 0.0;
-
-    affAmvpInit6pTime_16x16 = 0.0;
-    gradRefSimp6pTime_16x16 = 0.0;
-    affUnip6pTime_16x16     = 0.0;
-    
     targetAffine = 0;
     testedAffine2CP = false;
     testedAffine3CP = false;
-    for(int i=0; i<NUM_SIZES; i++){
-      calls_unipred[AFFINEMODEL_4PARAM][i] = 0;
-      calls_unipred[AFFINEMODEL_6PARAM][i] = 0;
-      
-      unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][i] = 0.0;
-      unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][i] = 0.0;
+    for(int i=0; i<NUM_SIZES; i++){ 
+      for(int align=0; align<NUM_ALIGNMENTS; align++){
+        affAmvpInitTime[AFFINEMODEL_4PARAM][i][align] = 0.0;
+        affAmvpInitTime[AFFINEMODEL_6PARAM][i][align] = 0.0;
+        gradRefSimpTime[AFFINEMODEL_4PARAM][i][align] = 0.0;
+        gradRefSimpTime[AFFINEMODEL_4PARAM][i][align] = 0.0;
+        affUnipTime[AFFINEMODEL_4PARAM][i][align] = 0.0;
+        affUnipTime[AFFINEMODEL_4PARAM][i][align] = 0.0;
+        unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][i][align] = 0.0;
+        unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][i][align] = 0.0;
+        calls_unipred[AFFINEMODEL_4PARAM][i][align] = 0;
+        calls_unipred[AFFINEMODEL_6PARAM][i][align] = 0;
+      }
       
       // Initializes an empty set
-      cusTestedWithAffine[AFFINEMODEL_4PARAM][i].clear();
-      cusTestedWithAffine[AFFINEMODEL_6PARAM][i].clear();
-      
+      for(int align=0; align<NUM_ALIGNMENTS; align++){
+        cusTestedWithAffine[AFFINEMODEL_4PARAM][i][align].clear();
+        cusTestedWithAffine[AFFINEMODEL_6PARAM][i][align].clear();
+      }
     }
 
     target_xPredAffineBlk = 0;
@@ -335,7 +225,6 @@ void storch::printSummary() {
     totalCand = inheritedCand + constructedCand + translationalCand + temporalCand + zeroCand;
     
     cout << endl << "---------------------------------------------------------------------" << endl;
-    cout << "Full Search Time = " << fsTime << endl << endl << endl;
     cout << "###      Affine encoding time:" << endl;
     
     cout << "Complete 4 parameters:  " << (affUnip4pTime + affBip4pTime) << endl;
@@ -406,312 +295,314 @@ void storch::printSummary() {
 }
 
 // This presents a detailed report with statistics for each affine block size
-void storch::printDetailedTimeSummary(bool isCommaSep){
+void storch::printDetailedTimeSummary(bool isCommaSep, Alignment alignment){
     
     storch::resetUnipredUniqControl(); // used to sum the uniq blocks from the last frame. This is necessary here because the block count is updated at the start of the next frame, and the last frame has no next frame
   
     printf("{");
-    printf("%s\n", isCommaSep? "ComputerReadable" : "HumanReadable");
+    printf("%s,", isCommaSep? "ComputerReadable" : "HumanReadable");
+    printf("%s\n", alignment==ALIGNED ? "ALIGNED" : (alignment==HALF_ALIGNED ? "HALF_ALIGNED" : (alignment==UNALIGNED ? "UNALIGNED" : (alignment==COMBINED ? "COMBINED" : "ERROR"))));
     
-    cout << "  [!] Target times CUs 128x128" << endl;
-    printf("    128x128 AMVP+Init 2CPs %s%f\n", isCommaSep ? "," : "                 ",affAmvpInit4pTime_128x128);
-    printf("    128x128 Grad+Ref+Simp 2CPs %s%f\n", isCommaSep ? "," : "             ",gradRefSimp4pTime_128x128);
-    printf("    128x128 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip4pTime_128x128);
-    printf("    128x128 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_128x128]);
-    printf("    128x128 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_128x128]/affUnip4pTime_128x128);
-    printf("    128x128 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_128x128]);
-    printf("    128x128 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_128x128]);
-    printf("    128x128 Ratio #Uniq/All Unipred 2 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_4PARAM][_128x128]/calls_unipred[AFFINEMODEL_4PARAM][_128x128]);
-    printf("    128x128 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip4pTime_128x128/calls_unipred[AFFINEMODEL_4PARAM][_128x128]);
-    printf("    128x128 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_128x128]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_128x128]);
+cout << "  [!] Target times CUs 128x128" << endl;
+    printf("    128x128 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_128x128][alignment]);
+    printf("    128x128 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_128x128][alignment]);
+    printf("    128x128 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_128x128][alignment]);
+    printf("    128x128 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_128x128][alignment]);
+    printf("    128x128 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_128x128][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_128x128][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_128x128][alignment]);
+    printf("    128x128 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_128x128][alignment]);
+    printf("    128x128 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_128x128][alignment]);
+    printf("    128x128 Ratio #Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_4PARAM][_128x128][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_4PARAM][_128x128][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_128x128][alignment]);
+    printf("    128x128 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_4PARAM][_128x128][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_4PARAM][_128x128][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_128x128][alignment]);
+    printf("    128x128 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_128x128][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_128x128][alignment]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_128x128][alignment]);
     
-    printf("    128x128 AMVP+Init 3 CPs %s%f\n", isCommaSep ? "," : "                ",affAmvpInit6pTime_128x128);
-    printf("    128x128 Grad+Ref+Simp 3 CPs %s%f\n", isCommaSep ? "," : "            ",gradRefSimp6pTime_128x128);
-    printf("    128x128 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip6pTime_128x128);
-    printf("    128x128 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_128x128]);
-    printf("    128x128 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_128x128]/affUnip6pTime_128x128);
-    printf("    128x128 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_128x128]);
-    printf("    128x128 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_128x128]);
-    printf("    128x128 Ratio #Uniq/All Unipred 3 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_6PARAM][_128x128]/calls_unipred[AFFINEMODEL_6PARAM][_128x128]);
-    printf("    128x128 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip6pTime_128x128/calls_unipred[AFFINEMODEL_6PARAM][_128x128]);
-    printf("    128x128 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_128x128]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_128x128]);
+    printf("    128x128 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_128x128][alignment]);
+    printf("    128x128 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_128x128][alignment]);
+    printf("    128x128 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_128x128][alignment]);
+    printf("    128x128 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_128x128][alignment]);
+    printf("    128x128 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_128x128][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_128x128][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_128x128][alignment]);
+    printf("    128x128 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_128x128][alignment]);
+    printf("    128x128 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_128x128][alignment]);
+    printf("    128x128 Ratio #Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_6PARAM][_128x128][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_6PARAM][_128x128][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_128x128][alignment]);
+    printf("    128x128 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_6PARAM][_128x128][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_6PARAM][_128x128][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_128x128][alignment]);
+    printf("    128x128 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_128x128][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_128x128][alignment]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_128x128][alignment]);
     
     cout << endl;
     
     printf("  [!] Target times CUs 128x64\n");
-    printf("    128x64 AMVP+Init 2CPs %s%f\n", isCommaSep ? "," : "                 ",affAmvpInit4pTime_128x64);
-    printf("    128x64 Grad+Ref+Simp 2CPs %s%f\n", isCommaSep ? "," : "             ",gradRefSimp4pTime_128x64);
-    printf("    128x64 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip4pTime_128x64);
-    printf("    128x64 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_128x64]);
-    printf("    128x64 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_128x64]/affUnip4pTime_128x64);
-    printf("    128x64 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_128x64]);
-    printf("    128x64 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_128x64]);
-    printf("    128x64 Ratio #Uniq/All Unipred 2 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_4PARAM][_128x64]/calls_unipred[AFFINEMODEL_4PARAM][_128x64]);
-    printf("    128x64 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip4pTime_128x64/calls_unipred[AFFINEMODEL_4PARAM][_128x64]);
-    printf("    128x64 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_128x64]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_128x64]);
+    printf("    128x64 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_128x64][alignment]);
+    printf("    128x64 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_128x64][alignment]);
+    printf("    128x64 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_128x64][alignment]);
+    printf("    128x64 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_128x64][alignment]);
+    printf("    128x64 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_128x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_128x64][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_128x64][alignment]);
+    printf("    128x64 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_128x64][alignment]);
+    printf("    128x64 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_128x64][alignment]);
+    printf("    128x64 Ratio #Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_4PARAM][_128x64][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_4PARAM][_128x64][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_128x64][alignment]);
+    printf("    128x64 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_4PARAM][_128x64][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_4PARAM][_128x64][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_128x64][alignment]);
+    printf("    128x64 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_128x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_128x64][alignment]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_128x64][alignment]);
     
-    printf("    128x64 AMVP+Init 3 CPs %s%f\n", isCommaSep ? "," : "                ",affAmvpInit6pTime_128x64);
-    printf("    128x64 Grad+Ref+Simp 3 CPs %s%f\n", isCommaSep ? "," : "            ",gradRefSimp6pTime_128x64);
-    printf("    128x64 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip6pTime_128x64);
-    printf("    128x64 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_128x64]);
-    printf("    128x64 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_128x64]/affUnip6pTime_128x64);
-    printf("    128x64 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_128x64]);
-    printf("    128x64 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_128x64]);
-    printf("    128x64 Ratio #Uniq/All Unipred 3 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_6PARAM][_128x64]/calls_unipred[AFFINEMODEL_6PARAM][_128x64]);
-    printf("    128x64 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip6pTime_128x64/calls_unipred[AFFINEMODEL_6PARAM][_128x64]);
-    printf("    128x64 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_128x64]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_128x64]);
+    printf("    128x64 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_128x64][alignment]);
+    printf("    128x64 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_128x64][alignment]);
+    printf("    128x64 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_128x64][alignment]);
+    printf("    128x64 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_128x64][alignment]);
+    printf("    128x64 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_128x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_128x64][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_128x64][alignment]);
+    printf("    128x64 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_128x64][alignment]);
+    printf("    128x64 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_128x64][alignment]);
+    printf("    128x64 Ratio #Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_6PARAM][_128x64][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_6PARAM][_128x64][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_128x64][alignment]);
+    printf("    128x64 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_6PARAM][_128x64][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_6PARAM][_128x64][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_128x64][alignment]);
+    printf("    128x64 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_128x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_128x64][alignment]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_128x64][alignment]);
     
     cout << endl;
     
     cout << "  [!] Target times CUs 64x128\n";
-    printf("    64x128 AMVP+Init 2CPs %s%f\n", isCommaSep ? "," : "                 ",affAmvpInit4pTime_64x128);
-    printf("    64x128 Grad+Ref+Simp 2CPs %s%f\n", isCommaSep ? "," : "             ",gradRefSimp4pTime_64x128);
-    printf("    64x128 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip4pTime_64x128);
-    printf("    64x128 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x128]);
-    printf("    64x128 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x128]/affUnip4pTime_64x128);
-    printf("    64x128 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_64x128]);
-    printf("    64x128 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_64x128]);
-    printf("    64x128 Ratio #Uniq/All Unipred 2 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_4PARAM][_64x128]/calls_unipred[AFFINEMODEL_4PARAM][_64x128]);
-    printf("    64x128 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip4pTime_64x128/calls_unipred[AFFINEMODEL_4PARAM][_64x128]);
-    printf("    64x128 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x128]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_64x128]);
+    printf("    64x128 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_64x128][alignment]);
+    printf("    64x128 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_64x128][alignment]);
+    printf("    64x128 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_64x128][alignment]);
+    printf("    64x128 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x128][alignment]);
+    printf("    64x128 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_64x128][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x128][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_64x128][alignment]);
+    printf("    64x128 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_64x128][alignment]);
+    printf("    64x128 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_64x128][alignment]);
+    printf("    64x128 Ratio #Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_4PARAM][_64x128][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_4PARAM][_64x128][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_64x128][alignment]);
+    printf("    64x128 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_4PARAM][_64x128][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_4PARAM][_64x128][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_64x128][alignment]);
+    printf("    64x128 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_64x128][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x128][alignment]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_64x128][alignment]);
     
-    printf("    64x128 AMVP+Init 3 CPs %s%f\n", isCommaSep ? "," : "                ",affAmvpInit6pTime_64x128);
-    printf("    64x128 Grad+Ref+Simp 3 CPs %s%f\n", isCommaSep ? "," : "            ",gradRefSimp6pTime_64x128);
-    printf("    64x128 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip6pTime_64x128);
-    printf("    64x128 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x128]);
-    printf("    64x128 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x128]/affUnip6pTime_64x128);
-    printf("    64x128 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_64x128]);
-    printf("    64x128 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_64x128]);
-    printf("    64x128 Ratio #Uniq/All Unipred 3 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_6PARAM][_64x128]/calls_unipred[AFFINEMODEL_6PARAM][_64x128]);
-    printf("    64x128 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip6pTime_64x128/calls_unipred[AFFINEMODEL_6PARAM][_64x128]);
-    printf("    64x128 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x128]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_64x128]);
+    printf("    64x128 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_64x128][alignment]);
+    printf("    64x128 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_64x128][alignment]);
+    printf("    64x128 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_64x128][alignment]);
+    printf("    64x128 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x128][alignment]);
+    printf("    64x128 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_64x128][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x128][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_64x128][alignment]);
+    printf("    64x128 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_64x128][alignment]);
+    printf("    64x128 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_64x128][alignment]);
+    printf("    64x128 Ratio #Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_6PARAM][_64x128][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_6PARAM][_64x128][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_64x128][alignment]);
+    printf("    64x128 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_6PARAM][_64x128][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_6PARAM][_64x128][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_64x128][alignment]);
+    printf("    64x128 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_64x128][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x128][alignment]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_64x128][alignment]);
     
     cout << endl;
     
     cout << "  [!] Target times CUs 64x64" << endl;
-    printf("    64x64 AMVP+Init 2CPs %s%f\n", isCommaSep ? "," : "                 ",affAmvpInit4pTime_64x64);
-    printf("    64x64 Grad+Ref+Simp 2CPs %s%f\n", isCommaSep ? "," : "             ",gradRefSimp4pTime_64x64);
-    printf("    64x64 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip4pTime_64x64);
-    printf("    64x64 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x64]);
-    printf("    64x64 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x64]/affUnip4pTime_64x64);
-    printf("    64x64 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_64x64]);
-    printf("    64x64 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_64x64]);
-    printf("    64x64 Ratio #Uniq/All Unipred 2 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_4PARAM][_64x64]/calls_unipred[AFFINEMODEL_4PARAM][_64x64]);
-    printf("    64x64 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip4pTime_64x64/calls_unipred[AFFINEMODEL_4PARAM][_64x64]);
-    printf("    64x64 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x64]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_64x64]);
+    printf("    64x64 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_64x64][alignment]);
+    printf("    64x64 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_64x64][alignment]);
+    printf("    64x64 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_64x64][alignment]);
+    printf("    64x64 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x64][alignment]);
+    printf("    64x64 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_64x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x64][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_64x64][alignment]);
+    printf("    64x64 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_64x64][alignment]);
+    printf("    64x64 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_64x64][alignment]);
+    printf("    64x64 Ratio #Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_4PARAM][_64x64][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_4PARAM][_64x64][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_64x64][alignment]);
+    printf("    64x64 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_4PARAM][_64x64][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_4PARAM][_64x64][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_64x64][alignment]);
+    printf("    64x64 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_64x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x64][alignment]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_64x64][alignment]);
     
-    printf("    64x64 AMVP+Init 3 CPs %s%f\n", isCommaSep ? "," : "                ",affAmvpInit6pTime_64x64);
-    printf("    64x64 Grad+Ref+Simp 3 CPs %s%f\n", isCommaSep ? "," : "            ",gradRefSimp6pTime_64x64);
-    printf("    64x64 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip6pTime_64x64);
-    printf("    64x64 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x64]);
-    printf("    64x64 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x64]/affUnip6pTime_64x64);
-    printf("    64x64 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_64x64]);
-    printf("    64x64 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_64x64]);
-    printf("    64x64 Ratio #Uniq/All Unipred 3 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_6PARAM][_64x64]/calls_unipred[AFFINEMODEL_6PARAM][_64x64]);
-    printf("    64x64 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip6pTime_64x64/calls_unipred[AFFINEMODEL_6PARAM][_64x64]);
-    printf("    64x64 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x64]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_64x64]);
+    printf("    64x64 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_64x64][alignment]);
+    printf("    64x64 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_64x64][alignment]);
+    printf("    64x64 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_64x64][alignment]);
+    printf("    64x64 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x64][alignment]);
+    printf("    64x64 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_64x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x64][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_64x64][alignment]);
+    printf("    64x64 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_64x64][alignment]);
+    printf("    64x64 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_64x64][alignment]);
+    printf("    64x64 Ratio #Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_6PARAM][_64x64][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_6PARAM][_64x64][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_64x64][alignment]);
+    printf("    64x64 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_6PARAM][_64x64][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_6PARAM][_64x64][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_64x64][alignment]);
+    printf("    64x64 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_64x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x64][alignment]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_64x64][alignment]);
     
     cout << endl;
     
     cout << "  [!] Target times CUs 64x32" << endl;
-    printf("    64x32 AMVP+Init 2CPs %s%f\n", isCommaSep ? "," : "                 ",affAmvpInit4pTime_64x32);
-    printf("    64x32 Grad+Ref+Simp 2CPs %s%f\n", isCommaSep ? "," : "             ",gradRefSimp4pTime_64x32);
-    printf("    64x32 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip4pTime_64x32);
-    printf("    64x32 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x32]);
-    printf("    64x32 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x32]/affUnip4pTime_64x32);
-    printf("    64x32 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_64x32]);
-    printf("    64x32 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_64x32]);
-    printf("    64x32 Ratio #Uniq/All Unipred 2 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_4PARAM][_64x32]/calls_unipred[AFFINEMODEL_4PARAM][_64x32]);
-    printf("    64x32 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip4pTime_64x32/calls_unipred[AFFINEMODEL_4PARAM][_64x32]);
-    printf("    64x32 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x32]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_64x32]);
+    printf("    64x32 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_64x32][alignment]);
+    printf("    64x32 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_64x32][alignment]);
+    printf("    64x32 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_64x32][alignment]);
+    printf("    64x32 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x32][alignment]);
+    printf("    64x32 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_64x32][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x32][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_64x32][alignment]);
+    printf("    64x32 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_64x32][alignment]);
+    printf("    64x32 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_64x32][alignment]);
+    printf("    64x32 Ratio #Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_4PARAM][_64x32][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_4PARAM][_64x32][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_64x32][alignment]);
+    printf("    64x32 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_4PARAM][_64x32][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_4PARAM][_64x32][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_64x32][alignment]);
+    printf("    64x32 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_64x32][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x32][alignment]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_64x32][alignment]);
     
-    printf("    64x32 AMVP+Init 3 CPs %s%f\n", isCommaSep ? "," : "                ",affAmvpInit6pTime_64x32);
-    printf("    64x32 Grad+Ref+Simp 3 CPs %s%f\n", isCommaSep ? "," : "            ",gradRefSimp6pTime_64x32);
-    printf("    64x32 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip6pTime_64x32);
-    printf("    64x32 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x32]);
-    printf("    64x32 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x32]/affUnip6pTime_64x32);
-    printf("    64x32 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_64x32]);
-    printf("    64x32 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_64x32]);
-    printf("    64x32 Ratio #Uniq/All Unipred 3 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_6PARAM][_64x32]/calls_unipred[AFFINEMODEL_6PARAM][_64x32]);
-    printf("    64x32 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip6pTime_64x32/calls_unipred[AFFINEMODEL_6PARAM][_64x32]);
-    printf("    64x32 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x32]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_64x32]);
+    printf("    64x32 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_64x32][alignment]);
+    printf("    64x32 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_64x32][alignment]);
+    printf("    64x32 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_64x32][alignment]);
+    printf("    64x32 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x32][alignment]);
+    printf("    64x32 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_64x32][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x32][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_64x32][alignment]);
+    printf("    64x32 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_64x32][alignment]);
+    printf("    64x32 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_64x32][alignment]);
+    printf("    64x32 Ratio #Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_6PARAM][_64x32][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_6PARAM][_64x32][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_64x32][alignment]);
+    printf("    64x32 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_6PARAM][_64x32][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_6PARAM][_64x32][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_64x32][alignment]);
+    printf("    64x32 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_64x32][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x32][alignment]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_64x32][alignment]);
     
     cout << endl;
     
     cout << "  [!] Target times CUs 32x64" << endl;
-    printf("    32x64 AMVP+Init 2CPs %s%f\n", isCommaSep ? "," : "                 ",affAmvpInit4pTime_32x64);
-    printf("    32x64 Grad+Ref+Simp 2CPs %s%f\n", isCommaSep ? "," : "             ",gradRefSimp4pTime_32x64);
-    printf("    32x64 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip4pTime_32x64);
-    printf("    32x64 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x64]);
-    printf("    32x64 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x64]/affUnip4pTime_32x64);
-    printf("    32x64 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_32x64]);
-    printf("    32x64 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_32x64]);
-    printf("    32x64 Ratio #Uniq/All Unipred 2 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_4PARAM][_32x64]/calls_unipred[AFFINEMODEL_4PARAM][_32x64]);
-    printf("    32x64 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip4pTime_32x64/calls_unipred[AFFINEMODEL_4PARAM][_32x64]);
-    printf("    32x64 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x64]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_32x64]);
+    printf("    32x64 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_32x64][alignment]);
+    printf("    32x64 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_32x64][alignment]);
+    printf("    32x64 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_32x64][alignment]);
+    printf("    32x64 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x64][alignment]);
+    printf("    32x64 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_32x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x64][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_32x64][alignment]);
+    printf("    32x64 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_32x64][alignment]);
+    printf("    32x64 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_32x64][alignment]);
+    printf("    32x64 Ratio #Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_4PARAM][_32x64][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_4PARAM][_32x64][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_32x64][alignment]);
+    printf("    32x64 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_4PARAM][_32x64][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_4PARAM][_32x64][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_32x64][alignment]);
+    printf("    32x64 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_32x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x64][alignment]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_32x64][alignment]);
     
-    printf("    32x64 AMVP+Init 3 CPs %s%f\n", isCommaSep ? "," : "                ",affAmvpInit6pTime_32x64);
-    printf("    32x64 Grad+Ref+Simp 3 CPs %s%f\n", isCommaSep ? "," : "            ",gradRefSimp6pTime_32x64);
-    printf("    32x64 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip6pTime_32x64);
-    printf("    32x64 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x64]);
-    printf("    32x64 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x64]/affUnip6pTime_32x64);
-    printf("    32x64 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_32x64]);
-    printf("    32x64 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_32x64]);
-    printf("    32x64 Ratio #Uniq/All Unipred 3 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_6PARAM][_32x64]/calls_unipred[AFFINEMODEL_6PARAM][_32x64]);
-    printf("    32x64 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip6pTime_32x64/calls_unipred[AFFINEMODEL_6PARAM][_32x64]);
-    printf("    32x64 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x64]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_32x64]);
+    printf("    32x64 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_32x64][alignment]);
+    printf("    32x64 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_32x64][alignment]);
+    printf("    32x64 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_32x64][alignment]);
+    printf("    32x64 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x64][alignment]);
+    printf("    32x64 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_32x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x64][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_32x64][alignment]);
+    printf("    32x64 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_32x64][alignment]);
+    printf("    32x64 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_32x64][alignment]);
+    printf("    32x64 Ratio #Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_6PARAM][_32x64][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_6PARAM][_32x64][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_32x64][alignment]);
+    printf("    32x64 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_6PARAM][_32x64][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_6PARAM][_32x64][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_32x64][alignment]);
+    printf("    32x64 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_32x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x64][alignment]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_32x64][alignment]);
     
     cout << endl;
     
     cout << "  [!] Target times CUs 64x16" << endl;
-    printf("    64x16 AMVP+Init 2CPs %s%f\n", isCommaSep ? "," : "                 ",affAmvpInit4pTime_64x16);
-    printf("    64x16 Grad+Ref+Simp 2CPs %s%f\n", isCommaSep ? "," : "             ",gradRefSimp4pTime_64x16);
-    printf("    64x16 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip4pTime_64x16);
-    printf("    64x16 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x16]);
-    printf("    64x16 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x16]/affUnip4pTime_64x16);
-    printf("    64x16 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_64x16]);
-    printf("    64x16 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_64x16]);
-    printf("    64x16 Ratio #Uniq/All Unipred 2 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_4PARAM][_64x16]/calls_unipred[AFFINEMODEL_4PARAM][_64x16]);
-    printf("    64x16 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip4pTime_64x16/calls_unipred[AFFINEMODEL_4PARAM][_64x16]);
-    printf("    64x16 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x16]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_64x16]);
+    printf("    64x16 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_64x16][alignment]);
+    printf("    64x16 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_64x16][alignment]);
+    printf("    64x16 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_64x16][alignment]);
+    printf("    64x16 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x16][alignment]);
+    printf("    64x16 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_64x16][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x16][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_64x16][alignment]);
+    printf("    64x16 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_64x16][alignment]);
+    printf("    64x16 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_64x16][alignment]);
+    printf("    64x16 Ratio #Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_4PARAM][_64x16][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_4PARAM][_64x16][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_64x16][alignment]);
+    printf("    64x16 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_4PARAM][_64x16][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_4PARAM][_64x16][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_64x16][alignment]);
+    printf("    64x16 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_64x16][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x16][alignment]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_64x16][alignment]);
     
-    printf("    64x16 AMVP+Init 3 CPs %s%f\n", isCommaSep ? "," : "                ",affAmvpInit6pTime_64x16);
-    printf("    64x16 Grad+Ref+Simp 3 CPs %s%f\n", isCommaSep ? "," : "            ",gradRefSimp6pTime_64x16);
-    printf("    64x16 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip6pTime_64x16);
-    printf("    64x16 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x16]);
-    printf("    64x16 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x16]/affUnip6pTime_64x16);
-    printf("    64x16 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_64x16]);
-    printf("    64x16 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_64x16]);
-    printf("    64x16 Ratio #Uniq/All Unipred 3 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_6PARAM][_64x16]/calls_unipred[AFFINEMODEL_6PARAM][_64x16]);
-    printf("    64x16 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip6pTime_64x16/calls_unipred[AFFINEMODEL_6PARAM][_64x16]);
-    printf("    64x16 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x16]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_64x16]);
+    printf("    64x16 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_64x16][alignment]);
+    printf("    64x16 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_64x16][alignment]);
+    printf("    64x16 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_64x16][alignment]);
+    printf("    64x16 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x16][alignment]);
+    printf("    64x16 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_64x16][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x16][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_64x16][alignment]);
+    printf("    64x16 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_64x16][alignment]);
+    printf("    64x16 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_64x16][alignment]);
+    printf("    64x16 Ratio #Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_6PARAM][_64x16][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_6PARAM][_64x16][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_64x16][alignment]);
+    printf("    64x16 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_6PARAM][_64x16][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_6PARAM][_64x16][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_64x16][alignment]);
+    printf("    64x16 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_64x16][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x16][alignment]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_64x16][alignment]);
 
     cout << endl;
     
     cout << "  [!] Target times CUs 16x64" << endl;
-    printf("    16x64 AMVP+Init 2CPs %s%f\n", isCommaSep ? "," : "                 ",affAmvpInit4pTime_16x64);
-    printf("    16x64 Grad+Ref+Simp 2CPs %s%f\n", isCommaSep ? "," : "             ",gradRefSimp4pTime_16x64);
-    printf("    16x64 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip4pTime_16x64);
-    printf("    16x64 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x64]);
-    printf("    16x64 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x64]/affUnip4pTime_16x64);
-    printf("    16x64 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_16x64]);
-    printf("    16x64 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_16x64]);
-    printf("    16x64 Ratio #Uniq/All Unipred 2 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_4PARAM][_16x64]/calls_unipred[AFFINEMODEL_4PARAM][_16x64]);
-    printf("    16x64 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip4pTime_16x64/calls_unipred[AFFINEMODEL_4PARAM][_16x64]);
-    printf("    16x64 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x64]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_16x64]);
+    printf("    16x64 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_16x64][alignment]);
+    printf("    16x64 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_16x64][alignment]);
+    printf("    16x64 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_16x64][alignment]);
+    printf("    16x64 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x64][alignment]);
+    printf("    16x64 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_16x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x64][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_16x64][alignment]);
+    printf("    16x64 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_16x64][alignment]);
+    printf("    16x64 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_16x64][alignment]);
+    printf("    16x64 Ratio #Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_4PARAM][_16x64][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_4PARAM][_16x64][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_16x64][alignment]);
+    printf("    16x64 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_4PARAM][_16x64][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_4PARAM][_16x64][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_16x64][alignment]);
+    printf("    16x64 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_16x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x64][alignment]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_16x64][alignment]);
     
-    printf("    16x64 AMVP+Init 3 CPs %s%f\n", isCommaSep ? "," : "                ",affAmvpInit6pTime_16x64);
-    printf("    16x64 Grad+Ref+Simp 3 CPs %s%f\n", isCommaSep ? "," : "            ",gradRefSimp6pTime_16x64);
-    printf("    16x64 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip6pTime_16x64);
-    printf("    16x64 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x64]);
-    printf("    16x64 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x64]/affUnip6pTime_16x64);
-    printf("    16x64 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_16x64]);
-    printf("    16x64 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_16x64]);
-    printf("    16x64 Ratio #Uniq/All Unipred 3 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_6PARAM][_16x64]/calls_unipred[AFFINEMODEL_6PARAM][_16x64]);
-    printf("    16x64 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip6pTime_16x64/calls_unipred[AFFINEMODEL_6PARAM][_16x64]);
-    printf("    16x64 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x64]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_16x64]);
+    printf("    16x64 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_16x64][alignment]);
+    printf("    16x64 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_16x64][alignment]);
+    printf("    16x64 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_16x64][alignment]);
+    printf("    16x64 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x64][alignment]);
+    printf("    16x64 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_16x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x64][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_16x64][alignment]);
+    printf("    16x64 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_16x64][alignment]);
+    printf("    16x64 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_16x64][alignment]);
+    printf("    16x64 Ratio #Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_6PARAM][_16x64][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_6PARAM][_16x64][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_16x64][alignment]);
+    printf("    16x64 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_6PARAM][_16x64][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_6PARAM][_16x64][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_16x64][alignment]);
+    printf("    16x64 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_16x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x64][alignment]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_16x64][alignment]);
     
     cout << endl;
     
     cout << "  [!] Target times CUs 32x32" << endl;
-    printf("    32x32 AMVP+Init 2CPs %s%f\n", isCommaSep ? "," : "                 ",affAmvpInit4pTime_32x32);
-    printf("    32x32 Grad+Ref+Simp 2CPs %s%f\n", isCommaSep ? "," : "             ",gradRefSimp4pTime_32x32);
-    printf("    32x32 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip4pTime_32x32);
-    printf("    32x32 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x32]);
-    printf("    32x32 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x32]/affUnip4pTime_32x32);
-    printf("    32x32 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_32x32]);
-    printf("    32x32 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_32x32]);
-    printf("    32x32 Ratio #Uniq/All Unipred 2 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_4PARAM][_32x32]/calls_unipred[AFFINEMODEL_4PARAM][_32x32]);
-    printf("    32x32 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip4pTime_32x32/calls_unipred[AFFINEMODEL_4PARAM][_32x32]);
-    printf("    32x32 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x32]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_32x32]);
+    printf("    32x32 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_32x32][alignment]);
+    printf("    32x32 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_32x32][alignment]);
+    printf("    32x32 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_32x32][alignment]);
+    printf("    32x32 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x32][alignment]);
+    printf("    32x32 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_32x32][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x32][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_32x32][alignment]);
+    printf("    32x32 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_32x32][alignment]);
+    printf("    32x32 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_32x32][alignment]);
+    printf("    32x32 Ratio #Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_4PARAM][_32x32][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_4PARAM][_32x32][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_32x32][alignment]);
+    printf("    32x32 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_4PARAM][_32x32][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_4PARAM][_32x32][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_32x32][alignment]);
+    printf("    32x32 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_32x32][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x32][alignment]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_32x32][alignment]);
     
-    printf("    32x32 AMVP+Init 3 CPs %s%f\n", isCommaSep ? "," : "                ",affAmvpInit6pTime_32x32);
-    printf("    32x32 Grad+Ref+Simp 3 CPs %s%f\n", isCommaSep ? "," : "            ",gradRefSimp6pTime_32x32);
-    printf("    32x32 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip6pTime_32x32);
-    printf("    32x32 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x32]);
-    printf("    32x32 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x32]/affUnip6pTime_32x32);
-    printf("    32x32 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_32x32]);
-    printf("    32x32 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_32x32]);
-    printf("    32x32 Ratio #Uniq/All Unipred 3 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_6PARAM][_32x32]/calls_unipred[AFFINEMODEL_6PARAM][_32x32]);
-    printf("    32x32 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip6pTime_32x32/calls_unipred[AFFINEMODEL_6PARAM][_32x32]);
-    printf("    32x32 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x32]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_32x32]);
+    printf("    32x32 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_32x32][alignment]);
+    printf("    32x32 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_32x32][alignment]);
+    printf("    32x32 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_32x32][alignment]);
+    printf("    32x32 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x32][alignment]);
+    printf("    32x32 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_32x32][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x32][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_32x32][alignment]);
+    printf("    32x32 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_32x32][alignment]);
+    printf("    32x32 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_32x32][alignment]);
+    printf("    32x32 Ratio #Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_6PARAM][_32x32][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_6PARAM][_32x32][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_32x32][alignment]);
+    printf("    32x32 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_6PARAM][_32x32][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_6PARAM][_32x32][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_32x32][alignment]);
+    printf("    32x32 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_32x32][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x32][alignment]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_32x32][alignment]);
     
     cout << endl;
     
     cout << "  [!] Target times CUs 32x16" << endl;
-    printf("    32x16 AMVP+Init 2CPs %s%f\n", isCommaSep ? "," : "                 ",affAmvpInit4pTime_32x16);
-    printf("    32x16 Grad+Ref+Simp 2CPs %s%f\n", isCommaSep ? "," : "             ",gradRefSimp4pTime_32x16);
-    printf("    32x16 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip4pTime_32x16);
-    printf("    32x16 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x16]);
-    printf("    32x16 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x16]/affUnip4pTime_32x16);
-    printf("    32x16 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_32x16]);
-    printf("    32x16 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_32x16]);
-    printf("    32x16 Ratio #Uniq/All Unipred 2 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_4PARAM][_32x16]/calls_unipred[AFFINEMODEL_4PARAM][_32x16]);
-    printf("    32x16 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip4pTime_32x16/calls_unipred[AFFINEMODEL_4PARAM][_32x16]);
-    printf("    32x16 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x16]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_32x16]);
+    printf("    32x16 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_32x16][alignment]);
+    printf("    32x16 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_32x16][alignment]);
+    printf("    32x16 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_32x16][alignment]);
+    printf("    32x16 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x16][alignment]);
+    printf("    32x16 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_32x16][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x16][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_32x16][alignment]);
+    printf("    32x16 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_32x16][alignment]);
+    printf("    32x16 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_32x16][alignment]);
+    printf("    32x16 Ratio #Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_4PARAM][_32x16][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_4PARAM][_32x16][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_32x16][alignment]);
+    printf("    32x16 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_4PARAM][_32x16][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_4PARAM][_32x16][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_32x16][alignment]);
+    printf("    32x16 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_32x16][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x16][alignment]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_32x16][alignment]);
     
-    printf("    32x16 AMVP+Init 3 CPs %s%f\n", isCommaSep ? "," : "                ",affAmvpInit6pTime_32x16);
-    printf("    32x16 Grad+Ref+Simp 3 CPs %s%f\n", isCommaSep ? "," : "            ",gradRefSimp6pTime_32x16);
-    printf("    32x16 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip6pTime_32x16);
-    printf("    32x16 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x16]);
-    printf("    32x16 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x16]/affUnip6pTime_32x16);
-    printf("    32x16 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_32x16]);
-    printf("    32x16 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_32x16]);
-    printf("    32x16 Ratio #Uniq/All Unipred 3 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_6PARAM][_32x16]/calls_unipred[AFFINEMODEL_6PARAM][_32x16]);
-    printf("    32x16 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip6pTime_32x16/calls_unipred[AFFINEMODEL_6PARAM][_32x16]);
-    printf("    32x16 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x16]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_32x16]);
+    printf("    32x16 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_32x16][alignment]);
+    printf("    32x16 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_32x16][alignment]);
+    printf("    32x16 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_32x16][alignment]);
+    printf("    32x16 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x16][alignment]);
+    printf("    32x16 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_32x16][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x16][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_32x16][alignment]);
+    printf("    32x16 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_32x16][alignment]);
+    printf("    32x16 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_32x16][alignment]);
+    printf("    32x16 Ratio #Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_6PARAM][_32x16][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_6PARAM][_32x16][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_32x16][alignment]);
+    printf("    32x16 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_6PARAM][_32x16][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_6PARAM][_32x16][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_32x16][alignment]);
+    printf("    32x16 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_32x16][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x16][alignment]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_32x16][alignment]);
     
     cout << endl;
     
     cout << "  [!] Target times CUs 16x32" << endl;
-    printf("    16x32 AMVP+Init 2CPs %s%f\n", isCommaSep ? "," : "                 ",affAmvpInit4pTime_16x32);
-    printf("    16x32 Grad+Ref+Simp 2CPs %s%f\n", isCommaSep ? "," : "             ",gradRefSimp4pTime_16x32);
-    printf("    16x32 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip4pTime_16x32);
-    printf("    16x32 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x32]);
-    printf("    16x32 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x32]/affUnip4pTime_16x32);
-    printf("    16x32 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_16x32]);
-    printf("    16x32 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_16x32]);
-    printf("    16x32 Ratio #Uniq/All Unipred 2 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_4PARAM][_16x32]/calls_unipred[AFFINEMODEL_4PARAM][_16x32]);
-    printf("    16x32 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip4pTime_16x32/calls_unipred[AFFINEMODEL_4PARAM][_16x32]);
-    printf("    16x32 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x32]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_16x32]);
+    printf("    16x32 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_16x32][alignment]);
+    printf("    16x32 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_16x32][alignment]);
+    printf("    16x32 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_16x32][alignment]);
+    printf("    16x32 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x32][alignment]);
+    printf("    16x32 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_16x32][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x32][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_16x32][alignment]);
+    printf("    16x32 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_16x32][alignment]);
+    printf("    16x32 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_16x32][alignment]);
+    printf("    16x32 Ratio #Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_4PARAM][_16x32][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_4PARAM][_16x32][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_16x32][alignment]);
+    printf("    16x32 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_4PARAM][_16x32][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_4PARAM][_16x32][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_16x32][alignment]);
+    printf("    16x32 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_16x32][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x32][alignment]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_16x32][alignment]);
     
-    printf("    16x32 AMVP+Init 3 CPs %s%f\n", isCommaSep ? "," : "                ",affAmvpInit6pTime_16x32);
-    printf("    16x32 Grad+Ref+Simp 3 CPs %s%f\n", isCommaSep ? "," : "            ",gradRefSimp6pTime_16x32);
-    printf("    16x32 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip6pTime_16x32);
-    printf("    16x32 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x32]);
-    printf("    16x32 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x32]/affUnip6pTime_16x32);
-    printf("    16x32 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_16x32]);
-    printf("    16x32 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_16x32]);
-    printf("    16x32 Ratio #Uniq/All Unipred 3 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_6PARAM][_16x32]/calls_unipred[AFFINEMODEL_6PARAM][_16x32]);
-    printf("    16x32 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip6pTime_16x32/calls_unipred[AFFINEMODEL_6PARAM][_16x32]);
-    printf("    16x32 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x32]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_16x32]);
+    printf("    16x32 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_16x32][alignment]);
+    printf("    16x32 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_16x32][alignment]);
+    printf("    16x32 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_16x32][alignment]);
+    printf("    16x32 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x32][alignment]);
+    printf("    16x32 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_16x32][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x32][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_16x32][alignment]);
+    printf("    16x32 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_16x32][alignment]);
+    printf("    16x32 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_16x32][alignment]);
+    printf("    16x32 Ratio #Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_6PARAM][_16x32][alignment]==0?-1.0:(float) numberUniqBlocks[AFFINEMODEL_6PARAM][_16x32][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_16x32][alignment]);
+    printf("    16x32 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_6PARAM][_16x32][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_6PARAM][_16x32][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_16x32][alignment]);
+    printf("    16x32 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_16x32][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x32][alignment]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_16x32][alignment]);
     
     cout << endl;
     
     cout << "  [!] Target times CUs 16x16" << endl;
-    printf("    16x16 AMVP+Init 2CPs %s%f\n", isCommaSep ? "," : "                 ",affAmvpInit4pTime_16x16);
-    printf("    16x16 Grad+Ref+Simp 2CPs %s%f\n", isCommaSep ? "," : "             ",gradRefSimp4pTime_16x16);
-    printf("    16x16 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip4pTime_16x16);
-    printf("    16x16 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x16]);
-    printf("    16x16 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x16]/affUnip4pTime_16x16);
-    printf("    16x16 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_16x16]);
-    printf("    16x16 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_16x16]);
-    printf("    16x16 Ratio #Uniq/All Unipred 2 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_4PARAM][_16x16]/calls_unipred[AFFINEMODEL_4PARAM][_16x16]);
-    printf("    16x16 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip4pTime_16x16/calls_unipred[AFFINEMODEL_4PARAM][_16x16]);
-    printf("    16x16 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x16]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_16x16]);
+    printf("    16x16 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_16x16][alignment]);
+    printf("    16x16 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_16x16][alignment]);
+    printf("    16x16 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_16x16][alignment]);
+    printf("    16x16 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x16][alignment]);
+    printf("    16x16 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_16x16][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x16][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_16x16][alignment]);
+    printf("    16x16 Unipred 2 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_4PARAM][_16x16][alignment]);
+    printf("    16x16 Unipred 2 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_4PARAM][_16x16][alignment]);
+    printf("    16x16 Ratio #Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_4PARAM][_16x16][alignment]==0?-1:(float) numberUniqBlocks[AFFINEMODEL_4PARAM][_16x16][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_16x16][alignment]);
+    printf("    16x16 Unipred 2 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_4PARAM][_16x16][alignment]==0?-1.0:(float) affUnipTime[AFFINEMODEL_4PARAM][_16x16][alignment]/calls_unipred[AFFINEMODEL_4PARAM][_16x16][alignment]);
+    printf("    16x16 Unipred 2 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_16x16][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x16][alignment]/storch::numberUniqBlocks[AFFINEMODEL_4PARAM][_16x16][alignment]);
     
-    printf("    16x16 AMVP+Init 3 CPs %s%f\n", isCommaSep ? "," : "                ",affAmvpInit6pTime_16x16);
-    printf("    16x16 Grad+Ref+Simp 3 CPs %s%f\n", isCommaSep ? "," : "            ",gradRefSimp6pTime_16x16);
-    printf("    16x16 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnip6pTime_16x16);
-    printf("    16x16 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x16]);
-    printf("    16x16 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x16]/affUnip6pTime_16x16);
-    printf("    16x16 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_16x16]);
-    printf("    16x16 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_16x16]);
-    printf("    16x16 Ratio #Uniq/All Unipred 3 CPs %s%d\n", isCommaSep ? "," : "  ",numberUniqBlocks[AFFINEMODEL_6PARAM][_16x16]/calls_unipred[AFFINEMODEL_6PARAM][_16x16]);
-    printf("    16x16 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",affUnip6pTime_16x16/calls_unipred[AFFINEMODEL_6PARAM][_16x16]);
-    printf("    16x16 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x16]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_16x16]);
+    printf("    16x16 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_16x16][alignment]);
+    printf("    16x16 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_16x16][alignment]);
+    printf("    16x16 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_16x16][alignment]);
+    printf("    16x16 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x16][alignment]);
+    printf("    16x16 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_16x16][alignment]==0?-1.0:(float)unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x16][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_16x16][alignment]);
+    printf("    16x16 Unipred 3 CPs #AllBlocks%s%d\n", isCommaSep ? "," : "        ",calls_unipred[AFFINEMODEL_6PARAM][_16x16][alignment]);
+    printf("    16x16 Unipred 3 CPs #UniqBlocks%s%d\n", isCommaSep ? "," : "       ",numberUniqBlocks[AFFINEMODEL_6PARAM][_16x16][alignment]);
+    printf("    16x16 Ratio #Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "  ",calls_unipred[AFFINEMODEL_6PARAM][_16x16][alignment]==0?-1:(float)numberUniqBlocks[AFFINEMODEL_6PARAM][_16x16][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_16x16][alignment]);
+    printf("    16x16 Unipred 3 CPs time/AllBlocks %s%f\n", isCommaSep ? "," : "   ",calls_unipred[AFFINEMODEL_6PARAM][_16x16][alignment]==0?-1.0:(float)affUnipTime[AFFINEMODEL_6PARAM][_16x16][alignment]/calls_unipred[AFFINEMODEL_6PARAM][_16x16][alignment]);
+    printf("    16x16 Unipred 3 CPs time/UniqBlocks %s%f\n", isCommaSep ? "," : "  ",storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_16x16][alignment]==0?-1.0:(float)unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x16][alignment]/storch::numberUniqBlocks[AFFINEMODEL_6PARAM][_16x16][alignment]);
     printf("}\n");
 }
+
 
 bool storch::isAffineSize(SizeType width, SizeType height){
   if((width>=32) && (height>=32))
@@ -729,6 +620,110 @@ bool storch::isAffineSize(SizeType width, SizeType height){
   else
     return false;
 }
+
+bool storch::isAligned(UnitArea area){
+  int width, height, x, y;
+  
+  width  = area.lwidth();
+  height = area.lheight();
+  x      = area.lx();
+  y      = area.ly();
+  
+  int count = 0;
+  
+  count += x%width==0 ? 0 : 1; // If remainder is different than zero the block is unaligned in one axis
+  count += y%height==0 ? 0 : 1;
+  
+  // If remainder is zero in both axis the block is aligned, otherwise it is halfAligned (count==1) or unaligned (count==2)
+  return count==0;
+}
+
+bool storch::isHalfAligned(UnitArea area){
+  int width, height, x, y;
+  
+  width  = area.lwidth();
+  height = area.lheight();
+  x      = area.lx();
+  y      = area.ly();
+  
+  int count = 0;
+  
+  count += x%width==0 ? 0 : 1; // If remainder is different than zero the block is unaligned in one axis
+  count += y%height==0 ? 0 : 1;
+  
+  // If remainder is zero in a single axis the block is halfAligned, otherwise it is aligned (count==0) or unaligned (count==2)
+  return count==1;
+}
+
+bool storch::isUnaligned(UnitArea area){
+  int width, height, x, y;
+  
+  width  = area.lwidth();
+  height = area.lheight();
+  x      = area.lx();
+  y      = area.ly();
+  
+  int count = 0;
+  
+  count += x%width==0 ? 0 : 1; // If remainder is different than zero the block is unaligned in one axis
+  count += y%height==0 ? 0 : 1;
+  
+  // If remainder is zero in none axis the block is unaligned, otherwise it is aligned (count==0) or halfAligned (count==1)
+  return count==2;
+}
+
+Alignment storch::getAlignment(UnitArea area){
+  
+  if(storch::isAligned(area))
+    return ALIGNED;
+  if(storch::isHalfAligned(area))
+    return HALF_ALIGNED;
+  if(storch::isUnaligned(area))
+    return UNALIGNED;
+  
+  printf("ERROR GETTING THE ALIGNMENT OF [%dx%d] @(%dx%d)\n", area.lwidth(), area.lheight(), area.lx(), area.ly());
+  exit(0);
+}
+
+bool storch::isAligned(PredictionUnit& pu){
+  // Creates a UnitArea to use the main function
+  Area tempArea(pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
+  UnitArea tempUnit(CHROMA_420, tempArea);
+  
+  return storch::isAligned( tempUnit );
+}
+
+bool storch::isHalfAligned(PredictionUnit& pu){
+  // Creates a UnitArea to use the main function
+  Area tempArea(pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
+  UnitArea tempUnit(CHROMA_420, tempArea);
+  
+  return storch::isHalfAligned( tempUnit );
+}
+
+bool storch::isUnaligned(PredictionUnit& pu){
+  // Creates a UnitArea to use the main function
+  Area tempArea(pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
+  UnitArea tempUnit(CHROMA_420, tempArea);
+  
+  return storch::isUnaligned( tempUnit );
+}
+
+//static Alignment getAlignment(PredictionUnit& pu){
+//  Area tempArea(pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
+//  UnitArea tempUnit(CHROMA_420, tempArea);
+//  
+//  if(storch::isAligned(tempUnit))
+//    return ALIGNED;
+//  if(storch::isHalfAligned(tempUnit))
+//    return HALF_ALIGNED;
+//  if(storch::isUnaligned(tempUnit))
+//    return UNALIGNED;
+//  
+//  printf("ERROR GETTING THE ALIGNMENT OF [%dx%d] @(%dx%d)\n", tempUnit.lwidth(), tempUnit.lheight(), tempUnit.lx(), tempUnit.ly());
+//  exit(0);
+//}
+
 
 // Export the samples of a 4x4 sub-block during affine ME into a CSV file
 void storch::exportSamples4x4Block(Pel* samples, int xPos, int yPos, int stride, SamplesType type){
@@ -921,13 +916,6 @@ void storch::exportAmeProgressBlock(int is3CPs, int refList, int refIdx, Predict
 }
 
 // Used to track the execution time
-void storch::startFullSearch(){
-    gettimeofday(&fs1, NULL);
-}
-void storch::finishFullSearch(){
-    gettimeofday(&fs2, NULL);   
-    fsTime += (double) (fs2.tv_usec - fs1.tv_usec)/1000000 + (double) (fs2.tv_sec - fs1.tv_sec);
-}
 void storch::startAffineMEGradient(EAffineModel param, EAffinePred pred){
     gettimeofday(&ag1, NULL);
 }
@@ -1188,29 +1176,6 @@ void storch::finishAffineUnipred(EAffineModel param, EAffinePred pred){
     }     
 }
 
-void storch::startAffineUnipred_128x128(EAffineModel param, EAffinePred pred){
-    gettimeofday(&affunip_128x128_1, NULL);
-}
-
-void storch::finishAffineUnipred_128x128(EAffineModel param, EAffinePred pred){
-    assert(((param==AFFINEMODEL_4PARAM) || (param==AFFINEMODEL_6PARAM)) 
-            && (pred==UNIPRED)); 
-
-    gettimeofday(&affunip_128x128_2, NULL);
-
-    if(param == AFFINEMODEL_4PARAM && pred == UNIPRED){
-        affUnip4pTime_128x128 += (double) (affunip_128x128_2.tv_usec - affunip_128x128_1.tv_usec)/1000000 + (double) (affunip_128x128_2.tv_sec - affunip_128x128_1.tv_sec);
-    }else if(param == AFFINEMODEL_4PARAM && pred == BIPRED){
-        cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
-    }else if(param == AFFINEMODEL_6PARAM && pred == UNIPRED){
-        affUnip6pTime_128x128 += (double) (affunip_128x128_2.tv_usec - affunip_128x128_1.tv_usec)/1000000 + (double) (affunip_128x128_2.tv_sec - affunip_128x128_1.tv_sec);
-    }else if(param == AFFINEMODEL_6PARAM && pred == BIPRED){
-        cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
-    }else{
-        cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
-    }     
-}
-
 // Probe start and finish time of complete affine uniprediction in a specific block size
 void storch::startAffineUnipred_size(EAffineModel param, EAffinePred pred, CuSize size){
   gettimeofday(&affunip_target_1, NULL);
@@ -1228,126 +1193,18 @@ void storch::finishAffineUnipred_size(EAffineModel param, EAffinePred pred, CuSi
   tempStruct.x = pu.lx();
   tempStruct.y = pu.ly();
   tempStruct.split = storch::currSplitSeries; // Split series of current CU. This value is initialized before the do-while which tests all encoding modes for each CU
-  
-  if(storch::cusTestedWithAffine[param][size].count(tempStruct)==0){ // We have not conducted affine for this splitseries yet
-    unipredTimeUniqueBlocks[param][size] += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-  }
+  // Alignment of current CU
+  Area currArea = Area(pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
+  UnitArea currUnitArea = UnitArea(CHROMA_420, currArea);
+  Alignment align = storch::getAlignment(currUnitArea);
     
-  if((param == AFFINEMODEL_4PARAM) && (pred == UNIPRED)){ // 4 params, unipred
-    switch(size){
-      case(_128x128):
-        affUnip4pTime_128x128 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_128x64):
-        affUnip4pTime_128x64 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_64x128):
-        affUnip4pTime_64x128 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_64x64):
-        affUnip4pTime_64x64 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_64x32):
-        affUnip4pTime_64x32 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_32x64):
-        affUnip4pTime_32x64 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_64x16):
-        affUnip4pTime_64x16 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_16x64):
-        affUnip4pTime_16x64 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_32x32):
-        affUnip4pTime_32x32 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_32x16):
-        affUnip4pTime_32x16 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_16x32):
-        affUnip4pTime_16x32 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_16x16):
-        affUnip4pTime_16x16 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      default:
-        printf("ERROR - Wrong CU size in \"finishAffineAmvpInit_size\"\n");
-        break;          
-    }
-  } else if(param == AFFINEMODEL_4PARAM && pred == BIPRED){ // 4 params bipred
-        cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
-  } else if(param == AFFINEMODEL_6PARAM && pred == UNIPRED){ // 6 params unipred
-    switch(size){
-      case(_128x128):
-        affUnip6pTime_128x128 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_128x64):
-        affUnip6pTime_128x64 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_64x128):
-        affUnip6pTime_64x128 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_64x64):
-        affUnip6pTime_64x64 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_64x32):
-        affUnip6pTime_64x32 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_32x64):
-        affUnip6pTime_32x64 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_64x16):
-        affUnip6pTime_64x16 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_16x64):
-        affUnip6pTime_16x64 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_32x32):
-        affUnip6pTime_32x32 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_32x16):
-        affUnip6pTime_32x16 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_16x32):
-        affUnip6pTime_16x32 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      case(_16x16):
-        affUnip6pTime_16x16 += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
-        break;
-
-      default:
-        printf("ERROR - Wrong CU size in \"finishAffineAmvpInit_size\"\n");
-        break;          
-    }
-  } else if(param == AFFINEMODEL_6PARAM && pred == BIPRED){ // 6 params bipred
-        cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
-  } else{
-        cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
+  if(storch::cusTestedWithAffine[param][size][COMBINED].count(tempStruct)==0){ // We have not conducted affine for this splitseries yet
+    unipredTimeUniqueBlocks[param][size][COMBINED] += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+    unipredTimeUniqueBlocks[param][size][align] += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
   }
+
+  affUnipTime[param][size][COMBINED] += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
+  affUnipTime[param][size][align] += (double) (affunip_target_2.tv_usec - affunip_target_1.tv_usec)/1000000 + (double) (affunip_target_2.tv_sec - affunip_target_1.tv_sec);
 }
 
 void storch::startAffineBipred(EAffineModel param, EAffinePred pred){
@@ -1403,123 +1260,19 @@ void storch::startAffineAmvpInit_size(EAffineModel param, EAffinePred pred, CuSi
   gettimeofday(&amvpInit_target_1, NULL);
 }
 
-void storch::finishAffineAmvpInit_size(EAffineModel param, EAffinePred pred, CuSize size){
+void storch::finishAffineAmvpInit_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu){
   assert((param==AFFINEMODEL_4PARAM || param==AFFINEMODEL_6PARAM) && (pred==UNIPRED)); 
 
   gettimeofday(&amvpInit_target_2, NULL);
 
-  if(param==AFFINEMODEL_4PARAM){
-    switch(size){
-      case(_128x128):
-        affAmvpInit4pTime_128x128 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_128x64):
-        affAmvpInit4pTime_128x64 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_64x128):
-        affAmvpInit4pTime_64x128 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_64x64):
-        affAmvpInit4pTime_64x64 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_64x32):
-        affAmvpInit4pTime_64x32 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_32x64):
-        affAmvpInit4pTime_32x64 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_64x16):
-        affAmvpInit4pTime_64x16 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_16x64):
-        affAmvpInit4pTime_16x64 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_32x32):
-        affAmvpInit4pTime_32x32 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_32x16):
-        affAmvpInit4pTime_32x16 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_16x32):
-        affAmvpInit4pTime_16x32 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_16x16):
-        affAmvpInit4pTime_16x16 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      default:
-        printf("ERROR - Wrong CU size in \"finishAffineAmvpInit_size\"\n");
-        break;          
-    }
-  } else if(param==AFFINEMODEL_6PARAM){
-    switch(size){
-      case(_128x128):
-        affAmvpInit6pTime_128x128 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_128x64):
-        affAmvpInit6pTime_128x64 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_64x128):
-        affAmvpInit6pTime_64x128 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_64x64):
-        affAmvpInit6pTime_64x64 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_64x32):
-        affAmvpInit6pTime_64x32 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_32x64):
-        affAmvpInit6pTime_32x64 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_64x16):
-        affAmvpInit6pTime_64x16 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_16x64):
-        affAmvpInit6pTime_16x64 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_32x32):
-        affAmvpInit6pTime_32x32 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_32x16):
-        affAmvpInit6pTime_32x16 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_16x32):
-        affAmvpInit6pTime_16x32 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      case(_16x16):
-        affAmvpInit6pTime_16x16 += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
-        break;
-
-      default:
-        printf("ERROR - Wrong CU size in \"finishAffineAmvpInit_size\"\n");
-        break;          
-    }
-  } else{
-    printf("ERROR - Incorrect param in finishAffineAmvpInit_size\n");
-    exit(0);
-  }
+  // Alignment of current CU
+  Area currArea = Area(pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
+  UnitArea currUnitArea = UnitArea(CHROMA_420, currArea);
+  Alignment align = storch::getAlignment(currUnitArea); 
+  
+  affAmvpInitTime[param][size][COMBINED] += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+  affAmvpInitTime[param][size][align] += (double) (amvpInit_target_2.tv_usec - amvpInit_target_1.tv_usec)/1000000 + (double) (amvpInit_target_2.tv_sec - amvpInit_target_1.tv_sec);
+  
 }
 
 
@@ -1528,144 +1281,18 @@ void storch::startAffineGradRefSimp_size(EAffineModel param, EAffinePred pred, C
     gettimeofday(&gradRefSimp_target_1, NULL);
 }
 
-void storch::finishAffineGradRefSimp_size(EAffineModel param, EAffinePred pred, CuSize size){
+void storch::finishAffineGradRefSimp_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu){
   assert((param==AFFINEMODEL_4PARAM || param==AFFINEMODEL_6PARAM) && (pred==UNIPRED)); 
+  
   gettimeofday(&gradRefSimp_target_2, NULL);
   
-  if(param==AFFINEMODEL_4PARAM){
-    switch(size){
-      case(_128x128):
-        gradRefSimp4pTime_128x128 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_128x64):
-        gradRefSimp4pTime_128x64 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_64x128):
-        gradRefSimp4pTime_64x128 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_64x64):
-        gradRefSimp4pTime_64x64 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_64x32):
-        gradRefSimp4pTime_64x32 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_32x64):
-        gradRefSimp4pTime_32x64 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_64x16):
-        gradRefSimp4pTime_64x16 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_16x64):
-        gradRefSimp4pTime_16x64 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_32x32):
-        gradRefSimp4pTime_32x32 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_32x16):
-        gradRefSimp4pTime_32x16 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_16x32):
-        gradRefSimp4pTime_16x32 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_16x16):
-        gradRefSimp4pTime_16x16 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      default:
-        printf("ERROR - Wrong CU size in \"finishAffineGradRefSimp_size\"\n");
-        break;          
-    } 
-  } else if(param==AFFINEMODEL_6PARAM){
-    switch(size){
-      case(_128x128):
-        gradRefSimp6pTime_128x128 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_128x64):
-        gradRefSimp6pTime_128x64 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_64x128):
-        gradRefSimp6pTime_64x128 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_64x64):
-        gradRefSimp6pTime_64x64 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_64x32):
-        gradRefSimp6pTime_64x32 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_32x64):
-        gradRefSimp6pTime_32x64 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_64x16):
-        gradRefSimp6pTime_64x16 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_16x64):
-        gradRefSimp6pTime_16x64 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_32x32):
-        gradRefSimp6pTime_32x32 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_32x16):
-        gradRefSimp6pTime_32x16 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_16x32):
-        gradRefSimp6pTime_16x32 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      case(_16x16):
-        gradRefSimp6pTime_16x16 += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
-        break;
-
-      default:
-        printf("ERROR - Wrong CU size in \"finishAffineGradRefSimp_size\"\n");
-        break;          
-    }
-  } else{
-    printf("ERROR - Incorrect param in finishAffineGradRefSimp_size\n");
-    exit(0);
-  }
-}
-
-void storch::startAffineAmvpInit_128x128(EAffineModel param, EAffinePred pred){
-    gettimeofday(&amvpInit_128x128_1, NULL);
-}
-
-void storch::finishAffineAmvpInit_128x128(EAffineModel param, EAffinePred pred){
-    assert((param==AFFINEMODEL_4PARAM) && (pred==UNIPRED)); 
-
-    gettimeofday(&amvpInit_128x128_2, NULL);
-    affAmvpInit4pTime_128x128 += (double) (amvpInit_128x128_2.tv_usec - amvpInit_128x128_1.tv_usec)/1000000 + (double) (amvpInit_128x128_2.tv_sec - amvpInit_128x128_1.tv_sec);
-}
-
-void storch::startAffineGradRefSimp_128x128(EAffineModel param, EAffinePred pred){
-    gettimeofday(&gradRefSimp_128x128_1, NULL);
-}
-
-void storch::finishAffineGradRefSimp_128x128(EAffineModel param, EAffinePred pred){
-    assert((param==AFFINEMODEL_4PARAM) && (pred==UNIPRED)); 
-
-    gettimeofday(&gradRefSimp_128x128_2, NULL);
-    gradRefSimp4pTime_128x128 += (double) (gradRefSimp_128x128_2.tv_usec - gradRefSimp_128x128_1.tv_usec)/1000000 + (double) (gradRefSimp_128x128_2.tv_sec - gradRefSimp_128x128_1.tv_sec);
+  // Alignment of current CU
+  Area currArea = Area(pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
+  UnitArea currUnitArea = UnitArea(CHROMA_420, currArea);
+  Alignment align = storch::getAlignment(currUnitArea); 
+  
+  gradRefSimpTime[param][size][COMBINED] += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
+  gradRefSimpTime[param][size][align] += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
 }
 
 
@@ -1836,15 +1463,16 @@ void storch::verifyTraceMacros(){
 // This is used before starting the encoding of a new frame to allow an adaptive control
 void storch::resetUnipredUniqControl(){
   
-  
   for(int size=0; size<NUM_SIZES; size++){     
-    // Add number of elements from the set into the matrix storing the total number of uniqBlocks
-    numberUniqBlocks[AFFINEMODEL_4PARAM][size] += cusTestedWithAffine[AFFINEMODEL_4PARAM][size].size();
-    numberUniqBlocks[AFFINEMODEL_6PARAM][size] += cusTestedWithAffine[AFFINEMODEL_6PARAM][size].size();
-    
-    // Clear the set so we can start the new frame with an empty set
-    cusTestedWithAffine[AFFINEMODEL_4PARAM][size].clear();
-    cusTestedWithAffine[AFFINEMODEL_6PARAM][size].clear();
+    for(int align=0; align<NUM_ALIGNMENTS; align++){
+      // Add number of elements from the set into the matrix storing the total number of uniqBlocks
+      numberUniqBlocks[AFFINEMODEL_4PARAM][size][align] += cusTestedWithAffine[AFFINEMODEL_4PARAM][size][align].size();
+      numberUniqBlocks[AFFINEMODEL_6PARAM][size][align] += cusTestedWithAffine[AFFINEMODEL_6PARAM][size][align].size();
+
+      // Clear the set so we can start the new frame with an empty set
+      cusTestedWithAffine[AFFINEMODEL_4PARAM][size][align].clear();
+      cusTestedWithAffine[AFFINEMODEL_6PARAM][size][align].clear();
+    }
   }
 }
 

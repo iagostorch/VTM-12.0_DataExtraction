@@ -120,6 +120,21 @@ typedef enum{
     NUM_SIZES	= 12
 } CuSize;
 
+// This is a property of a block with dimensions [W,H] positioned at @(X,Y)
+// Supposing that the CTU is partitioned into a regular grid of blocks [W,H], the current CU at position @(x,y) can be aligned with the grid in 0, 1 or 2 axis
+// The X axis of a block is aligned if the X position is a multiple of the width W
+// The Y axis of a block is aligned if the Y position is a multiple of the height H
+// [16x16] @ (0x32) is aligned
+// [16x16] @ (0x8) is half-aligned
+// [16x16] @ (8x8) is unaligned
+typedef enum{
+  ALIGNED        = 0, // X and Y axis are aligned
+  HALF_ALIGNED   = 1, // Only one axis is aligned
+  UNALIGNED      = 2, // None axis is aligned
+  COMBINED       = 3, // Used to index the array combining the results for all
+  NUM_ALIGNMENTS = 4
+} Alignment;
+
 #include <iostream>
 #include <fstream>
 #include <time.h>
@@ -161,14 +176,14 @@ public:
 
     static bool testedAffine2CP, testedAffine3CP; // Used to track if affine mode was tested for a given CU
     
-    static int calls_unipred[2][NUM_SIZES]; // Number of times affine unipred is conducted for each CP and CU Size
+    static int calls_unipred[2][NUM_SIZES][NUM_ALIGNMENTS]; // Number of times affine unipred is conducted for each CP and CU Size
     
-    static int numberUniqBlocks[2][NUM_SIZES]; // Number of times affine unipred is conducted for each CP and CU Size with an UNIQUE SPLIT SERIES. If the sabe CU with the same split is tested a second time, it is not counted here
-    static double unipredTimeUniqueBlocks[2][NUM_SIZES];
+    static int numberUniqBlocks[2][NUM_SIZES][NUM_ALIGNMENTS]; // Number of times affine unipred is conducted for each CP and CU Size with an UNIQUE SPLIT SERIES. If the sabe CU with the same split is tested a second time, it is not counted here
+    static double unipredTimeUniqueBlocks[2][NUM_SIZES][NUM_ALIGNMENTS];
     
     static SplitSeries currSplitSeries;
     
-    static set<positionAndSplitseries> cusTestedWithAffine[2][NUM_SIZES]; // Used to track if a block with SIZE, at position @(x,y), was already encoded with a specific split series
+    static set<positionAndSplitseries> cusTestedWithAffine[2][NUM_SIZES][NUM_ALIGNMENTS]; // Used to track if a block with SIZE, at position @(x,y), was already encoded with a specific split series
     
     static int currPoc;
     static int inheritedCand;
@@ -185,7 +200,7 @@ public:
         
     storch();
     static void printSummary();
-    static void printDetailedTimeSummary(bool isCommaSep);
+    static void printDetailedTimeSummary(bool isCommaSep, Alignment alignment);
     static void printParamsSummary();
     static void exportSamplesFrame(PelBuf samples, int POC, SamplesType type);
     static void exportSamplesBlock(CPelBuf samples, SamplesType type);
@@ -200,14 +215,20 @@ public:
     
     static void resetUnipredUniqControl();
     
+    static bool isAligned(UnitArea area);
+    static bool isHalfAligned(UnitArea area);
+    static bool isUnaligned(UnitArea area);
+    static Alignment getAlignment(UnitArea area);
+    
+    static bool isAligned(PredictionUnit& pu);
+    static bool isHalfAligned(PredictionUnit& pu);
+    static bool isUnaligned(PredictionUnit& pu);
+    static Alignment getAlignment(PredictionUnit& pu);
     
 #if EXAMPLE || EXAMPLE
     static void exampleFunct();
 #endif
     // Tracking execution time
-    static void startFullSearch();
-    static void finishFullSearch();
-    
     static void startAffineAMVP(EAffineModel param, EAffinePred pred);
     static void finishAffineAMVP(EAffineModel param, EAffinePred pred);
 
@@ -259,9 +280,9 @@ public:
     
     // Functions for measuring th execution time of specific CU sizes
     static void startAffineAmvpInit_size(EAffineModel param, EAffinePred pred, CuSize size);
-    static void finishAffineAmvpInit_size(EAffineModel param, EAffinePred pred, CuSize size);
+    static void finishAffineAmvpInit_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu);
     static void startAffineGradRefSimp_size(EAffineModel param, EAffinePred pred, CuSize size);
-    static void finishAffineGradRefSimp_size(EAffineModel param, EAffinePred pred, CuSize size);
+    static void finishAffineGradRefSimp_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu);
     
     static void startAffineUnipred_size(EAffineModel param, EAffinePred pred, CuSize size);
     static void finishAffineUnipred_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu);
@@ -280,37 +301,15 @@ private:
     static void verifyTraceMacros();
   
   
-    static double fsTime, aff4pTime, aff6pTime, aff4pAMVPTime, aff6pAMVPTime, affUnip4pTime, affBip4pTime, affUnip6pTime, affBip6pTime, affUnip4pInitTime, affBip4pInitTime, affUnip6pInitTime, affBip6pInitTime, affUnip4pMeTime, affBip4pMeTime, affUnip6pMeTime, affBip6pMeTime, affUnip4pMEGradTime, affBip4pMEGradTime, affUnip6pMEGradTime, affBip6pMEGradTime, affUnip4pMERefTime, affBip4pMERefTime, affUnip6pMERefTime, affBip6pMERefTime, affUnip4pMeInitTime, affBip4pMeInitTime, affUnip6pMeInitTime, affBip6pMeInitTime;
+    // Used to track the processing time of different affine stages (initialization, AMVP, ME, refinement/simplification) as a whole considering all block sizes and alignments
+    static double aff4pTime, aff6pTime, aff4pAMVPTime, aff6pAMVPTime, affUnip4pTime, affBip4pTime, affUnip6pTime, affBip6pTime, affUnip4pInitTime, affBip4pInitTime, affUnip6pInitTime, affBip6pInitTime, affUnip4pMeTime, affBip4pMeTime, affUnip6pMeTime, affBip6pMeTime, affUnip4pMEGradTime, affBip4pMEGradTime, affUnip6pMEGradTime, affBip6pMEGradTime, affUnip4pMERefTime, affBip4pMERefTime, affUnip6pMERefTime, affBip6pMERefTime, affUnip4pMeInitTime, affBip4pMeInitTime, affUnip6pMeInitTime, affBip6pMeInitTime;
     static double affUnip4pMEGradTime_pred, affBip4pMEGradTime_pred, affUnip6pMEGradTime_pred, affBip6pMEGradTime_pred, affUnip4pMEGradTime_eq, affBip4pMEGradTime_eq, affUnip6pMEGradTime_eq, affBip6pMEGradTime_eq, affUnip4pMEGradTime_eq_build, affUnip4pMEGradTime_eq_solve, affBip4pMEGradTime_eq_build, affBip4pMEGradTime_eq_solve, affUnip6pMEGradTime_eq_build, affUnip6pMEGradTime_eq_solve, affBip6pMEGradTime_eq_build, affBip6pMEGradTime_eq_solve;
     
-    // Used to track the affine uniprediction in specific block sizes
-    static double affAmvpInit4pTime_128x128, gradRefSimp4pTime_128x128, affUnip4pTime_128x128;
-    static double affAmvpInit4pTime_128x64, gradRefSimp4pTime_128x64, affUnip4pTime_128x64;
-    static double affAmvpInit4pTime_64x128, gradRefSimp4pTime_64x128, affUnip4pTime_64x128;
-    static double affAmvpInit4pTime_64x64, gradRefSimp4pTime_64x64, affUnip4pTime_64x64;
-    static double affAmvpInit4pTime_64x32, gradRefSimp4pTime_64x32, affUnip4pTime_64x32;
-    static double affAmvpInit4pTime_32x64, gradRefSimp4pTime_32x64, affUnip4pTime_32x64;
-    static double affAmvpInit4pTime_64x16, gradRefSimp4pTime_64x16, affUnip4pTime_64x16;
-    static double affAmvpInit4pTime_16x64, gradRefSimp4pTime_16x64, affUnip4pTime_16x64;
-    static double affAmvpInit4pTime_32x32, gradRefSimp4pTime_32x32, affUnip4pTime_32x32;
-    static double affAmvpInit4pTime_32x16, gradRefSimp4pTime_32x16, affUnip4pTime_32x16;
-    static double affAmvpInit4pTime_16x32, gradRefSimp4pTime_16x32, affUnip4pTime_16x32;
-    static double affAmvpInit4pTime_16x16, gradRefSimp4pTime_16x16, affUnip4pTime_16x16;
+    // Used to track the affine uniprediction in specific block sizes and alignments
+    static double affAmvpInitTime[2][NUM_SIZES][NUM_ALIGNMENTS], gradRefSimpTime[2][NUM_SIZES][NUM_ALIGNMENTS], affUnipTime[2][NUM_SIZES][NUM_ALIGNMENTS];
     
-    static double affAmvpInit6pTime_128x128, gradRefSimp6pTime_128x128, affUnip6pTime_128x128;
-    static double affAmvpInit6pTime_128x64, gradRefSimp6pTime_128x64, affUnip6pTime_128x64;
-    static double affAmvpInit6pTime_64x128, gradRefSimp6pTime_64x128, affUnip6pTime_64x128;
-    static double affAmvpInit6pTime_64x64, gradRefSimp6pTime_64x64, affUnip6pTime_64x64;
-    static double affAmvpInit6pTime_64x32, gradRefSimp6pTime_64x32, affUnip6pTime_64x32;
-    static double affAmvpInit6pTime_32x64, gradRefSimp6pTime_32x64, affUnip6pTime_32x64;
-    static double affAmvpInit6pTime_64x16, gradRefSimp6pTime_64x16, affUnip6pTime_64x16;
-    static double affAmvpInit6pTime_16x64, gradRefSimp6pTime_16x64, affUnip6pTime_16x64;
-    static double affAmvpInit6pTime_32x32, gradRefSimp6pTime_32x32, affUnip6pTime_32x32;
-    static double affAmvpInit6pTime_32x16, gradRefSimp6pTime_32x16, affUnip6pTime_32x16;
-    static double affAmvpInit6pTime_16x32, gradRefSimp6pTime_16x32, affUnip6pTime_16x32;
-    static double affAmvpInit6pTime_16x16, gradRefSimp6pTime_16x16, affUnip6pTime_16x16;
-    
-    static struct timeval fs1,fs2, aamvp1, aamvp2, ag1, ag2, a4p1, a4p2, a6p1, a6p2, affme1, affme2, sraffme1, sraffme2, affinit1, affinit2, affunip1, affunip2, affbip1, affbip2, affmeinit1, affmeinit2;   
+    // Probes to measure the elapsed time
+    static struct timeval aamvp1, aamvp2, ag1, ag2, a4p1, a4p2, a6p1, a6p2, affme1, affme2, sraffme1, sraffme2, affinit1, affinit2, affunip1, affunip2, affbip1, affbip2, affmeinit1, affmeinit2;   
     static clock_t clock_agp1, clock_agp2, clock_age1, clock_age2, clock_ageb1, clock_ageb2, clock_ages1, clock_ages2;
     
     static struct timeval amvpInit_128x128_1, amvpInit_128x128_2, gradRefSimp_128x128_1, gradRefSimp_128x128_2, blockPred_128x128_1, blockPred_128x128_2, affunip_128x128_1, affunip_128x128_2;

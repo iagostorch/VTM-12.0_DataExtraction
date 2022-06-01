@@ -335,9 +335,19 @@ int main(int argc, char* argv[])
 
   storch::printParamsSummary(); // Summary of custom encoding parameter and macros
   storch::printSummary();
-  storch::printDetailedTimeSummary(0); // Values separated by spaces in a human-readable fashion
-  storch::printDetailedTimeSummary(1); // Comma-separated values
-          
+   // Values separated by spaces in a human-readable fashion
+    storch::printDetailedTimeSummary(0, COMBINED);
+    storch::printDetailedTimeSummary(0, ALIGNED);
+    storch::printDetailedTimeSummary(0, HALF_ALIGNED);
+    storch::printDetailedTimeSummary(0, UNALIGNED);   
+  
+   
+  // Comma-separated values
+    storch::printDetailedTimeSummary(1, COMBINED); 
+    storch::printDetailedTimeSummary(1, ALIGNED); 
+    storch::printDetailedTimeSummary(1, HALF_ALIGNED); 
+    storch::printDetailedTimeSummary(1, UNALIGNED);  
+  
   return 0;
 }
 
