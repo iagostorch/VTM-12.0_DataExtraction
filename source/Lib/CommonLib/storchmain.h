@@ -267,7 +267,7 @@ public:
     
     static void startAffineMEGradientPred(EAffineModel param, EAffinePred pred);
     static void finishAffineMEGradientPred(EAffineModel param, EAffinePred pred);
-
+    
     // Functions for measuring the execution time of 128x128 CUs (uniprediction with L0 and L1)
     static void startAffineUnipred_128x128(EAffineModel param, EAffinePred pred);
     static void finishAffineUnipred_128x128(EAffineModel param, EAffinePred pred);
@@ -283,6 +283,11 @@ public:
     static void finishAffineAmvpInit_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu);
     static void startAffineGradRefSimp_size(EAffineModel param, EAffinePred pred, CuSize size);
     static void finishAffineGradRefSimp_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu);
+    
+    static void startAffineGradME_size(EAffineModel param, EAffinePred pred);
+    static void finishAffineGradME_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu);
+    static void startAffineRefSimp_size(EAffineModel param, EAffinePred pred);
+    static void finishAffineRefSimp_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu);
     
     static void startAffineUnipred_size(EAffineModel param, EAffinePred pred, CuSize size);
     static void finishAffineUnipred_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu);
@@ -307,6 +312,7 @@ private:
     
     // Used to track the affine uniprediction in specific block sizes and alignments
     static double affAmvpInitTime[2][NUM_SIZES][NUM_ALIGNMENTS], gradRefSimpTime[2][NUM_SIZES][NUM_ALIGNMENTS], affUnipTime[2][NUM_SIZES][NUM_ALIGNMENTS];
+    static double gradientMeTime[2][NUM_SIZES][NUM_ALIGNMENTS], refSimpMeTime[2][NUM_SIZES][NUM_ALIGNMENTS];
     
     // Probes to measure the elapsed time
     static struct timeval aamvp1, aamvp2, ag1, ag2, a4p1, a4p2, a6p1, a6p2, affme1, affme2, sraffme1, sraffme2, affinit1, affinit2, affunip1, affunip2, affbip1, affbip2, affmeinit1, affmeinit2;   
@@ -316,6 +322,7 @@ private:
     
     // Used to probe the start/finish time of affine predicitn in specific block sizes
     static struct timeval amvpInit_target_1, amvpInit_target_2, gradRefSimp_target_1, gradRefSimp_target_2, blockPred_target_1, blockPred_target_2, affunip_target_1, affunip_target_2;
+    static struct timeval gradProbe1, gradProbe2, refSimpProbeProbe1, refSimpProbeProbe2;
     
     static ofstream affine_file;
     static ofstream affine_me_2cps_file, affine_me_3cps_file;

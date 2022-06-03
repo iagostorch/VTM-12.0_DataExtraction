@@ -5797,6 +5797,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   // The previous lines performed MC using the predicted MV. Now it will use the gradient to
   // perform ME and update the MVs in each iteration  
   storch::startAffineMEGradient(AFFINE_PARAMS, PRED);
+  storch::startAffineGradME_size(AFFINE_PARAMS, PRED);
   for ( int iter=0; iter<iIterTime; iter++ )    // iterate loop
   {
     // These are used specifically to measure the time of building and solving the system of linear equations during ME
@@ -6114,7 +6115,8 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     storch::finishAffineMEGradientPred(AFFINE_PARAMS, PRED);
   } // Exit MV optimization based on gradient
   storch::finishAffineMEGradient(AFFINE_PARAMS, PRED);      
- 
+  storch::finishAffineGradME_size(AFFINE_PARAMS, PRED, storch::getSizeEnum(pu), pu);
+  
   if(EXTRACT_AME_PROGRESS && !bBi && pu.cu->imv==0){
       // MV after gradient ME
       storch::exportAmeProgressFlag(pu.cu->affineType, 1);
@@ -6146,6 +6148,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   // Here it tests if affine is better than HEVC, and makes some simplifications and refinements
   // The description of most of these is described in L-0260
   storch::startAffineMESimpRef(AFFINE_PARAMS, PRED);
+  storch::startAffineRefSimp_size(AFFINE_PARAMS, PRED);
   const uint32_t mvShiftTable[3] = {MV_PRECISION_INTERNAL - MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL - MV_PRECISION_INTERNAL, MV_PRECISION_INTERNAL - MV_PRECISION_INT};
   const uint32_t mvShift = mvShiftTable[pu.cu->imv];
   // In case GPU_ME is enabled, we will skip the refinement and simplification after Gradient-ME
@@ -6277,6 +6280,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   }
   
   storch::finishAffineMESimpRef(AFFINE_PARAMS, PRED);
+  storch::finishAffineRefSimp_size(AFFINE_PARAMS, PRED, storch::getSizeEnum(pu), pu);
   if(EXTRACT_AME_PROGRESS && !bBi && pu.cu->imv==0){
     // Final MV, after refinement and simplification
     storch::exportAmeProgressMVs(pu.cu->affineType, acMv, NOT_FILLER, IS_FINAL);      

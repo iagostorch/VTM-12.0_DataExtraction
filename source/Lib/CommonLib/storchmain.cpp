@@ -37,7 +37,7 @@ set<positionAndSplitseries> storch::cusTestedWithAffine[2][NUM_SIZES][NUM_ALIGNM
 
 // Affine time for each CP and cu size
 double storch::affAmvpInitTime[2][NUM_SIZES][NUM_ALIGNMENTS], storch::gradRefSimpTime[2][NUM_SIZES][NUM_ALIGNMENTS], storch::affUnipTime[2][NUM_SIZES][NUM_ALIGNMENTS];
-
+double storch::gradientMeTime[2][NUM_SIZES][NUM_ALIGNMENTS], storch::refSimpMeTime[2][NUM_SIZES][NUM_ALIGNMENTS];
 
 // Allows signaling a "target block" when calling the xPredAffineBlk
 int storch::target_xPredAffineBlk;
@@ -54,6 +54,7 @@ struct timeval storch::amvpInit_128x128_1, storch::amvpInit_128x128_2, storch::g
 
 // Used to probe the begin/finish times of affine predicitn in each block size
 struct timeval storch::amvpInit_target_1, storch::amvpInit_target_2, storch::gradRefSimp_target_1, storch::gradRefSimp_target_2, storch::affunip_target_1, storch::affunip_target_2;
+struct timeval storch::gradProbe1, storch::gradProbe2, storch::refSimpProbeProbe1, storch::refSimpProbeProbe2;
 
 clock_t storch::clock_agp1, storch::clock_agp2, storch::clock_age1, storch::clock_age2, storch::clock_ageb1, storch::clock_ageb2, storch::clock_ages1, storch::clock_ages2;
 int storch::extractedFrames[EXT_NUM][500];
@@ -116,9 +117,13 @@ storch::storch() {
         affAmvpInitTime[AFFINEMODEL_4PARAM][i][align] = 0.0;
         affAmvpInitTime[AFFINEMODEL_6PARAM][i][align] = 0.0;
         gradRefSimpTime[AFFINEMODEL_4PARAM][i][align] = 0.0;
-        gradRefSimpTime[AFFINEMODEL_4PARAM][i][align] = 0.0;
+        gradRefSimpTime[AFFINEMODEL_6PARAM][i][align] = 0.0;
+        gradientMeTime[AFFINEMODEL_4PARAM][i][align] = 0.0;
+        gradientMeTime[AFFINEMODEL_6PARAM][i][align] = 0.0;
+        refSimpMeTime[AFFINEMODEL_4PARAM][i][align] = 0.0;
+        refSimpMeTime[AFFINEMODEL_6PARAM][i][align] = 0.0;
         affUnipTime[AFFINEMODEL_4PARAM][i][align] = 0.0;
-        affUnipTime[AFFINEMODEL_4PARAM][i][align] = 0.0;
+        affUnipTime[AFFINEMODEL_6PARAM][i][align] = 0.0;
         unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][i][align] = 0.0;
         unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][i][align] = 0.0;
         calls_unipred[AFFINEMODEL_4PARAM][i][align] = 0;
@@ -306,6 +311,8 @@ void storch::printDetailedTimeSummary(bool isCommaSep, Alignment alignment){
 cout << "  [!] Target times CUs 128x128" << endl;
     printf("    128x128 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_128x128][alignment]);
     printf("    128x128 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_128x128][alignment]);
+    printf("    128x128 Only Grad 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_4PARAM][_128x128][alignment]);
+    printf("    128x128 Only Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_4PARAM][_128x128][alignment]);
     printf("    128x128 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_128x128][alignment]);
     printf("    128x128 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_128x128][alignment]);
     printf("    128x128 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_128x128][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_128x128][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_128x128][alignment]);
@@ -317,6 +324,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     
     printf("    128x128 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_128x128][alignment]);
     printf("    128x128 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_128x128][alignment]);
+    printf("    128x128 Only Grad 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_6PARAM][_128x128][alignment]);
+    printf("    128x128 Only Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_6PARAM][_128x128][alignment]);
     printf("    128x128 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_128x128][alignment]);
     printf("    128x128 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_128x128][alignment]);
     printf("    128x128 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_128x128][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_128x128][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_128x128][alignment]);
@@ -331,6 +340,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     printf("  [!] Target times CUs 128x64\n");
     printf("    128x64 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_128x64][alignment]);
     printf("    128x64 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_128x64][alignment]);
+    printf("    128x64 Only Grad 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_4PARAM][_128x64][alignment]);
+    printf("    128x64 Only Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_4PARAM][_128x64][alignment]);
     printf("    128x64 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_128x64][alignment]);
     printf("    128x64 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_128x64][alignment]);
     printf("    128x64 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_128x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_128x64][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_128x64][alignment]);
@@ -342,6 +353,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     
     printf("    128x64 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_128x64][alignment]);
     printf("    128x64 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_128x64][alignment]);
+    printf("    128x64 Only Grad 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_6PARAM][_128x64][alignment]);
+    printf("    128x64 Only Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_6PARAM][_128x64][alignment]);
     printf("    128x64 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_128x64][alignment]);
     printf("    128x64 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_128x64][alignment]);
     printf("    128x64 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_128x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_128x64][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_128x64][alignment]);
@@ -356,6 +369,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     cout << "  [!] Target times CUs 64x128\n";
     printf("    64x128 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_64x128][alignment]);
     printf("    64x128 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_64x128][alignment]);
+    printf("    64x128 Only Grad 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_4PARAM][_64x128][alignment]);
+    printf("    64x128 Only Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_4PARAM][_64x128][alignment]);
     printf("    64x128 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_64x128][alignment]);
     printf("    64x128 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x128][alignment]);
     printf("    64x128 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_64x128][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x128][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_64x128][alignment]);
@@ -367,6 +382,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     
     printf("    64x128 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_64x128][alignment]);
     printf("    64x128 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_64x128][alignment]);
+    printf("    64x128 Only Grad 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_6PARAM][_64x128][alignment]);
+    printf("    64x128 Only Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_6PARAM][_64x128][alignment]);
     printf("    64x128 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_64x128][alignment]);
     printf("    64x128 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x128][alignment]);
     printf("    64x128 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_64x128][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x128][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_64x128][alignment]);
@@ -381,6 +398,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     cout << "  [!] Target times CUs 64x64" << endl;
     printf("    64x64 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_64x64][alignment]);
     printf("    64x64 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_64x64][alignment]);
+    printf("    64x64 Only Grad 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_4PARAM][_64x64][alignment]);
+    printf("    64x64 Only Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_4PARAM][_64x64][alignment]);
     printf("    64x64 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_64x64][alignment]);
     printf("    64x64 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x64][alignment]);
     printf("    64x64 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_64x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x64][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_64x64][alignment]);
@@ -392,6 +411,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     
     printf("    64x64 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_64x64][alignment]);
     printf("    64x64 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_64x64][alignment]);
+    printf("    64x64 Only Grad 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_6PARAM][_64x64][alignment]);
+    printf("    64x64 Only Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_6PARAM][_64x64][alignment]);
     printf("    64x64 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_64x64][alignment]);
     printf("    64x64 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x64][alignment]);
     printf("    64x64 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_64x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x64][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_64x64][alignment]);
@@ -406,6 +427,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     cout << "  [!] Target times CUs 64x32" << endl;
     printf("    64x32 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_64x32][alignment]);
     printf("    64x32 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_64x32][alignment]);
+    printf("    64x32 Only Grad 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_4PARAM][_64x32][alignment]);
+    printf("    64x32 Only Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_4PARAM][_64x32][alignment]);
     printf("    64x32 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_64x32][alignment]);
     printf("    64x32 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x32][alignment]);
     printf("    64x32 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_64x32][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x32][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_64x32][alignment]);
@@ -417,6 +440,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     
     printf("    64x32 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_64x32][alignment]);
     printf("    64x32 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_64x32][alignment]);
+    printf("    64x32 Only Grad 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_6PARAM][_64x32][alignment]);
+    printf("    64x32 Only Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_6PARAM][_64x32][alignment]);
     printf("    64x32 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_64x32][alignment]);
     printf("    64x32 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x32][alignment]);
     printf("    64x32 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_64x32][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x32][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_64x32][alignment]);
@@ -431,6 +456,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     cout << "  [!] Target times CUs 32x64" << endl;
     printf("    32x64 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_32x64][alignment]);
     printf("    32x64 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_32x64][alignment]);
+    printf("    32x64 Only Grad 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_4PARAM][_32x64][alignment]);
+    printf("    32x64 Only Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_4PARAM][_32x64][alignment]);
     printf("    32x64 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_32x64][alignment]);
     printf("    32x64 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x64][alignment]);
     printf("    32x64 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_32x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x64][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_32x64][alignment]);
@@ -442,6 +469,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     
     printf("    32x64 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_32x64][alignment]);
     printf("    32x64 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_32x64][alignment]);
+    printf("    32x64 Only Grad 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_6PARAM][_32x64][alignment]);
+    printf("    32x64 Only Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_6PARAM][_32x64][alignment]);
     printf("    32x64 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_32x64][alignment]);
     printf("    32x64 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x64][alignment]);
     printf("    32x64 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_32x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x64][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_32x64][alignment]);
@@ -456,6 +485,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     cout << "  [!] Target times CUs 64x16" << endl;
     printf("    64x16 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_64x16][alignment]);
     printf("    64x16 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_64x16][alignment]);
+    printf("    64x16 Only Grad 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_4PARAM][_64x16][alignment]);
+    printf("    64x16 Only Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_4PARAM][_64x16][alignment]);
     printf("    64x16 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_64x16][alignment]);
     printf("    64x16 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x16][alignment]);
     printf("    64x16 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_64x16][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_64x16][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_64x16][alignment]);
@@ -467,6 +498,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     
     printf("    64x16 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_64x16][alignment]);
     printf("    64x16 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_64x16][alignment]);
+    printf("    64x16 Only Grad 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_6PARAM][_64x16][alignment]);
+    printf("    64x16 Only Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_6PARAM][_64x16][alignment]);
     printf("    64x16 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_64x16][alignment]);
     printf("    64x16 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x16][alignment]);
     printf("    64x16 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_64x16][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_64x16][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_64x16][alignment]);
@@ -481,6 +514,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     cout << "  [!] Target times CUs 16x64" << endl;
     printf("    16x64 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_16x64][alignment]);
     printf("    16x64 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_16x64][alignment]);
+    printf("    16x64 Only Grad 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_4PARAM][_16x64][alignment]);
+    printf("    16x64 Only Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_4PARAM][_16x64][alignment]);
     printf("    16x64 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_16x64][alignment]);
     printf("    16x64 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x64][alignment]);
     printf("    16x64 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_16x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x64][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_16x64][alignment]);
@@ -492,6 +527,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     
     printf("    16x64 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_16x64][alignment]);
     printf("    16x64 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_16x64][alignment]);
+    printf("    16x64 Only Grad 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_6PARAM][_16x64][alignment]);
+    printf("    16x64 Only Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_6PARAM][_16x64][alignment]);
     printf("    16x64 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_16x64][alignment]);
     printf("    16x64 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x64][alignment]);
     printf("    16x64 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_16x64][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x64][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_16x64][alignment]);
@@ -506,6 +543,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     cout << "  [!] Target times CUs 32x32" << endl;
     printf("    32x32 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_32x32][alignment]);
     printf("    32x32 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_32x32][alignment]);
+    printf("    32x32 Only Grad 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_4PARAM][_32x32][alignment]);
+    printf("    32x32 Only Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_4PARAM][_32x32][alignment]);
     printf("    32x32 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_32x32][alignment]);
     printf("    32x32 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x32][alignment]);
     printf("    32x32 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_32x32][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x32][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_32x32][alignment]);
@@ -517,6 +556,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     
     printf("    32x32 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_32x32][alignment]);
     printf("    32x32 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_32x32][alignment]);
+    printf("    32x32 Only Grad 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_6PARAM][_32x32][alignment]);
+    printf("    32x32 Only Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_6PARAM][_32x32][alignment]);
     printf("    32x32 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_32x32][alignment]);
     printf("    32x32 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x32][alignment]);
     printf("    32x32 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_32x32][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x32][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_32x32][alignment]);
@@ -531,6 +572,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     cout << "  [!] Target times CUs 32x16" << endl;
     printf("    32x16 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_32x16][alignment]);
     printf("    32x16 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_32x16][alignment]);
+    printf("    32x16 Only Grad 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_4PARAM][_32x16][alignment]);
+    printf("    32x16 Only Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_4PARAM][_32x16][alignment]);
     printf("    32x16 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_32x16][alignment]);
     printf("    32x16 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x16][alignment]);
     printf("    32x16 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_32x16][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_32x16][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_32x16][alignment]);
@@ -542,6 +585,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     
     printf("    32x16 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_32x16][alignment]);
     printf("    32x16 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_32x16][alignment]);
+    printf("    32x16 Only Grad 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_6PARAM][_32x16][alignment]);
+    printf("    32x16 Only Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_6PARAM][_32x16][alignment]);
     printf("    32x16 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_32x16][alignment]);
     printf("    32x16 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x16][alignment]);
     printf("    32x16 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_32x16][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_32x16][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_32x16][alignment]);
@@ -556,6 +601,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     cout << "  [!] Target times CUs 16x32" << endl;
     printf("    16x32 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_16x32][alignment]);
     printf("    16x32 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_16x32][alignment]);
+    printf("    16x32 Only Grad 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_4PARAM][_16x32][alignment]);
+    printf("    16x32 Only Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_4PARAM][_16x32][alignment]);
     printf("    16x32 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_16x32][alignment]);
     printf("    16x32 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x32][alignment]);
     printf("    16x32 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_16x32][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x32][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_16x32][alignment]);
@@ -567,6 +614,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     
     printf("    16x32 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_16x32][alignment]);
     printf("    16x32 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_16x32][alignment]);
+    printf("    16x32 Only Grad 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_6PARAM][_16x32][alignment]);
+    printf("    16x32 Only Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_6PARAM][_16x32][alignment]);
     printf("    16x32 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_16x32][alignment]);
     printf("    16x32 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x32][alignment]);
     printf("    16x32 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_16x32][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x32][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_16x32][alignment]);
@@ -581,6 +630,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     cout << "  [!] Target times CUs 16x16" << endl;
     printf("    16x16 AMVP+Init 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "       ",affAmvpInitTime[AFFINEMODEL_4PARAM][_16x16][alignment]);
     printf("    16x16 Grad+Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_4PARAM][_16x16][alignment]);
+    printf("    16x16 Only Grad 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_4PARAM][_16x16][alignment]);
+    printf("    16x16 Only Ref+Simp 2 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_4PARAM][_16x16][alignment]);
     printf("    16x16 Unipred 2 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_4PARAM][_16x16][alignment]);
     printf("    16x16 Unipred 2 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x16][alignment]);
     printf("    16x16 Ratio Uniq/All Unipred 2 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_4PARAM][_16x16][alignment]==0?-1.0:(float) unipredTimeUniqueBlocks[AFFINEMODEL_4PARAM][_16x16][alignment]/affUnipTime[AFFINEMODEL_4PARAM][_16x16][alignment]);
@@ -592,6 +643,8 @@ cout << "  [!] Target times CUs 128x128" << endl;
     
     printf("    16x16 AMVP+Init 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",affAmvpInitTime[AFFINEMODEL_6PARAM][_16x16][alignment]);
     printf("    16x16 Grad+Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",gradRefSimpTime[AFFINEMODEL_6PARAM][_16x16][alignment]);
+    printf("    16x16 Only Grad 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "      ",gradientMeTime[AFFINEMODEL_6PARAM][_16x16][alignment]);
+    printf("    16x16 Only Ref+Simp 3 CPs AllBlocks %s%f\n", isCommaSep ? "," : "  ",refSimpMeTime[AFFINEMODEL_6PARAM][_16x16][alignment]);
     printf("    16x16 Unipred 3 CPs AllBlocks%s%f\n", isCommaSep ? "," : "         ",affUnipTime[AFFINEMODEL_6PARAM][_16x16][alignment]);
     printf("    16x16 Unipred 3 CPs UniqBlocks %s%f\n", isCommaSep ? "," : "       ",unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x16][alignment]);
     printf("    16x16 Ratio Uniq/All Unipred 3 CPs %s%f\n", isCommaSep ? "," : "   ",affUnipTime[AFFINEMODEL_6PARAM][_16x16][alignment]==0?-1.0:(float)unipredTimeUniqueBlocks[AFFINEMODEL_6PARAM][_16x16][alignment]/affUnipTime[AFFINEMODEL_6PARAM][_16x16][alignment]);
@@ -1262,7 +1315,7 @@ void storch::startAffineAmvpInit_size(EAffineModel param, EAffinePred pred, CuSi
 
 void storch::finishAffineAmvpInit_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu){
   assert((param==AFFINEMODEL_4PARAM || param==AFFINEMODEL_6PARAM) && (pred==UNIPRED)); 
-
+  
   gettimeofday(&amvpInit_target_2, NULL);
 
   // Alignment of current CU
@@ -1295,6 +1348,51 @@ void storch::finishAffineGradRefSimp_size(EAffineModel param, EAffinePred pred, 
   gradRefSimpTime[param][size][align] += (double) (gradRefSimp_target_2.tv_usec - gradRefSimp_target_1.tv_usec)/1000000 + (double) (gradRefSimp_target_2.tv_sec - gradRefSimp_target_1.tv_sec);
 }
 
+// Probe start and finish time of Gradient-ME alone inside affine uniprediction in a specific block size
+void storch::startAffineGradME_size(EAffineModel param, EAffinePred pred){
+  gettimeofday(&gradProbe1, NULL);
+}
+
+void storch::finishAffineGradME_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu){
+  assert((param==AFFINEMODEL_4PARAM || param==AFFINEMODEL_6PARAM) && (pred==UNIPRED)); 
+    
+  // For now, we are not intereseted in tracking the bipred time
+  if(pred==BIPRED)
+    return;
+  
+  gettimeofday(&gradProbe2, NULL);
+  
+  // Alignment of current CU
+  Area currArea = Area(pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
+  UnitArea currUnitArea = UnitArea(CHROMA_420, currArea);
+  Alignment align = storch::getAlignment(currUnitArea); 
+  
+  gradientMeTime[param][size][COMBINED] += (double) (gradProbe2.tv_usec - gradProbe1.tv_usec)/1000000 + (double) (gradProbe2.tv_sec - gradProbe1.tv_sec);
+  gradientMeTime[param][size][align] += (double) (gradProbe2.tv_usec - gradProbe1.tv_usec)/1000000 + (double) (gradProbe2.tv_sec - gradProbe1.tv_sec);
+}
+
+// Probe start and finish time of refinement and simplification stages of affine uniprediction in a specific block size
+void storch::startAffineRefSimp_size(EAffineModel param, EAffinePred pred){
+  gettimeofday(&refSimpProbeProbe1, NULL);
+}
+
+void storch::finishAffineRefSimp_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu){
+  assert((param==AFFINEMODEL_4PARAM || param==AFFINEMODEL_6PARAM) && (pred==UNIPRED)); 
+  
+  // For now, we are not intereseted in tracking the bipred time
+  if(pred==BIPRED)
+    return;
+  
+  gettimeofday(&refSimpProbeProbe2, NULL);
+  
+  // Alignment of current CU
+  Area currArea = Area(pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
+  UnitArea currUnitArea = UnitArea(CHROMA_420, currArea);
+  Alignment align = storch::getAlignment(currUnitArea); 
+  
+  refSimpMeTime[param][size][COMBINED] += (double) (refSimpProbeProbe2.tv_usec - refSimpProbeProbe1.tv_usec)/1000000 + (double) (refSimpProbeProbe2.tv_sec - refSimpProbeProbe1.tv_sec);
+  refSimpMeTime[param][size][align] += (double) (refSimpProbeProbe2.tv_usec - refSimpProbeProbe1.tv_usec)/1000000 + (double) (refSimpProbeProbe2.tv_sec - refSimpProbeProbe1.tv_sec);
+}
 
 // Allows an easier handling of block sizes with meaninful names and less conditionals
 // There are two of these with different input parameters
