@@ -66,7 +66,7 @@
 // When disabled: Conduct affine prediction as the original VTM encoder
 #define GPU_ME_2CPs 0 // !!! IMPORTANT !!! IF ANY OF THESE IS TRUE, SIMD_ENABLE MUST BE DISABLED. OTHERWISE THE SATD COMPUTATION IS NOT MODIFIED    
 #define GPU_ME_3CPs 0 // !!! IMPORTANT !!! IF ANY OF THESE IS TRUE, SIMD_ENABLE MUST BE DISABLED. OTHERWISE THE SATD COMPUTATION IS NOT MODIFIED    
-
+#define PREDICT_3CPs_FROM_2CPs 0 // When this is enabled, the best CPMVs of 2 CPs are used to generate a set of predicted CPMVs for 3 CPs. When disabled, the initial CPMVs for 3 CPs are forced to zero. It IS NOT the AMVP, but has the same purpose and may overwrite the AMVP results.
 
 // This is only valid when CUSTOMIZE_TREE_HEURISTICS==1. Controls what prediciton modes are evailable for extra blocks.
 // When enabled: All blocks that the original encoder would not test but we are testing (i.e., we are testing splits that would not be tested, evaluating EXTA BLOCKS) can only be predicted with affine uniprediction
@@ -74,7 +74,7 @@
 #define ENFORCE_AFFINE_ON_EXTRA_BLOCKS 0
 
 
-// Controls wheter we are forcing the encoder to test affine with 3 CPs or not
+// Controls whether we are forcing the encoder to test affine with 3 CPs or not
 // When enabled: whenever affine with 2 CPs is conducted, we enforce conducting affine with 3 CPs
 // When disabled: the original condition for testing 3 CPs is maintained (RD reasonably good when compared to translational ME)
 #define ENFORCE_3_CPS 0

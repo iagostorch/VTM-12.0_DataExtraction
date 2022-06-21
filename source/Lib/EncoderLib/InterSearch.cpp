@@ -4752,7 +4752,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       forceZeroMVP = 1;
     else
       forceZeroMVP = 0;
-    
+        
     RefPicList  eRefPicList = ( iRefList ? REF_PIC_LIST_1 : REF_PIC_LIST_0 );
     pu.interDir = ( iRefList ? 2 : 1 );
     for (int iRefIdxTemp = 0; iRefIdxTemp < slice.getNumRefIdx(eRefPicList); iRefIdxTemp++)
@@ -4933,7 +4933,11 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
           }
         }
       }      
-      if ( pu.cu->affineType == AFFINEMODEL_6PARAM )
+      
+      // This part will use the best CPMVs from 2 CPs to generate a set of Predicted CPMVs for 3 CPs. It may overwrite the Affine AMVP result depending on the RD
+      if ( pu.cu->affineType == AFFINEMODEL_6PARAM					// When GpuME for 3 CPs is disabled we conduct the standard procedure
+	  && ( ( GPU_ME_3CPs==0 ) || ( GPU_ME_3CPs==1 && PREDICT_3CPs_FROM_2CPs==1 ) )	// When GpuME for 3 CPs is enabled, the Predicted CPMVs can be forced to be zero (PREDICT_3CPs_FROM_2CPs==0) or can be generated out of the best results for 2 CPs (PREDICT_3CPs_FROM_2CPs==1)
+	 )     
       {
         Mv mvFour[3];
         mvFour[0] = mvAffine4Para[iRefList][iRefIdxTemp][0];
@@ -5845,7 +5849,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     target &= pu.lwidth()==32;
     target &= pu.lheight()==64;
     target &= (pu.lx()==0 || pu.lx()==1504);
-    target &= (pu.ly()==0|| pu.ly()==832);
+    target &= (pu.ly()==0 || pu.ly()==832);
     target &= pu.cu->affineType==0;
     target &= bBi == false;
     
@@ -5854,7 +5858,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
       printf("\n\n");
       printf("Iteration %d/%d\n", iter, iIterTime);
       printf("Prediction SIGNAL for CU XY %dx%d     WH %dx%d\n", pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
-      printf("  LT %dx%d     RT %dx%d\n", acMvTemp[0].hor, acMvTemp[0].ver, acMvTemp[1].hor, acMvTemp[1].ver);
+      printf("  %d CPs || LT %dx%d     RT %dx%d     LB %dx%d\n", pu.cu->affineType?3:2, acMvTemp[0].hor, acMvTemp[0].ver, acMvTemp[1].hor, acMvTemp[1].ver, acMvTemp[2].hor, acMvTemp[2].ver);
       printf("{ Begin PREDICTION \n");
       for ( int j=0; j< height; j++ ) // height and width of current PU
       {
@@ -5870,7 +5874,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
       
       
       printf("Prediction error for CU XY %dx%d     WH %dx%d\n", pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
-      printf("  LT %dx%d     RT %dx%d\n", acMvTemp[0].hor, acMvTemp[0].ver, acMvTemp[1].hor, acMvTemp[1].ver);
+      printf("  %d CPs || LT %dx%d     RT %dx%d     LB %dx%d\n", pu.cu->affineType?3:2, acMvTemp[0].hor, acMvTemp[0].ver, acMvTemp[1].hor, acMvTemp[1].ver, acMvTemp[2].hor, acMvTemp[2].ver);
       printf("{ Begin error \n");
       for ( int j=0; j< height; j++ ) // height and width of current PU
       {
@@ -5883,7 +5887,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
       printf("} End error\n\n");
       
       printf("Prediction gradient HORIZONTAL for CU XY %dx%d     WH %dx%d\n", pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
-      printf("  LT %dx%d     RT %dx%d\n", acMvTemp[0].hor, acMvTemp[0].ver, acMvTemp[1].hor, acMvTemp[1].ver);
+      printf("  %d CPs || LT %dx%d     RT %dx%d     LB %dx%d\n", pu.cu->affineType?3:2, acMvTemp[0].hor, acMvTemp[0].ver, acMvTemp[1].hor, acMvTemp[1].ver, acMvTemp[2].hor, acMvTemp[2].ver);
       printf("{ Begin grad horizontal \n");
       for ( int j=0; j< height; j++ ) // height and width of current PU
       {
@@ -5896,7 +5900,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
       printf("} End grad horizontal\n\n");
       
       printf("Prediction gradient VERTICAL for CU XY %dx%d     WH %dx%d\n", pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
-      printf("  LT %dx%d     RT %dx%d\n", acMvTemp[0].hor, acMvTemp[0].ver, acMvTemp[1].hor, acMvTemp[1].ver);
+      printf("  %d CPs || LT %dx%d     RT %dx%d     LB %dx%d\n", pu.cu->affineType?3:2, acMvTemp[0].hor, acMvTemp[0].ver, acMvTemp[1].hor, acMvTemp[1].ver, acMvTemp[2].hor, acMvTemp[2].ver);
       printf("{ Begin grad vertical \n");
       for ( int j=0; j< height; j++ ) // height and width of current PU
       {
@@ -5940,7 +5944,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     
     if(target){
       //printf("\n\n");
-      printf("Building system for CU XY %dx%d     WH %dx%d     LT %dx%d     RT %dx%d\n", pu.lx(), pu.ly(), pu.lwidth(), pu.lheight(), acMvTemp[0].hor, acMvTemp[0].ver, acMvTemp[1].hor, acMvTemp[1].ver);
+      printf("Building system for CU XY %dx%d     WH %dx%d  || %d CPs ||     LT %dx%d     RT %dx%d     LB %dx%d\n", pu.lx(), pu.ly(), pu.lwidth(), pu.lheight(), pu.cu->affineType?3:2, acMvTemp[0].hor, acMvTemp[0].ver, acMvTemp[1].hor, acMvTemp[1].ver, acMvTemp[2].hor, acMvTemp[2].ver);
       for ( int row = 0; row < iParaNum; row++ )
       {
         for ( int i = 0; i < iParaNum; i++ )
@@ -5986,9 +5990,10 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     
     if(target){
       
-      printf("Deltas...\n");
+      printf("Deltas %d CPs...\n", pu.cu->affineType?3:2);
       printf("   deltaLT: %dx%d\n", acDeltaMv[0].hor, acDeltaMv[0].ver);
       printf("   deltaRT: %dx%d\n", acDeltaMv[1].hor, acDeltaMv[1].ver);
+      printf("   deltaLB: %dx%d\n", acDeltaMv[2].hor, acDeltaMv[2].ver);
     }
     
     

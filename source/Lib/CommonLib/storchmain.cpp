@@ -213,6 +213,7 @@ void storch::printParamsSummary(){
   cout << "Relevant encoding parameters and macros" << endl;
   cout << "GPU_ME_2CPs:              " << GPU_ME_2CPs << endl;
   cout << "GPU_ME_3CPs:              " << GPU_ME_3CPs << endl;
+  cout << "PREDICT_3CPs_FROM_2CPs    " << PREDICT_3CPs_FROM_2CPs << endl;
   cout << "SIMD_ENABLE:              " << SIMD_ENABLE << endl;
   cout << "PROF:                     " << prof << endl;
   cout << "ORIGINAL TREE HEURISTICS: " << ORIGINAL_TREE_HEURISTICS << endl;
