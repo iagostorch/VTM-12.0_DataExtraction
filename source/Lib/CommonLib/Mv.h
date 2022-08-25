@@ -231,7 +231,7 @@ public:
 
   void roundAffinePrecInternal2Amvr(const int amvr)
   {
-    roundToPrecision(MV_PRECISION_INTERNAL, m_amvrPrecAffine[amvr]);
+    roundToPrecision(MV_PRECISION_INTERNAL, m_amvrPrecAffine[amvr]); // (6,4)
   }
 
   // IBC block vector

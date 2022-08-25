@@ -20,6 +20,7 @@ using namespace std;
 
 double storch::aff4pTime, storch::aff6pTime, storch::aff4pAMVPTime, storch::aff6pAMVPTime, storch::affUnip4pTime, storch::affBip4pTime, storch::affUnip6pTime, storch::affBip6pTime, storch::affUnip4pInitTime, storch::affBip4pInitTime, storch::affUnip6pInitTime, storch::affBip6pInitTime, storch::affUnip4pMeTime, storch::affBip4pMeTime, storch::affUnip6pMeTime, storch::affBip6pMeTime, storch::affUnip4pMEGradTime, storch::affBip4pMEGradTime, storch::affUnip6pMEGradTime, storch::affBip6pMEGradTime, storch::affUnip4pMERefTime, storch::affBip4pMERefTime, storch::affUnip6pMERefTime, storch::affBip6pMERefTime, storch::affUnip4pMeInitTime, storch::affBip4pMeInitTime, storch::affUnip6pMeInitTime, storch::affBip6pMeInitTime;
 double storch::affUnip4pMEGradTime_pred, storch::affBip4pMEGradTime_pred, storch::affUnip6pMEGradTime_pred, storch::affBip6pMEGradTime_pred, storch::affUnip4pMEGradTime_eq, storch::affBip4pMEGradTime_eq, storch::affUnip6pMEGradTime_eq, storch::affBip6pMEGradTime_eq, storch::affUnip4pMEGradTime_eq_build, storch::affUnip4pMEGradTime_eq_solve, storch::affBip4pMEGradTime_eq_build, storch::affBip4pMEGradTime_eq_solve, storch::affUnip6pMEGradTime_eq_build, storch::affUnip6pMEGradTime_eq_solve, storch::affBip6pMEGradTime_eq_build, storch::affBip6pMEGradTime_eq_solve;
+int storch::ET_aligned2CPs, storch::ET_aligned3CPs, storch::ET_half2CPs, storch::ET_half3CPs;
 
 // These are used to track if affine was conducted for the current block, and to track what is the current split series (i.e., sequence of splits) when it is not directly available
 bool storch::testedAffine2CP, storch::testedAffine3CP;
@@ -156,6 +157,13 @@ storch::storch() {
     zeroCand = 0;
     totalCand = 0;
     
+    
+    ET_aligned2CPs = 0;
+    ET_aligned3CPs = 0;
+    ET_half2CPs = 0;
+    ET_half3CPs = 0;
+    
+    
     fillerChar = 'x';
     
     // Print the header of the file
@@ -231,6 +239,14 @@ void storch::printSummary() {
     totalCand = inheritedCand + constructedCand + translationalCand + temporalCand + zeroCand;
     
     cout << endl << "---------------------------------------------------------------------" << endl;
+    
+    printf("###      Early Terminations of Gradient Search\n");
+    printf("ET_FULL_2CPs %d\n", storch::ET_aligned2CPs);
+    printf("ET_FULL_3CPs %d\n", storch::ET_aligned3CPs);
+    printf("ET_HALF_2CPs %d\n", storch::ET_half2CPs);
+    printf("ET_HALF_3CPs %d\n", storch::ET_half3CPs);
+    cout << endl << endl;
+    
     cout << "###      Affine encoding time:" << endl;
     
     cout << "Complete 4 parameters:  " << (affUnip4pTime + affBip4pTime) << endl;

@@ -59,6 +59,8 @@ extern int target;
  //! \ingroup EncoderLib
  //! \{
 
+//int target = 0;
+
 static const Mv s_acMvRefineH[9] =
 {
   Mv(  0,  0 ), // 0
@@ -2975,8 +2977,16 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
           printf("    Cost final inter nonAffine: %ld\n", uiHevcCost );
       }
     }
+        
+    int isUnaligned = storch::getAlignment(cu.cs->area) == UNALIGNED; 
+    int skipCurrUnaligned = isUnaligned && SKIP_UNALIGNED_CUS;
+  
     // This if decides if affine will be tested or not
-    if (cu.Y().width > 8 && cu.Y().height > 8 && cu.slice->getSPS()->getUseAffine() // Minimum block size and affine encoding parameter
+    if(skipCurrUnaligned==1){
+      // Do nothing... 
+      //      printf("Skip skipCurrUnaligned geral: [%dx%d] @ [%dx%d]\n", cu.lwidth(), cu.lheight(), cu.lx(), cu.ly());
+    }
+    else if (cu.Y().width > 8 && cu.Y().height > 8 && cu.slice->getSPS()->getUseAffine() // Minimum block size and affine encoding parameter
       && checkAffine
       && (bcwIdx == BCW_DEFAULT || m_affineModeSelected || !m_pcEncCfg->getUseBcwFast())  // This m_affineModeSelected represents if the current CU is encoded with affine (?)
       )
@@ -3176,7 +3186,7 @@ uint32_t InterSearch::xCalcAffineMVBits( PredictionUnit& pu, Mv acMvTemp[3], Mv 
     m_pcRdCost->setPredictor( pred );
     Mv mv = acMvTemp[verIdx];
     mv.changeAffinePrecInternal2Amvr(pu.cu->imv);
-
+        
     bitsTemp += m_pcRdCost->getBitsOfVectorWithPredictor( mv.getHor(), mv.getVer(), 0 );
   }
 
@@ -4948,21 +4958,23 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         int shift = MAX_CU_DEPTH;
         int vx2 = (mvFour[0].getHor() << shift) - ((mvFour[1].getVer() - mvFour[0].getVer()) << (shift + floorLog2(pu.lheight()) - floorLog2(pu.lwidth())));
         int vy2 = (mvFour[0].getVer() << shift) + ((mvFour[1].getHor() - mvFour[0].getHor()) << (shift + floorLog2(pu.lheight()) - floorLog2(pu.lwidth())));
-        int offset = (1 << (shift - 1));
+	int offset = (1 << (shift - 1));
         vx2 = (vx2 + offset - (vx2 >= 0)) >> shift;
         vy2 = (vy2 + offset - (vy2 >= 0)) >> shift;
-        mvFour[2].hor = vx2;
+	mvFour[2].hor = vx2;
         mvFour[2].ver = vy2;
         mvFour[2].clipToStorageBitDepth();
         mvFour[0].roundAffinePrecInternal2Amvr(pu.cu->imv);
         mvFour[1].roundAffinePrecInternal2Amvr(pu.cu->imv);
         mvFour[2].roundAffinePrecInternal2Amvr(pu.cu->imv);
         Distortion uiCandCostInherit = xGetAffineTemplateCost( pu, origBuf, predBuf, mvFour, aaiMvpIdx[iRefList][iRefIdxTemp], AMVP_MAX_NUM_CANDS, eRefPicList, iRefIdxTemp );
-        if ( affineAmvrEnabled )
+        if ( affineAmvrEnabled ) // Never true for low delay
         {
+	  printf("amvrEnable\n");
           uiCandCostInherit += m_pcRdCost->getCost( xCalcAffineMVBits( pu, mvFour, cMvPred[iRefList][iRefIdxTemp] ) );
         }
-        if ( uiCandCostInherit < uiCandCost )
+        if ( (uiCandCostInherit < uiCandCost)	// Standard decision of VTM
+	    ||  ( pu.cu->affineType == AFFINEMODEL_6PARAM && GPU_ME_3CPs && PREDICT_3CPs_FROM_2CPs ) ) // Forced decision when we have 3 CPs and we are using GPU_ME_3CPs while inheriting best 2 CPs as predictors for 3 CPs
         {
           uiCandCost = uiCandCostInherit;
           for ( int i = 0; i < 3; i++ )
@@ -4974,9 +4986,16 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       storch::finishAffineInit(AFFINE_PARAMS, UNIPRED);
       
       // Substitute the MV from AMVP by a MV generated after the HEVC MV
-      if ( uiCandCost < biPDistTemp )
+      // Standard VTM decision
+      if ( uiCandCost < biPDistTemp ) // biPDistTemp is the cost obtained from Affine AMVP
       {
         ::memcpy( cMvTemp[iRefList][iRefIdxTemp], mvHevc, sizeof(Mv)*3 );
+      }
+      // Forced decision when we have 3 CPs and we are using GPU_ME_3CPs while inheriting best 2 CPs as predicted 3 CPs
+      else if(pu.cu->affineType == AFFINEMODEL_6PARAM && GPU_ME_3CPs && PREDICT_3CPs_FROM_2CPs){
+	// Forces the inherited CPMVs to be used as initial CPMVs in Gradient-ME
+	// These inherited CPMVs may be worse than the CPMVs obtained by AMVP but we must conduct always the same decision based on PREDICT_3CPs_FROM_2CPs
+	::memcpy( cMvTemp[iRefList][iRefIdxTemp], mvHevc, sizeof(Mv)*3 );
       }
       else
       {
@@ -5097,7 +5116,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
     } // End refIdx loop
   } // end Uni-prediction
   // Probe END of Affine Uniprediction
-  
+
   storch::finishAffineUnipred_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu), pu); 
   storch::finishAffineUnipred(AFFINE_PARAMS, UNIPRED);
 
@@ -5633,6 +5652,12 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
                                            const AffineAMVPInfo& aamvpi,
                                            bool            bBi)
 {
+  // Used to trace the distortion and bitrate of Gradient-ME iterations
+  Distortion LAST_distortion = 0;
+  uint32_t LAST_ruiBits = 0;
+  uint32_t LAST_bits = 0;
+  Distortion LAST_cost = 0;
+  
   // When GPU_ME is true, we will skip the simplifications/refinements
   int skipRefinement;
   if( ( GPU_ME_2CPs && bBi==0 && pu.cu->affineType==AFFINEMODEL_4PARAM)
@@ -5753,10 +5778,22 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   // Affine always use RdCost::xGetHADs;
   // get error
   uiCostBest = m_pcRdCost->getDistPart(predBuf.Y(), pBuf->Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA), COMPONENT_Y, distFunc);
+  LAST_distortion = uiCostBest;
   
   // get cost with mv
   m_pcRdCost->setCostScale(0);
   uiBitsBest = ruiBits;
+  LAST_ruiBits = ruiBits;
+  
+  target = 0;
+  target &= pu.cs->picture->poc==1;
+  target &= pu.lwidth()==32;
+  target &= pu.lheight()==64;
+  target &= (pu.lx()==1536 || pu.lx()==1536);
+  target &= (pu.ly()==0 || pu.ly()==0);
+  target &= pu.cu->affineType==1;
+  target &= bBi == false;
+  
   // Doc M-0247: When AMVR is using precision 1-pel for affine, and AffineAmvrEncOpt is enabled, the MV predictor can be selected AFTER the motion estimation (for signaling MVD)
   if ( pu.cu->imv == 2 && m_pcEncCfg->getUseAffineAmvrEncOpt() )
   {
@@ -5769,10 +5806,13 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   {
     DTRACE( g_trace_ctx, D_COMMON, " (%d) xx uiBitsBest=%d\n", DTRACE_GET_COUNTER(g_trace_ctx,D_COMMON), uiBitsBest );
     uiBitsBest += xCalcAffineMVBits( pu, acMvTemp, acMvPred );
+    LAST_bits = uiBitsBest - ruiBits;
+    
     DTRACE( g_trace_ctx, D_COMMON, " (%d) yy uiBitsBest=%d\n", DTRACE_GET_COUNTER(g_trace_ctx,D_COMMON), uiBitsBest );
   }
   // Use _extract() function to print the lambdas
   uiCostBest = (Distortion)( floor( fWeight * (double)uiCostBest ) + (double)m_pcRdCost->getCost( uiBitsBest ) );
+  LAST_cost = uiCostBest;
 //  uiCostBest = (Distortion)( floor( fWeight * (double)uiCostBest ) + (double)m_pcRdCost->getCost_extract( uiBitsBest ) );
 
   storch::finishAffineMEInit(AFFINE_PARAMS, PRED);
@@ -5802,6 +5842,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   // perform ME and update the MVs in each iteration  
   storch::startAffineMEGradient(AFFINE_PARAMS, PRED);
   storch::startAffineGradME_size(AFFINE_PARAMS, PRED);
+  
   for ( int iter=0; iter<iIterTime; iter++ )    // iterate loop
   {
     // These are used specifically to measure the time of building and solving the system of linear equations during ME
@@ -5844,19 +5885,16 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     // -- CPMVs at each iteration
     // -- deltaCPMVs at each iteration
     // -- System of equations at each iteration
-    int target = 0;
-    target &= pu.cs->picture->poc==1;
-    target &= pu.lwidth()==32;
-    target &= pu.lheight()==64;
-    target &= (pu.lx()==0 || pu.lx()==1504);
-    target &= (pu.ly()==0 || pu.ly()==832);
-    target &= pu.cu->affineType==0;
-    target &= bBi == false;
-    
     
     if( target ){
       printf("\n\n");
       printf("Iteration %d/%d\n", iter, iIterTime);
+     
+      printf("Distortion %ld\n", LAST_distortion);
+      printf("ruiBits %ud\n", LAST_ruiBits);
+      printf("uiBitsTemp %ud (discard ruiBits)\n", LAST_bits);
+      printf("uiCostTemp %ld\n", LAST_cost);
+    
       printf("Prediction SIGNAL for CU XY %dx%d     WH %dx%d\n", pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
       printf("  %d CPs || LT %dx%d     RT %dx%d     LB %dx%d\n", pu.cu->affineType?3:2, acMvTemp[0].hor, acMvTemp[0].ver, acMvTemp[1].hor, acMvTemp[1].ver, acMvTemp[2].hor, acMvTemp[2].ver);
       printf("{ Begin PREDICTION \n");
@@ -6015,11 +6053,29 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
         bAllZero = true;
       }
 
-      if ( bAllZero ){ // When the deltaMV equals zero there is no need to continue
+      if ( bAllZero ){ // When the deltaMV equals zero there is no need to continue and VTM conducts an early termination
           storch::finishAffineMEGradientEquations_solve(AFFINE_PARAMS, PRED);
-          break;
+          
+	  // Trace the early termination to be shown at the encoding summary
+	  Alignment a = storch::getAlignment(pu.cs->area);
+	  if(a==ALIGNED){
+	    if(pu.cu->affineType == AFFINEMODEL_4PARAM){
+	      storch::ET_aligned2CPs++;
+	    }
+	    else{
+	      storch::ET_aligned3CPs++;
+	    }
+	  }
+	  else if(a==HALF_ALIGNED){
+	    if(pu.cu->affineType == AFFINEMODEL_4PARAM){
+	      storch::ET_half2CPs++;
+	    }
+	    else{
+	      storch::ET_half3CPs++;
+	    }
+	  }
+	  break;    
       }
-
     }
     // Finished solving the system of equations. Now update the MVs and perform a new prediction
     storch::finishAffineMEGradientEquations_solve(AFFINE_PARAMS, PRED);
@@ -6064,17 +6120,18 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     }
 
     // Used to extract the information of a specific block with a specific CPMV during prediction
-    target = 0;
-    target &= pu.lwidth()==128;
-    target &= pu.lheight()==128;
-    target &= pu.lx()==384;
-    target &= pu.ly()==0;
-    target &= acMvTemp[0].hor==-28;
-    target &= acMvTemp[0].ver==76;
-    target &= acMvTemp[1].hor==-28;
-    target &= acMvTemp[1].ver==56;
-    target &= bBi == false;
-    target &= pu.cu->affineType == AFFINEMODEL_4PARAM;
+    // Unused because we are using the same target information defined earlier
+//    target = 0;
+//    target &= pu.lwidth()==128;
+//    target &= pu.lheight()==128;
+//    target &= pu.lx()==384;
+//    target &= pu.ly()==0;
+//    target &= acMvTemp[0].hor==-28;
+//    target &= acMvTemp[0].ver==76;
+//    target &= acMvTemp[1].hor==-28;
+//    target &= acMvTemp[1].ver==56;
+//    target &= bBi == false;
+//    target &= pu.cu->affineType == AFFINEMODEL_4PARAM;
 
     // The MV was updated recently based on the gradient. Now it performs the prediction
     // with new MVs, and computes the error to uptade de MV again in next iteration
@@ -6088,12 +6145,13 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   
     // get error
     Distortion uiCostTemp = m_pcRdCost->getDistPart(predBuf.Y(), pBuf->Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA), COMPONENT_Y, distFunc);    
-
+    LAST_distortion = uiCostTemp;
     DTRACE( g_trace_ctx, D_COMMON, " (%d) uiCostTemp=%d\n", DTRACE_GET_COUNTER(g_trace_ctx,D_COMMON), uiCostTemp );
 
     // get cost with mv
     m_pcRdCost->setCostScale(0);
     uint32_t uiBitsTemp = ruiBits;
+    LAST_ruiBits = ruiBits;
     
     if ( pu.cu->imv == 2 && m_pcEncCfg->getUseAffineAmvrEncOpt() )
     {
@@ -6105,9 +6163,11 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     else
     {
       uiBitsTemp += xCalcAffineMVBits( pu, acMvTemp, acMvPred );
+      LAST_bits = uiBitsTemp - ruiBits;
     }
+        
     uiCostTemp = (Distortion)( floor( fWeight * (double)uiCostTemp ) + (double)m_pcRdCost->getCost( uiBitsTemp ) );
-      
+    LAST_cost = uiCostTemp;
     // store best cost and mv
     if ( uiCostTemp < uiCostBest )
     {

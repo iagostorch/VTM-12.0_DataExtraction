@@ -64,9 +64,10 @@
 // Controls whether the encoder is simulating the corresponding GPU implementation of affine, for 2 and 3CPs independently
 // When enabled: Disable AMVP, force predicted MV to 0x0, compute affine distortion using SATD_4x4, and skip the refinement and simplification stages afer Gradient-ME (for both lists L0 and L1)
 // When disabled: Conduct affine prediction as the original VTM encoder
-#define GPU_ME_2CPs 0 // !!! IMPORTANT !!! IF ANY OF THESE IS TRUE, SIMD_ENABLE MUST BE DISABLED. OTHERWISE THE SATD COMPUTATION IS NOT MODIFIED    
-#define GPU_ME_3CPs 0 // !!! IMPORTANT !!! IF ANY OF THESE IS TRUE, SIMD_ENABLE MUST BE DISABLED. OTHERWISE THE SATD COMPUTATION IS NOT MODIFIED    
-#define PREDICT_3CPs_FROM_2CPs 0 // When this is enabled, the best CPMVs of 2 CPs are used to generate a set of predicted CPMVs for 3 CPs. When disabled, the initial CPMVs for 3 CPs are forced to zero. It IS NOT the AMVP, but has the same purpose and may overwrite the AMVP results.
+#define GPU_ME_2CPs 1 // !!! IMPORTANT !!! IF ANY OF THESE IS TRUE, SIMD_ENABLE MUST BE DISABLED. OTHERWISE THE SATD COMPUTATION IS NOT MODIFIED    
+#define GPU_ME_3CPs 1 // !!! IMPORTANT !!! IF ANY OF THESE IS TRUE, SIMD_ENABLE MUST BE DISABLED. OTHERWISE THE SATD COMPUTATION IS NOT MODIFIED    
+#define PREDICT_3CPs_FROM_2CPs 1 // When this is enabled, the best CPMVs of 2 CPs are used to generate a set of predicted CPMVs for 3 CPs. When disabled, the initial CPMVs for 3 CPs are forced to zero. It IS NOT the AMVP, but has the same purpose and may overwrite the AMVP results.
+#define SKIP_UNALIGNED_CUS 1 // When this is enabled, the affine prediction (both unipred and bipred) are skipped for unaligned blocks. Affine MERGE is not modified
 
 // This is only valid when CUSTOMIZE_TREE_HEURISTICS==1. Controls what prediciton modes are evailable for extra blocks.
 // When enabled: All blocks that the original encoder would not test but we are testing (i.e., we are testing splits that would not be tested, evaluating EXTA BLOCKS) can only be predicted with affine uniprediction
@@ -77,7 +78,7 @@
 // Controls whether we are forcing the encoder to test affine with 3 CPs or not
 // When enabled: whenever affine with 2 CPs is conducted, we enforce conducting affine with 3 CPs
 // When disabled: the original condition for testing 3 CPs is maintained (RD reasonably good when compared to translational ME)
-#define ENFORCE_3_CPS 0
+#define ENFORCE_3_CPS 1
 
 
 // This typedef is used to control what type of samples are being exported from the encoder
@@ -197,6 +198,9 @@ public:
     static int target_xPredAffineBlk;
     
     static int targetAffine;
+    
+    // Counts the number of times that the Gradient-ME was early terminated because the deltaCPMVs are zero
+    static int ET_aligned2CPs, ET_aligned3CPs, ET_half2CPs, ET_half3CPs;
         
     storch();
     static void printSummary();

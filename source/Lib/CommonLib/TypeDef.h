@@ -180,7 +180,7 @@ typedef std::pair<int, int>  TrCost;
 #endif
 
 // SIMD optimizations
-#define SIMD_ENABLE                                       1
+#define SIMD_ENABLE                                       0
 #if JVET_U0103_HIGH_BIT_DEPTH_SIMD
 #define ENABLE_SIMD_OPT                                 SIMD_ENABLE                                         ///< SIMD optimizations, no impact on RD performance
 #else
