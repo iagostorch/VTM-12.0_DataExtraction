@@ -39,6 +39,7 @@
 #include <map>
 #include <algorithm>
 #include "program_options_lite.h"
+#include "storchmain.h"
 
 using namespace std;
 
@@ -269,6 +270,12 @@ namespace df
       }
     }
 
+    void doStorchHelp(ostream& out)
+    {
+      cout << "TODO: Implement a help text to describe the usage of custom parameters" << endl;	
+      return;
+    }
+    
     struct OptionWriter
     {
       OptionWriter(Options& rOpts, ErrorReporter& err)

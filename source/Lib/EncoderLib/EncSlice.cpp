@@ -1318,7 +1318,7 @@ void EncSlice::compressSlice( Picture* pcPic, const bool bCompressEntireSlice, c
   Slice* const pcSlice    = pcPic->slices[getSliceSegmentIdx()];
 
   
-  if(EXTRACT_FRAME){ // In case we want to extract the frames ...
+  if(storch::sEXTRACT_frame){ // In case we want to extract the frames ...
       storch::currPoc = pcSlice->getPic()->getPOC();
       PelBuf originalFrame = pcSlice->getPic()->getOrigBuf(COMPONENT_Y);
       int currPoc = pcSlice->getPOC();

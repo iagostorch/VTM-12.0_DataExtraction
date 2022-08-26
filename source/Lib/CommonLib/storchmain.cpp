@@ -18,6 +18,10 @@
 
 using namespace std;
 
+int storch::sTRACE_xCompressCU, storch::sTRACE_ctuCosts, storch::sTRACE_cuCosts, storch::sTRACE_encodingModes, storch::sTRACE_onlyAffineSizes, storch::sTRACE_innerResultsFromPred, storch::sTRACE_debugEnableDisableChildren, storch::sTRACE_tryModeDivergence;
+int storch::sEXTRACT_frame, storch::sEXTRACT_ameProgress;
+int storch::sHEUR_originalTreeHeuristics, storch::sHEUR_customizeTreeHeuristics, storch::sHEUR_noTreeHeuristics, storch::sGPU_gpuMe2Cps, storch::sGPU_gpuMe3Cps, storch::sGPU_predict3CpsFrom2Cps, storch::sGPU_skipUnalignedCusAffine, storch::sGPU_enforceAffineOnExtraBlocks, storch::sGPU_alwaysEnforce3Cps;
+
 double storch::aff4pTime, storch::aff6pTime, storch::aff4pAMVPTime, storch::aff6pAMVPTime, storch::affUnip4pTime, storch::affBip4pTime, storch::affUnip6pTime, storch::affBip6pTime, storch::affUnip4pInitTime, storch::affBip4pInitTime, storch::affUnip6pInitTime, storch::affBip6pInitTime, storch::affUnip4pMeTime, storch::affBip4pMeTime, storch::affUnip6pMeTime, storch::affBip6pMeTime, storch::affUnip4pMEGradTime, storch::affBip4pMEGradTime, storch::affUnip6pMEGradTime, storch::affBip6pMEGradTime, storch::affUnip4pMERefTime, storch::affBip4pMERefTime, storch::affUnip6pMERefTime, storch::affBip6pMERefTime, storch::affUnip4pMeInitTime, storch::affBip4pMeInitTime, storch::affUnip6pMeInitTime, storch::affBip6pMeInitTime;
 double storch::affUnip4pMEGradTime_pred, storch::affBip4pMEGradTime_pred, storch::affUnip6pMEGradTime_pred, storch::affBip6pMEGradTime_pred, storch::affUnip4pMEGradTime_eq, storch::affBip4pMEGradTime_eq, storch::affUnip6pMEGradTime_eq, storch::affBip6pMEGradTime_eq, storch::affUnip4pMEGradTime_eq_build, storch::affUnip4pMEGradTime_eq_solve, storch::affBip4pMEGradTime_eq_build, storch::affBip4pMEGradTime_eq_solve, storch::affUnip6pMEGradTime_eq_build, storch::affUnip6pMEGradTime_eq_solve, storch::affBip6pMEGradTime_eq_build, storch::affBip6pMEGradTime_eq_solve;
 int storch::ET_aligned2CPs, storch::ET_aligned3CPs, storch::ET_half2CPs, storch::ET_half3CPs;
@@ -178,7 +182,7 @@ storch::storch() {
         
     }
     
-    if(EXTRACT_AME_PROGRESS){
+    if(sEXTRACT_ameProgress){
         affine_me_2cps_file.open("affine_progress_2CPs.csv");
         affine_me_3cps_file.open("affine_progress_3CPs.csv");
         
@@ -206,10 +210,6 @@ storch::storch() {
             extractedFrames[t][f]=0;   // at the start, no frame was extracted
         }
     }
-    
-    // Verify if the combination of macros is allowed
-    verifyTreeHeuristicsGpuMeMacros();
-    verifyTraceMacros();
 }
 
 void storch::setPROF(int p){
@@ -219,17 +219,18 @@ void storch::setPROF(int p){
 void storch::printParamsSummary(){
   cout << endl << "---------------------------------------------------------------------" << endl;
   cout << "Relevant encoding parameters and macros" << endl;
-  cout << "GPU_ME_2CPs:              " << GPU_ME_2CPs << endl;
-  cout << "GPU_ME_3CPs:              " << GPU_ME_3CPs << endl;
-  cout << "PREDICT_3CPs_FROM_2CPs    " << PREDICT_3CPs_FROM_2CPs << endl;
+  cout << "GPU_ME_2CPs:              " << storch::sGPU_gpuMe2Cps << endl;
+  cout << "GPU_ME_3CPs:              " << storch::sGPU_gpuMe3Cps << endl;
+  cout << "PREDICT_3CPs_FROM_2CPs    " << storch::sGPU_predict3CpsFrom2Cps << endl;
   cout << "SIMD_ENABLE:              " << SIMD_ENABLE << endl;
   cout << "PROF:                     " << prof << endl;
-  cout << "ORIGINAL TREE HEURISTICS: " << ORIGINAL_TREE_HEURISTICS << endl;
-  cout << "CUSTOM HEURISTICS:        " << CUSTOMIZE_TREE_HEURISTICS << endl;
-  cout << "NO TREE HEURISTICS:       " << NO_TREE_HEURISTICS << endl;
-  cout << "ENFORCE_AFFINE_EXTRA:     " << ENFORCE_AFFINE_ON_EXTRA_BLOCKS << endl;
-  cout << "ENFORCE_3_CPS:            " << ENFORCE_3_CPS << endl;
+  cout << "ORIGINAL TREE HEURISTICS: " << storch::sHEUR_originalTreeHeuristics << endl;
+  cout << "CUSTOM HEURISTICS:        " << storch::sHEUR_customizeTreeHeuristics << endl;
+  cout << "NO TREE HEURISTICS:       " << storch::sHEUR_noTreeHeuristics << endl;
+  cout << "ENFORCE_AFFINE_EXTRA:     " << storch::sGPU_enforceAffineOnExtraBlocks << endl;
+  cout << "ENFORCE_3_CPS:            " << storch::sGPU_alwaysEnforce3Cps << endl;
   cout << "REUSE_CACHE:              " << REUSE_CU_RESULTS << endl;
+  cout << "---------------------------------------------------------------------" << endl;
 
 }
 
@@ -1479,26 +1480,26 @@ CuSize storch::getSizeEnum(PredictionUnit pu){
 void storch::verifyTreeHeuristicsGpuMeMacros(){
   int errors = 0;
   
-  if(ORIGINAL_TREE_HEURISTICS + CUSTOMIZE_TREE_HEURISTICS + NO_TREE_HEURISTICS != 1){
+  if(storch::sHEUR_originalTreeHeuristics + storch::sHEUR_customizeTreeHeuristics + storch::sHEUR_noTreeHeuristics != 1){
     printf("MACRO ERROR: EXACTLY ONE TREE HEURISTIC MACRO MUST BE ENABLED:\n");
-    printf("  ORIGINAL_TREE_HEURISTICS=%d\n", ORIGINAL_TREE_HEURISTICS);
-    printf("  CUSTOMIZE_TREE_HEURISTICS=%d\n", CUSTOMIZE_TREE_HEURISTICS);
-    printf("  NO_TREE_HEURISTICS=%d\n", NO_TREE_HEURISTICS);
+    printf("  ORIGINAL_TREE_HEURISTICS=%d\n", storch::sHEUR_originalTreeHeuristics);
+    printf("  CUSTOMIZE_TREE_HEURISTICS=%d\n", storch::sHEUR_customizeTreeHeuristics);
+    printf("  NO_TREE_HEURISTICS=%d\n", storch::sHEUR_noTreeHeuristics);
     errors++;
   }
   
-  if(CUSTOMIZE_TREE_HEURISTICS==0 && ENFORCE_AFFINE_ON_EXTRA_BLOCKS){
+  if(storch::sHEUR_customizeTreeHeuristics==0 && storch::sGPU_enforceAffineOnExtraBlocks){
     printf("MACRO ERROR: IT IS NOT POSSIBLE TO ENFORCE AFFINE ON EXTRA BLOCKS WHEN CUSTOMIZE_TREE_HEURISTICS IS DISABLED\n");
-    printf("  CUSTOMIZE_TREE_HEURISTICS: %d\n", CUSTOMIZE_TREE_HEURISTICS);
-    printf("  ENFORCE_AFFINE_ON_EXTRA_BLOCKS: %d\n", ENFORCE_AFFINE_ON_EXTRA_BLOCKS);
+    printf("  CUSTOMIZE_TREE_HEURISTICS: %d\n", storch::sHEUR_customizeTreeHeuristics);
+    printf("  ENFORCE_AFFINE_ON_EXTRA_BLOCKS: %d\n", storch::sGPU_enforceAffineOnExtraBlocks);
     errors++;
   }
   
-  if(SIMD_ENABLE && (GPU_ME_2CPs || GPU_ME_3CPs)){
+  if(SIMD_ENABLE && (storch::sGPU_gpuMe2Cps || storch::sGPU_gpuMe3Cps)){
     printf("MACRO ERROR: GPU_ME ONLY WORKS WHEN SIMD OPTIMIZATIONS ARE DISABLED\n");
     printf("  SIMD_ENABLE=%d\n", SIMD_ENABLE);
-    printf("  GPU_ME_2CPs=%d\n", GPU_ME_2CPs);
-    printf("  GPU_ME_3CPs=%d\n", GPU_ME_3CPs);
+    printf("  GPU_ME_2CPs=%d\n", storch::sGPU_gpuMe2Cps);
+    printf("  GPU_ME_3CPs=%d\n", storch::sGPU_gpuMe3Cps);
     errors++;
   }
   if(errors)
@@ -1508,66 +1509,66 @@ void storch::verifyTreeHeuristicsGpuMeMacros(){
 
 void storch::verifyTraceMacros(){
   int errors = 0;
-  if(TRACE_XCOMPRESSCU==0){
-    if(TRACE_CU_COSTS){
+  if(sTRACE_xCompressCU==0){
+    if(sTRACE_cuCosts){
       printf("MACRO ERROR: IT IS ONLY POSSIBLE TO TRACE CU COSTS WHILE TRACING xCompressCU\n");
-      printf("  TRACE_XCOMPRESSCU=%d\n", TRACE_XCOMPRESSCU);
-      printf("  TRACE_CU_COSTS=%d\n", TRACE_CU_COSTS);
+      printf("  TRACE_XCOMPRESSCU=%d\n", sTRACE_xCompressCU);
+      printf("  TRACE_CU_COSTS=%d\n", sTRACE_cuCosts);
       errors++;
     }
-    if(TRACE_ENC_MODES){
+    if(sTRACE_encodingModes){
       printf("MACRO ERROR: IT IS ONLY POSSIBLE TO TRACE ENCODING MODES WHILE TRACING xCompressCU\n");
-      printf("  TRACE_XCOMPRESSCU=%d\n", TRACE_XCOMPRESSCU);
-      printf("  TRACE_ENC_MODES=%d\n", TRACE_CU_COSTS);
+      printf("  TRACE_XCOMPRESSCU=%d\n", sTRACE_xCompressCU);
+      printf("  TRACE_ENC_MODES=%d\n", sTRACE_cuCosts);
       errors++;
     }
-    if(ONLY_TRACE_AFFINE_SIZES){
+    if(sTRACE_onlyAffineSizes){
       printf("MACRO ERROR: IT IS ONLY POSSIBLE TO REDUCE TRACE TO AFFINE SIZES WHILE TRACING xCompressCU\n");
-      printf("  TRACE_XCOMPRESSCU=%d\n", TRACE_XCOMPRESSCU);
-      printf("  ONLY_TRACE_AFFINE_SIZES=%d\n", TRACE_CU_COSTS);
+      printf("  TRACE_XCOMPRESSCU=%d\n", sTRACE_xCompressCU);
+      printf("  ONLY_TRACE_AFFINE_SIZES=%d\n", sTRACE_cuCosts);
       errors++;
     }
-    if(TRACE_INNER_RESULTS_PRED){
+    if(sTRACE_innerResultsFromPred){
       printf("MACRO ERROR: IT IS ONLY POSSIBLE TO TRACE INNER PREDICTION RESULTS WHILE TRACING xCompressCU AND TRACING ENCODING MODES\n");
-      printf("  TRACE_XCOMPRESSCU=%d\n", TRACE_XCOMPRESSCU);
-      printf("  TRACE_ENC_MODES=%d\n", TRACE_ENC_MODES);
-      printf("  TRACE_INNER_RESULTS_PRED=%d\n", TRACE_CU_COSTS);
+      printf("  TRACE_XCOMPRESSCU=%d\n", sTRACE_xCompressCU);
+      printf("  TRACE_ENC_MODES=%d\n", sTRACE_encodingModes);
+      printf("  TRACE_INNER_RESULTS_PRED=%d\n", sTRACE_cuCosts);
       errors++;
     }
     if(errors)
       exit(0);
   }
   
-  if(TRACE_ENC_MODES==0 && TRACE_INNER_RESULTS_PRED){
+  if(sTRACE_encodingModes==0 && sTRACE_innerResultsFromPred){
       printf("MACRO ERROR: IT IS ONLY POSSIBLE TO TRACE INNER PREDICTION RESULTS WHILE TRACING xCompressCU AND TRACING ENCODING MODES\n");
-      printf("  TRACE_XCOMPRESSCU=%d\n", TRACE_XCOMPRESSCU);
-      printf("  TRACE_ENC_MODES=%d\n", TRACE_ENC_MODES);
-      printf("  TRACE_INNER_RESULTS_PRED=%d\n", TRACE_CU_COSTS);
+      printf("  TRACE_XCOMPRESSCU=%d\n", sTRACE_xCompressCU);
+      printf("  TRACE_ENC_MODES=%d\n", sTRACE_encodingModes);
+      printf("  TRACE_INNER_RESULTS_PRED=%d\n", sTRACE_cuCosts);
       exit(0);
   }
   
-  if(DEBUG_ENABLE_DISABLE_CHILDREN){
-    if(CUSTOMIZE_TREE_HEURISTICS==0 || ENFORCE_AFFINE_ON_EXTRA_BLOCKS==0){
+  if(sTRACE_debugEnableDisableChildren){
+    if(storch::sHEUR_customizeTreeHeuristics==0 || storch::sGPU_enforceAffineOnExtraBlocks==0){
       printf("MACRO ERROR: IT IS ONLY POSSIBLE TO TRACE ENABLE/DISABLE CHILDREN BLOCKS WHEN CUSTOMIZE_TREE_HEURISTICS AND ENFORCE_AFFINE_ON_EXTRA_BLOCKS ARE ENABLED\n");
-      printf("  DEBUG_ENABLE_DISABLE_CHILDREN=%d\n", DEBUG_ENABLE_DISABLE_CHILDREN);
-      printf("  CUSTOMIZE_TREE_HEURISTICS=%d\n", CUSTOMIZE_TREE_HEURISTICS);
-      printf("  ENFORCE_AFFINE_ON_EXTRA_BLOCKS=%d\n", ENFORCE_AFFINE_ON_EXTRA_BLOCKS);
+      printf("  DEBUG_ENABLE_DISABLE_CHILDREN=%d\n", sTRACE_debugEnableDisableChildren);
+      printf("  CUSTOMIZE_TREE_HEURISTICS=%d\n", storch::sHEUR_customizeTreeHeuristics);
+      printf("  ENFORCE_AFFINE_ON_EXTRA_BLOCKS=%d\n", storch::sGPU_enforceAffineOnExtraBlocks);
       exit(0);
     }
   }
   
-  if(TRACE_TRYMODE_DIVERGENCE){
-    if(TRACE_XCOMPRESSCU==0 || TRACE_ENC_MODES==0){
+  if(sTRACE_tryModeDivergence){
+    if(sTRACE_xCompressCU==0 || sTRACE_encodingModes==0){
       printf("MACRO ERROR: IT IS ONLY POSSIBLE TO TRACE THE DIVERGENCES BETWEEN ORIGINAL AND CUSTOMIZED TRYMODE WHEN TRACING xCompressCU AND TRACE_ENC_MODES IS ENABLED\n");
-      printf("  TRACE_TRYMODE_DIVERGENCE=%d\n", TRACE_TRYMODE_DIVERGENCE);
-      printf("  TRACE_XCOMPRESSCU=%d\n", TRACE_XCOMPRESSCU);
-      printf("  TRACE_ENC_MODES=%d\n", TRACE_ENC_MODES);
+      printf("  TRACE_TRYMODE_DIVERGENCE=%d\n", sTRACE_tryModeDivergence);
+      printf("  TRACE_XCOMPRESSCU=%d\n", sTRACE_xCompressCU);
+      printf("  TRACE_ENC_MODES=%d\n", sTRACE_encodingModes);
       exit(0);
     }
-    if(ORIGINAL_TREE_HEURISTICS){
+    if(storch::sHEUR_originalTreeHeuristics){
       printf("MACRO ERROR: IT IS ONLY POSSIBLE TO TRACE THE DIVERGENCES BETWEEN ORIGINAL AND CUSTOMIZED TRYMODE WHEN ORIGINAL_TREE_HEURISTICS IS DISABLED\n");
-      printf("  TRACE_TRYMODE_DIVERGENCE=%d\n", TRACE_TRYMODE_DIVERGENCE);
-      printf("  ORIGINAL_TREE_HEURISTICS=%d\n", ORIGINAL_TREE_HEURISTICS);
+      printf("  TRACE_TRYMODE_DIVERGENCE=%d\n", sTRACE_tryModeDivergence);
+      printf("  ORIGINAL_TREE_HEURISTICS=%d\n", storch::sHEUR_originalTreeHeuristics);
       exit(0);
     }
   }  

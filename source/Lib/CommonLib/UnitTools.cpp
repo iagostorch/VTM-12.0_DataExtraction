@@ -2120,8 +2120,8 @@ void PU::fillAffineMvpCand(PredictionUnit &pu, const RefPicList &eRefPicList, co
   int forceZeroMVP;
   // This variable controls if we are going to check the availability of AMVP candidates. When forcing zeroMVP, all availability tests are skipped
   // If GPU_ME is enabled, we disable the Affine AMVP and use a zero-MV as MVP
-  if( ( GPU_ME_2CPs && pu.cu->affineType==AFFINEMODEL_4PARAM)
-    ||( GPU_ME_3CPs && pu.cu->affineType==AFFINEMODEL_6PARAM))
+  if( ( storch::sGPU_gpuMe2Cps && pu.cu->affineType==AFFINEMODEL_4PARAM)
+    ||( storch::sGPU_gpuMe3Cps && pu.cu->affineType==AFFINEMODEL_6PARAM))
     forceZeroMVP = 1;
   else
     forceZeroMVP = 0;

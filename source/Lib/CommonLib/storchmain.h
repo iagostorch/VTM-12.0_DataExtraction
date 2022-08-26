@@ -38,14 +38,14 @@
 #define TRACE_TRYMODE_DIVERGENCE 0 // When enabled: Shows the divergence between the original and customized tryMode. Only works if TRACE_XCOMPRESSCU and TRACE_ENC_MODES is enabled, while ORIGINAL_TREE_HEURISTICS is disabled
 
 
-#define EXTRACT_FRAME 0
+#define EXTRACT_FRAME 0 // Extract the original and reconstructed frames
 #define EXTRACT_BLOCK 0
 #define EXTRACT_BLOCK_WIDTH 8
 #define EXTRACT_BLOCK_HEIGHT 8
 
 #define EXTRACT_AFFINE_MV 0
 
-#define EXTRACT_AME_PROGRESS 0
+#define EXTRACT_AME_PROGRESS 0 // Extract the progress made during AME for each block (predicted CPMVs, AMVP, Gradient-ME, simplification/refinement...)
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // 
@@ -78,7 +78,7 @@
 // Controls whether we are forcing the encoder to test affine with 3 CPs or not
 // When enabled: whenever affine with 2 CPs is conducted, we enforce conducting affine with 3 CPs
 // When disabled: the original condition for testing 3 CPs is maintained (RD reasonably good when compared to translational ME)
-#define ENFORCE_3_CPS 1
+#define ALWAYS_ENFORCE_3_CPS 1
 
 
 // This typedef is used to control what type of samples are being exported from the encoder
@@ -168,7 +168,37 @@ using namespace std;
 class storch {
     
 public:
+    
+    //Functions used to verify if the combination of macros is correct
+    static void verifyTreeHeuristicsGpuMeMacros();
+    static void verifyTraceMacros();
+    
+    // custom parameters: These parameters are parsed by EncAppCfg and used to define what trace information is extracted and what GPU-based simplifications are conducted
+    // TRACE information into the encoding report (sTRACE preffix)
+    static int sTRACE_xCompressCU; // TRACE_XCOMPRESSCU: When ebabled: print all calls to xCompressCU, including the block dimension, position, current split series, and encoding modes to be tested
+    static int sTRACE_ctuCosts; // TRACE_CTU_COSTS: Trace the best RDCost for each CTU. Works independently from TRACE_XCOMPRESSCU
+    static int sTRACE_cuCosts; // TRACE_CU_COSTS: Trace the best RDCost for each CU. Only works when TRACE_XCOMPRESSCU is enabled
+    static int sTRACE_encodingModes; // TRACE_ENC_MODES: When enabled: print all encoding modes tested by the encoder in each CU (INTRA, INTER, MERGE, SPLITs, ...). Only works when TRACE_XCOMPRESSCU is enabled
+    static int sTRACE_onlyAffineSizes; // ONLY_TRACE_AFFINE_SIZES: When enabled: TRACE_ENC_MODES and TRACE_CU_COSTS are used only for block sizes compatible with affine prediction inter_me (16x16 or larger). Only works when TRACE_XCOMPRESSCU is enabled
+    static int sTRACE_innerResultsFromPred; // TRACE_INNER_RESULTS_PRED: When enabled: trace the approximate rdcost of the encoding modes. Only works when TRACE_XCOMPRESSCU and TRACE_ENC_MODES is enabled
+    static int sTRACE_debugEnableDisableChildren; // DEBUG_ENABLE_DISABLE_CHILDREN: When enabled: print the modifications on the mechanism used to control when all prediction types are allowed and when only affine prediction is allowed. Only works if CUSTOMIZE_TREE_HEURISTICS and ENFORCE_AFFINE_ON_EXTRA_BLOCKS are enabled
+    static int sTRACE_tryModeDivergence; // TRACE_TRYMODE_DIVERGENCE: When enabled: Shows the divergence between the original and customized tryMode. Only works if TRACE_XCOMPRESSCU and TRACE_ENC_MODES is enabled, while ORIGINAL_TREE_HEURISTICS is disabled
 
+    // TRACE information into distinct files (sEXTRACT preffix)
+    static int sEXTRACT_frame; // EXTRACT_FRAME
+    static int sEXTRACT_ameProgress; // EXTRACT_AME_PROGRESS
+    
+    // ALGORITHM CONFIGURATIONS (sGPU preffix)
+    static int sHEUR_originalTreeHeuristics; //ORIGINAL_TREE_HEURISTICS 1   // When enabled, ALL HEURISTICS OF VTM ARE USED
+    static int sHEUR_customizeTreeHeuristics;  // CUSTOMIZE_TREE_HEURISTICS: When enabled, the split heuristics are disabled for blocks with dimensions at least CUSTOM_SIZExCUSTOM_SIZE (i.e., we test all blocks >=CUSTOM_SIZExCUSTOM_SIZE). It ALSO DISABLES some early terminations applied to affine inter prediction. Early terminations for other prediciton modes are not changed.
+    static int sHEUR_noTreeHeuristics; // NO_TREE_HEURISTICS: When this is enabled, we AVOID ALL EARLY TERMINATIONS OF BLOCK PARTITIONING. The TERMINATIONS FOR INTER_ME ARE AVOIDED AS WELL. Early terminations for other prediction modes are maintained
+    static int sGPU_gpuMe2Cps; // GPU_ME_2CPs: 1 !!! IMPORTANT !!! IF ANY OF THESE IS TRUE, SIMD_ENABLE MUST BE DISABLED. OTHERWISE THE SATD COMPUTATION IS NOT MODIFIED    
+    static int sGPU_gpuMe3Cps; // GPU_ME_3CPs: 1 !!! IMPORTANT !!! IF ANY OF THESE IS TRUE, SIMD_ENABLE MUST BE DISABLED. OTHERWISE THE SATD COMPUTATION IS NOT MODIFIED    
+    static int sGPU_predict3CpsFrom2Cps; // PREDICT_3CPs_FROM_2CPs: When this is enabled, the best CPMVs of 2 CPs are used to generate a set of predicted CPMVs for 3 CPs. When disabled, the initial CPMVs for 3 CPs are forced to zero. It IS NOT the AMVP, but has the same purpose and may overwrite the AMVP results.
+    static int sGPU_skipUnalignedCusAffine; // SKIP_UNALIGNED_CUS: When this is enabled, the affine prediction (both unipred and bipred) are skipped for unaligned blocks. Affine MERGE is not modified
+    static int sGPU_enforceAffineOnExtraBlocks; // ENFORCE_AFFINE_ON_EXTRA_BLOCKS 0
+    static int sGPU_alwaysEnforce3Cps; // ALWAYS_ENFORCE_3_CPS 1
+    
     static int skipNonAffineUnipred_Current;
     static UnitArea skipNonAffineUnipred_Current_Area;
     static int skipNonAffineUnipred_Children;
@@ -304,12 +334,7 @@ public:
     
     static int extractedFrames[EXT_NUM][500]; // Maks what frame were already extracted   
     
-private:   
-    //Functions used to verify if the combination of macros is correct
-    static void verifyTreeHeuristicsGpuMeMacros();
-    static void verifyTraceMacros();
-  
-  
+private:    
     // Used to track the processing time of different affine stages (initialization, AMVP, ME, refinement/simplification) as a whole considering all block sizes and alignments
     static double aff4pTime, aff6pTime, aff4pAMVPTime, aff6pAMVPTime, affUnip4pTime, affBip4pTime, affUnip6pTime, affBip6pTime, affUnip4pInitTime, affBip4pInitTime, affUnip6pInitTime, affBip6pInitTime, affUnip4pMeTime, affBip4pMeTime, affUnip6pMeTime, affBip6pMeTime, affUnip4pMEGradTime, affBip4pMEGradTime, affUnip6pMEGradTime, affBip6pMEGradTime, affUnip4pMERefTime, affBip4pMERefTime, affUnip6pMERefTime, affBip6pMERefTime, affUnip4pMeInitTime, affBip4pMeInitTime, affUnip6pMeInitTime, affBip6pMeInitTime;
     static double affUnip4pMEGradTime_pred, affBip4pMEGradTime_pred, affUnip6pMEGradTime_pred, affBip6pMEGradTime_pred, affUnip4pMEGradTime_eq, affBip4pMEGradTime_eq, affUnip6pMEGradTime_eq, affBip6pMEGradTime_eq, affUnip4pMEGradTime_eq_build, affUnip4pMEGradTime_eq_solve, affBip4pMEGradTime_eq_build, affBip4pMEGradTime_eq_solve, affUnip6pMEGradTime_eq_build, affUnip6pMEGradTime_eq_solve, affBip6pMEGradTime_eq_build, affBip6pMEGradTime_eq_solve;

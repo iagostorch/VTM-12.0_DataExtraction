@@ -54,6 +54,8 @@
 #define MACRO_TO_STRING_HELPER(val) #val
 #define MACRO_TO_STRING(val) MACRO_TO_STRING_HELPER(val)
 
+#include "CommonLib/storchmain.h"
+
 using namespace std;
 namespace po = df::program_options_lite;
 
@@ -563,8 +565,9 @@ static uint32_t getMaxSlicesByLevel( Level::Name level )
     \retval             true when success
  */
 bool EncAppCfg::parseCfg( int argc, char* argv[] )
-{
+{  
   bool do_help = false;
+  bool do_storch_help = false;
 
   int tmpChromaFormat;
   int tmpInputChromaFormat;
@@ -705,9 +708,39 @@ bool EncAppCfg::parseCfg( int argc, char* argv[] )
   ("c",    po::parseConfigFile, "configuration file name")
   ("WarnUnknowParameter,w",                           warnUnknowParameter,                                  0, "warn for unknown configuration parameters instead of failing")
   ("isSDR",                                           sdr,                                              false, "compatibility")
+  ("storch",					      do_storch_help,					false, "help for custom encoding parameters")
 #if ENABLE_SIMD_OPT
   ("SIMD",                                            ignore,                                      string(""), "SIMD extension to use (SCALAR, SSE41, SSE42, AVX, AVX2, AVX512), default: the highest supported extension\n")
 #endif
+  
+  /* ------------------------------------ */ 
+  /*	      Custom parameters           */
+  /* ------------------------------------ */
+  
+  // TRACE parameters - Export intermediary encoding information into the encoding output
+  ("sTRACE_xCompressCU",                              storch::sTRACE_xCompressCU,                            0, "Trace all calls to xCompressCU, including the block dimension, position, current split series, and encoding modes to be tested")
+  ("sTRACE_ctuCosts",                                 storch::sTRACE_ctuCosts,                               0, "Trace the best RDCost for each CTU. Works independently from TRACE_XCOMPRESSCU")
+  ("sTRACE_cuCosts",                                  storch::sTRACE_cuCosts,                                0, "Trace the best RDCost for each CU. Only works when TRACE_XCOMPRESSCU is enabled")
+  ("sTRACE_encodingModes",                            storch::sTRACE_encodingModes,                          0, "Print all encoding modes tested by the encoder in each CU (INTRA, INTER, MERGE, SPLITs, ...). Only works when TRACE_XCOMPRESSCU is enabled")
+  ("sTRACE_onlyAffineSizes",                          storch::sTRACE_onlyAffineSizes,                        0, "TRACE_ENC_MODES and TRACE_CU_COSTS are used only for block sizes compatible with affine prediction inter_me (16x16 or larger). Only works when TRACE_XCOMPRESSCU is enabled")
+  ("sTRACE_innerResultsFromPred",                     storch::sTRACE_innerResultsFromPred,                   0, "Trace the approximate rdcost of the encoding modes. Only works when TRACE_XCOMPRESSCU and TRACE_ENC_MODES is enabled")
+  ("sTRACE_debugEnableDisableChildren",               storch::sTRACE_debugEnableDisableChildren,             0, "Trace the modifications on the mechanism used to control when all prediction types are allowed and when only affine prediction is allowed. Only works if CUSTOMIZE_TREE_HEURISTICS and ENFORCE_AFFINE_ON_EXTRA_BLOCKS are enabled")
+  ("sTRACE_tryModeDivergence",                        storch::sTRACE_tryModeDivergence,                      0, "Shows the divergence between the original and customized tryMode. Only works if TRACE_XCOMPRESSCU and TRACE_ENC_MODES is enabled, while ORIGINAL_TREE_HEURISTICS is disabled")
+  // EXTRACT parameters - Export intermediary encoding information into files
+  ("sEXTRACT_frame",                                  storch::sEXTRACT_frame,                                0, "Extract the original and reconstructed frames")
+  ("sEXTRACT_ameProgress",                            storch::sEXTRACT_ameProgress,                          0, "Extract the progress made during AME for each block (predicted CPMVs, AMVP, Gradient-ME, simplification/refinement...)")
+  // HEURISTICS parameters - Determine what heuristics for split and encoding modes are used (all, none, or all interpred for affine-sized blocks)
+  ("sHEUR_originalTreeHeuristics",                    storch::sHEUR_originalTreeHeuristics,                  0, "All heuristics of VTM are enabled")
+  ("sHEUR_customizeTreeHeuristics",                   storch::sHEUR_customizeTreeHeuristics,                 0, "The split heuristics are disabled for blocks with dimensions at least CUSTOM_SIZExCUSTOM_SIZE (i.e., we test all blocks >=CUSTOM_SIZExCUSTOM_SIZE). It ALSO DISABLES some early terminations applied to affine inter prediction. Early terminations for other prediction modes are not changed.")
+  ("sHEUR_noTreeHeuristics",                          storch::sHEUR_noTreeHeuristics,                        0, "AVOID ALL EARLY TERMINATIONS OF BLOCK PARTITIONING. The TERMINATIONS FOR INTER_ME ARE AVOIDED AS WELL. Early terminations for other prediction modes are maintained")
+  // GPU-based parameters - Adapt the VTM encoder to the design decisions of the GPU kernel
+  ("sGPU_gpuMe2Cps",				      storch::sGPU_gpuMe2Cps,				     0, "Disable AMVP, force predicted MV to 0x0, compute affine distortion using SATD_4x4, and skip the refinement and simplification stages afer Gradient-ME (for both lists L0 and L1)")
+  ("sGPU_gpuMe3Cps",				      storch::sGPU_gpuMe3Cps,				     0, "Disable AMVP, force predicted MV to 0x0, compute affine distortion using SATD_4x4, and skip the refinement and simplification stages afer Gradient-ME (for both lists L0 and L1)")
+  ("sGPU_predict3CpsFrom2Cps",                        storch::sGPU_predict3CpsFrom2Cps,                      0, "Only works with GPU_ME_3CPs. The best CPMVs of 2 CPs are used to generate a set of predicted CPMVs for 3 CPs. When disabled, the initial CPMVs for 3 CPs are forced to zero. It IS NOT the AMVP, but has the same purpose and may overwrite the AMVP results.")
+  ("sGPU_skipUnalignedCusAffine",                     storch::sGPU_skipUnalignedCusAffine,                   0, "Affine prediction (both unipred and bipred) is skipped for unaligned blocks. Affine MERGE is not modified")
+  ("sGPU_enforceAffineOnExtraBlocks",                 storch::sGPU_enforceAffineOnExtraBlocks,               0, "Only works with CUSTOMIZE_TREE_HEURISTICS. Blocks that would not be tested due to heuristics but we are testing anyway can only be predicted by affine uniprediction")
+  ("sGPU_alwaysEnforce3Cps",                          storch::sGPU_alwaysEnforce3Cps,                        0, "Whenever affine with 2 CPs is conducted, affine with 3 CPs is tested as well")
+  
   // File, I/O and source parameters
   ("InputFile,i",                                     m_inputFileName,                             string(""), "Original YUV input file name")
   ("InputPathPrefix,-ipp",                            inputPathPrefix,                             string(""), "pathname to prepend to input filename")
@@ -1582,6 +1615,12 @@ bool EncAppCfg::parseCfg( int argc, char* argv[] )
   {
     /* argc == 1: no options have been specified */
     po::doHelp(cout, opts);
+    return false;
+  }
+  
+  if(do_storch_help)
+  {
+    po::doStorchHelp(cout);
     return false;
   }
 

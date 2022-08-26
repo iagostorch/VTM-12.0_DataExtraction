@@ -2391,7 +2391,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
     unsigned imvShift = pu.cu->imv == IMV_HPEL ? 1 : (pu.cu->imv << 1);
     if ( checkNonAffine )
     {
-      if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && cu.cs->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight())))
+      if(storch::sTRACE_xCompressCU && storch::sTRACE_encodingModes && cu.cs->picture->poc>0 && (storch::sTRACE_onlyAffineSizes==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight())))
         printf("  INTER / UNIPRED\n");
       //  Uni-directional prediction
       // This loop goes over the two reference lists
@@ -2487,7 +2487,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
         }
       }
       
-      if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize( cu.cs->area.lwidth(), cu.cs->area.lheight()))){
+      if(storch::sTRACE_xCompressCU && storch::sTRACE_encodingModes && storch::sTRACE_innerResultsFromPred && (storch::sTRACE_onlyAffineSizes==0 || storch::isAffineSize( cu.cs->area.lwidth(), cu.cs->area.lheight()))){
 	printf("    Cost inter unipred. L0 %ld || L1 %ld\n", uiCost[0], uiCost[1] );
       }
       
@@ -2506,7 +2506,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
         && (cu.slice->getCheckLDC() || bcwIdx == BCW_DEFAULT || !m_affineModeSelected || !m_pcEncCfg->getUseBcwFast())
         )
       {
-        if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && cu.cs->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight())))
+        if(storch::sTRACE_xCompressCU && storch::sTRACE_encodingModes && cu.cs->picture->poc>0 && (storch::sTRACE_onlyAffineSizes==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight())))
           printf("  INTER / BIPRED\n");
         
         bool doBiPred = true;
@@ -2709,7 +2709,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
             }
           }   // for loop-iter
         
-          if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight()))){
+          if(storch::sTRACE_xCompressCU && storch::sTRACE_encodingModes && storch::sTRACE_innerResultsFromPred && (storch::sTRACE_onlyAffineSizes==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight()))){
 //            printf("    Cost inter bipred normal: %ld\n", uiCostBi);
           }
           
@@ -2720,7 +2720,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
         // This if is related to using the symmetric motion vector difference (SMVD)
         if ( cs.slice->getBiDirPred() && trySmvd )
         {
-          if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && cu.cs->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight())))
+          if(storch::sTRACE_xCompressCU && storch::sTRACE_encodingModes && cu.cs->picture->poc>0 && (storch::sTRACE_onlyAffineSizes==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight())))
             printf("  INTER / BIPRED / Symmetric MVD\n");
           
           Distortion symCost;
@@ -2880,11 +2880,11 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
             aaiMvpIdxBi[tarRefList][cTarMvField.refIdx] = mvpIdxSym[tarRefList];
             cMvPredBi[tarRefList][iRefIdxBi[tarRefList]] = cMvPredSym[tarRefList];
           }
-          if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(pu.cs->area.lwidth(), pu.cs->area.lheight()))){
+          if(storch::sTRACE_xCompressCU && storch::sTRACE_encodingModes && storch::sTRACE_innerResultsFromPred && (storch::sTRACE_onlyAffineSizes==0 || storch::isAffineSize(pu.cs->area.lwidth(), pu.cs->area.lheight()))){
 //            printf("  Cost inter bipred symmetric: %ld\n", symCost );
           }
         }
-	if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(pu.cs->area.lwidth(), pu.cs->area.lheight()))){
+	if(storch::sTRACE_xCompressCU && storch::sTRACE_encodingModes && storch::sTRACE_innerResultsFromPred && (storch::sTRACE_onlyAffineSizes==0 || storch::isAffineSize(pu.cs->area.lwidth(), pu.cs->area.lheight()))){
           printf("    Cost inter bipred: %ld\n", uiCostBi );
 	}
       } // if (B_SLICE)
@@ -2973,13 +2973,13 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
       uiHevcCost = (uiCostBi <= uiCost[0] && uiCostBi <= uiCost[1])
                      ? uiCostBi
                      : ((uiCost[0] <= uiCost[1]) ? uiCost[0] : uiCost[1]);
-      if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight()))){
+      if(storch::sTRACE_xCompressCU && storch::sTRACE_encodingModes && storch::sTRACE_innerResultsFromPred && (storch::sTRACE_onlyAffineSizes==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight()))){
           printf("    Cost final inter nonAffine: %ld\n", uiHevcCost );
       }
     }
         
     int isUnaligned = storch::getAlignment(cu.cs->area) == UNALIGNED; 
-    int skipCurrUnaligned = isUnaligned && SKIP_UNALIGNED_CUS;
+    int skipCurrUnaligned = isUnaligned && storch::sGPU_skipUnalignedCusAffine;
   
     // This if decides if affine will be tested or not
     if(skipCurrUnaligned==1){
@@ -2991,7 +2991,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
       && (bcwIdx == BCW_DEFAULT || m_affineModeSelected || !m_pcEncCfg->getUseBcwFast())  // This m_affineModeSelected represents if the current CU is encoded with affine (?)
       )
     {
-      if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && cu.cs->picture->poc>0 && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight())))
+      if(storch::sTRACE_xCompressCU && storch::sTRACE_encodingModes && cu.cs->picture->poc>0 && (storch::sTRACE_onlyAffineSizes==0 || storch::isAffineSize(cu.cs->area.lwidth(), cu.cs->area.lheight())))
         printf("  AFFINE\n");
       
       
@@ -3037,7 +3037,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
       {
         // This threshold is used to avoid 6 parameters affine when it is not likely to produce a better result
         // ENFORCE_3_CPS enforce the usage of 3 CPs irrespective of 2 CPs performance
-        if ( ENFORCE_3_CPS || (uiAffineCost < uiHevcCost * 1.05 ) ) ///< condition for 6 parameter affine ME
+        if ( storch::sGPU_alwaysEnforce3Cps || (uiAffineCost < uiHevcCost * 1.05 ) ) ///< condition for 6 parameter affine ME
         {
           // save 4 parameter results
           Mv bestMv[2][3], bestMvd[2][3];
@@ -3398,8 +3398,8 @@ Distortion InterSearch::xGetAffineTemplateCost( PredictionUnit& pu, PelUnitBuf& 
   enum DFunc distFunc = (pu.cs->slice->getDisableSATDForRD()) ? DF_SAD : DF_HAD;
   
   // For Affine we enforce SATD 4x4 when using GPU_ME
-  if (( GPU_ME_2CPs && pu.cu->affineType==AFFINEMODEL_4PARAM)
-     ||(GPU_ME_3CPs && pu.cu->affineType==AFFINEMODEL_6PARAM)){
+  if (( storch::sGPU_gpuMe2Cps && pu.cu->affineType==AFFINEMODEL_4PARAM)
+     ||(storch::sGPU_gpuMe3Cps && pu.cu->affineType==AFFINEMODEL_6PARAM)){
         distFunc = GPU_ME_DISTORTION;
   }
   
@@ -4749,7 +4749,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
   storch::startAffineUnipred(AFFINE_PARAMS, UNIPRED);
   storch::startAffineUnipred_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu));
   
-  if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES)
+  if(storch::sTRACE_xCompressCU && storch::sTRACE_encodingModes)
     printf("  AFFINE / Unipred %d CPs\n", pu.cu->affineType ? 3 : 2);
   
   for ( int iRefList = 0; iRefList < iNumPredDir; iRefList++ )
@@ -4757,8 +4757,8 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
     // When GPU_ME is enabled, we force a predicted MV equal to 0x0 and skip the refinement and simplification stages after gradient-me
     int forceZeroMVP;
 
-    if (  ( GPU_ME_2CPs &&  pu.cu->affineType==AFFINEMODEL_4PARAM)
-        ||( GPU_ME_3CPs &&  pu.cu->affineType==AFFINEMODEL_6PARAM))
+    if (  ( storch::sGPU_gpuMe2Cps &&  pu.cu->affineType==AFFINEMODEL_4PARAM)
+        ||( storch::sGPU_gpuMe3Cps &&  pu.cu->affineType==AFFINEMODEL_6PARAM))
       forceZeroMVP = 1;
     else
       forceZeroMVP = 0;
@@ -4791,7 +4791,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       xEstimateAffineAMVP( pu, affiAMVPInfoTemp[eRefPicList], origBuf, eRefPicList, iRefIdxTemp, cMvPred[iRefList][iRefIdxTemp], &biPDistTemp );      
       storch::finishAffineAMVP(AFFINE_PARAMS, UNIPRED);
             
-      if(EXTRACT_AME_PROGRESS && pu.cu->imv==0){
+      if(storch::sEXTRACT_ameProgress && pu.cu->imv==0){
         // POC, List, RefIdx, X and Y position, width and heigth
         storch::exportAmeProgressBlock(pu.cu->affineType, iRefList, iRefIdxTemp, pu);
         // AMVP
@@ -4810,7 +4810,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       // the ME with 6 params is not performed when we are testing a different frame, and the MVs are just copied
       if ( pu.cu->affineType == AFFINEMODEL_6PARAM && refIdx4Para[iRefList] != iRefIdxTemp )
       {
-        if(EXTRACT_AME_PROGRESS && pu.cu->imv==0){
+        if(storch::sEXTRACT_ameProgress && pu.cu->imv==0){
             // Initial MV
             storch::exportAmeProgressMVs(pu.cu->affineType, cMvPred[iRefList][iRefIdxTemp], IS_FILLER, NOT_FINAL);
             // isGrad + gradMV  
@@ -4946,7 +4946,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       
       // This part will use the best CPMVs from 2 CPs to generate a set of Predicted CPMVs for 3 CPs. It may overwrite the Affine AMVP result depending on the RD
       if ( pu.cu->affineType == AFFINEMODEL_6PARAM					// When GpuME for 3 CPs is disabled we conduct the standard procedure
-	  && ( ( GPU_ME_3CPs==0 ) || ( GPU_ME_3CPs==1 && PREDICT_3CPs_FROM_2CPs==1 ) )	// When GpuME for 3 CPs is enabled, the Predicted CPMVs can be forced to be zero (PREDICT_3CPs_FROM_2CPs==0) or can be generated out of the best results for 2 CPs (PREDICT_3CPs_FROM_2CPs==1)
+	  && ( ( storch::sGPU_gpuMe3Cps==0 ) || ( storch::sGPU_gpuMe3Cps==1 && storch::sGPU_predict3CpsFrom2Cps==1 ) )	// When GpuME for 3 CPs is enabled, the Predicted CPMVs can be forced to be zero (PREDICT_3CPs_FROM_2CPs==0) or can be generated out of the best results for 2 CPs (PREDICT_3CPs_FROM_2CPs==1)
 	 )     
       {
         Mv mvFour[3];
@@ -4974,7 +4974,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
           uiCandCostInherit += m_pcRdCost->getCost( xCalcAffineMVBits( pu, mvFour, cMvPred[iRefList][iRefIdxTemp] ) );
         }
         if ( (uiCandCostInherit < uiCandCost)	// Standard decision of VTM
-	    ||  ( pu.cu->affineType == AFFINEMODEL_6PARAM && GPU_ME_3CPs && PREDICT_3CPs_FROM_2CPs ) ) // Forced decision when we have 3 CPs and we are using GPU_ME_3CPs while inheriting best 2 CPs as predictors for 3 CPs
+	    ||  ( pu.cu->affineType == AFFINEMODEL_6PARAM && storch::sGPU_gpuMe3Cps && storch::sGPU_predict3CpsFrom2Cps ) ) // Forced decision when we have 3 CPs and we are using GPU_ME_3CPs while inheriting best 2 CPs as predictors for 3 CPs
         {
           uiCandCost = uiCandCostInherit;
           for ( int i = 0; i < 3; i++ )
@@ -4992,7 +4992,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         ::memcpy( cMvTemp[iRefList][iRefIdxTemp], mvHevc, sizeof(Mv)*3 );
       }
       // Forced decision when we have 3 CPs and we are using GPU_ME_3CPs while inheriting best 2 CPs as predicted 3 CPs
-      else if(pu.cu->affineType == AFFINEMODEL_6PARAM && GPU_ME_3CPs && PREDICT_3CPs_FROM_2CPs){
+      else if(pu.cu->affineType == AFFINEMODEL_6PARAM && storch::sGPU_gpuMe3Cps && storch::sGPU_predict3CpsFrom2Cps){
 	// Forces the inherited CPMVs to be used as initial CPMVs in Gradient-ME
 	// These inherited CPMVs may be worse than the CPMVs obtained by AMVP but we must conduct always the same decision based on PREDICT_3CPs_FROM_2CPs
 	::memcpy( cMvTemp[iRefList][iRefIdxTemp], mvHevc, sizeof(Mv)*3 );
@@ -5006,7 +5006,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       storch::finishAffineAmvpInit_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu), pu);
            
       // Initial MV (AMVP or derived after HEVC)
-      if(EXTRACT_AME_PROGRESS && pu.cu->imv==0){
+      if(storch::sEXTRACT_ameProgress && pu.cu->imv==0){
         storch::exportAmeProgressMVs(pu.cu->affineType, cMvTemp[iRefList][iRefIdxTemp], NOT_FILLER, NOT_FINAL)  ;
       }
 
@@ -5025,7 +5025,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       {
         if ( slice.getList1IdxToList0Idx( iRefIdxTemp ) >= 0 && (pu.cu->affineType != AFFINEMODEL_6PARAM || slice.getList1IdxToList0Idx( iRefIdxTemp ) == refIdx4Para[0]) )
         { 
-            if(EXTRACT_AME_PROGRESS && pu.cu->imv==0){
+            if(storch::sEXTRACT_ameProgress && pu.cu->imv==0){
                 // Filler for gradient
                 storch::exportAmeProgressFlag(pu.cu->affineType,0);
                 storch::exportAmeProgressMVs(pu.cu->affineType, cMvTemp[iRefList][iRefIdxTemp], IS_FILLER, NOT_FINAL);
@@ -5153,7 +5153,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       }
     }
   }
-  if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(pu.cs->area.lwidth(), pu.cs->area.lheight()))){
+  if(storch::sTRACE_xCompressCU && storch::sTRACE_encodingModes && storch::sTRACE_innerResultsFromPred && (storch::sTRACE_onlyAffineSizes==0 || storch::isAffineSize(pu.cs->area.lwidth(), pu.cs->area.lheight()))){
     printf("    Cost affine %d params unipred, L0 %ld || L1 %ld\n", pu.cu->affineType == AFFINEMODEL_4PARAM ? 4 : 6, uiCost[0], uiCost[1] );
   }
   
@@ -5163,10 +5163,10 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       x=0;
       
   // Bi-directional prediction
-  if ( (ENFORCE_AFFINE_ON_EXTRA_BLOCKS==0 || x) &&
+  if ( (storch::sGPU_enforceAffineOnExtraBlocks==0 || x) &&
           slice.isInterB() && !PU::isBipredRestriction(pu) )
   {
-    if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES)
+    if(storch::sTRACE_xCompressCU && storch::sTRACE_encodingModes)
       printf("  AFFINE / Bipred %d CPs\n", pu.cu->affineType ? 3 : 2);
     
     storch::startAffineBipred(AFFINE_PARAMS, BIPRED);
@@ -5393,7 +5393,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
     }
     m_isBi = false;
     storch::finishAffineBipred(AFFINE_PARAMS, BIPRED);
-    if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(pu.cs->area.lwidth(), pu.cs->area.lheight()))){
+    if(storch::sTRACE_xCompressCU && storch::sTRACE_encodingModes && storch::sTRACE_innerResultsFromPred && (storch::sTRACE_onlyAffineSizes==0 || storch::isAffineSize(pu.cs->area.lwidth(), pu.cs->area.lheight()))){
       printf("    Cost affine %d params bipred: %ld\n", pu.cu->affineType == AFFINEMODEL_4PARAM ? 4 : 6, uiCostBi );
     }
   } // if (B_SLICE)
@@ -5510,7 +5510,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
   {
     pu.cu->BcwIdx = BCW_DEFAULT;
   }
-  if(TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_INNER_RESULTS_PRED && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(pu.cs->area.lwidth(), pu.cs->area.lheight()))){
+  if(storch::sTRACE_xCompressCU && storch::sTRACE_encodingModes && storch::sTRACE_innerResultsFromPred && (storch::sTRACE_onlyAffineSizes==0 || storch::isAffineSize(pu.cs->area.lwidth(), pu.cs->area.lheight()))){
     printf("    Cost final affine %d params: %ld\n", pu.cu->affineType == AFFINEMODEL_4PARAM ? 4 : 6, affineCost );
   }
 }
@@ -5660,8 +5660,8 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   
   // When GPU_ME is true, we will skip the simplifications/refinements
   int skipRefinement;
-  if( ( GPU_ME_2CPs && bBi==0 && pu.cu->affineType==AFFINEMODEL_4PARAM)
-    ||( GPU_ME_3CPs && bBi==0 && pu.cu->affineType==AFFINEMODEL_6PARAM)){
+  if( ( storch::sGPU_gpuMe2Cps && bBi==0 && pu.cu->affineType==AFFINEMODEL_4PARAM)
+    ||( storch::sGPU_gpuMe3Cps && bBi==0 && pu.cu->affineType==AFFINEMODEL_6PARAM)){
     skipRefinement = 1;
     // Uncomment to print ruiBits
     //    printf("ruiBits %d\n", ruiBits);
@@ -5674,7 +5674,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
       , mvpIdx, aamvpi
   ) )
   {
-    if(EXTRACT_AME_PROGRESS && !bBi && pu.cu->imv==0){        
+    if(storch::sEXTRACT_ameProgress && !bBi && pu.cu->imv==0){        
         // Filler for gradient
         storch::exportAmeProgressFlag(pu.cu->affineType,0);
         storch::exportAmeProgressMVs(pu.cu->affineType, acMv, IS_FILLER, NOT_FINAL);
@@ -5700,8 +5700,8 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   enum DFunc distFunc = (pu.cs->slice->getDisableSATDForRD()) ? DF_SAD : DF_HAD;
   
   // For Affine we enforce SATD 4x4 when using GPU_ME
-  if ( ( GPU_ME_2CPs && bBi==0 && pu.cu->affineType==AFFINEMODEL_4PARAM)
-     ||( GPU_ME_3CPs && bBi==0 && pu.cu->affineType==AFFINEMODEL_6PARAM))
+  if ( ( storch::sGPU_gpuMe2Cps && bBi==0 && pu.cu->affineType==AFFINEMODEL_4PARAM)
+     ||( storch::sGPU_gpuMe3Cps && bBi==0 && pu.cu->affineType==AFFINEMODEL_6PARAM))
     distFunc = GPU_ME_DISTORTION;
   
   m_iRefListIdx = eRefPicList;
@@ -6182,7 +6182,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   storch::finishAffineMEGradient(AFFINE_PARAMS, PRED);      
   storch::finishAffineGradME_size(AFFINE_PARAMS, PRED, storch::getSizeEnum(pu), pu);
   
-  if(EXTRACT_AME_PROGRESS && !bBi && pu.cu->imv==0){
+  if(storch::sEXTRACT_ameProgress && !bBi && pu.cu->imv==0){
       // MV after gradient ME
       storch::exportAmeProgressFlag(pu.cu->affineType, 1);
       storch::exportAmeProgressMVs(pu.cu->affineType, acMv, NOT_FILLER, NOT_FINAL);
@@ -6332,13 +6332,13 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
         break;
       }
     }
-    if(EXTRACT_AME_PROGRESS && !bBi && pu.cu->imv==0){
+    if(storch::sEXTRACT_ameProgress && !bBi && pu.cu->imv==0){
         // isRefinement = 1
         storch::exportAmeProgressFlag(pu.cu->affineType,1);
     }
   }
   else{
-    if(EXTRACT_AME_PROGRESS && !bBi && pu.cu->imv==0){  
+    if(storch::storch::sEXTRACT_ameProgress && !bBi && pu.cu->imv==0){  
         // isRefinement = 0
         storch::exportAmeProgressFlag(pu.cu->affineType,0);
     }
@@ -6346,7 +6346,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   
   storch::finishAffineMESimpRef(AFFINE_PARAMS, PRED);
   storch::finishAffineRefSimp_size(AFFINE_PARAMS, PRED, storch::getSizeEnum(pu), pu);
-  if(EXTRACT_AME_PROGRESS && !bBi && pu.cu->imv==0){
+  if(storch::sEXTRACT_ameProgress && !bBi && pu.cu->imv==0){
     // Final MV, after refinement and simplification
     storch::exportAmeProgressMVs(pu.cu->affineType, acMv, NOT_FILLER, IS_FINAL);      
   }
@@ -6390,7 +6390,7 @@ void InterSearch::xEstimateAffineAMVP( PredictionUnit&  pu,
   iBestIdx = 0;
   
   // When GPU_ME is true, only one candidate should be tested (they are all equal)
-  int skipAMVP = (GPU_ME_2CPs && pu.cu->affineType==AFFINEMODEL_4PARAM) || ( GPU_ME_3CPs && pu.cu->affineType==AFFINEMODEL_6PARAM);
+  int skipAMVP = (storch::sGPU_gpuMe2Cps && pu.cu->affineType==AFFINEMODEL_4PARAM) || ( storch::sGPU_gpuMe3Cps && pu.cu->affineType==AFFINEMODEL_6PARAM);
   int numCand = skipAMVP ? 1 : affineAMVPInfo.numCand;
   for( int i = 0 ; i < numCand; i++ )
   {

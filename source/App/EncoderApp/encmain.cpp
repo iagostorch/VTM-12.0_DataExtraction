@@ -85,6 +85,10 @@ static void printMacroSettings()
 
 int main(int argc, char* argv[])
 {
+  #if STORCHMAIN_H
+    storch();
+  #endif
+  
   // print information
   fprintf( stdout, "\n" );
   fprintf( stdout, "VVCSoftware: VTM Encoder Version %s ", VTM_VERSION );
@@ -179,6 +183,15 @@ int main(int argc, char* argv[])
       return 1;
     }
 
+    // Verify if the combination of macros is allowed
+    #if STORCHMAIN_H
+      storch::printParamsSummary();
+      storch::verifyTreeHeuristicsGpuMeMacros();
+      storch::verifyTraceMacros();
+    #endif
+    
+    
+    
     pcEncApp[layerIdx]->createLib( layerIdx );
 
     if( !resized )
@@ -217,9 +230,9 @@ int main(int argc, char* argv[])
   printMacroSettings();
 #endif
 
-  #if STORCHMAIN_H
-      storch();
-  #endif
+//  #if STORCHMAIN_H
+//      storch();
+//  #endif
   
   // starting time
   auto startTime  = std::chrono::steady_clock::now();

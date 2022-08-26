@@ -174,7 +174,7 @@ bool EncModeCtrl::tryModeMaster( const EncTestMode& encTestmode, const CodingStr
   bool tryMode_custom = tryMode( encTestmode, cs, partitioner );
   
   // Shows when the original and customized tryMode are producing divergent results
-  if(ORIGINAL_TREE_HEURISTICS==0 && TRACE_XCOMPRESSCU && TRACE_ENC_MODES && TRACE_TRYMODE_DIVERGENCE && (ONLY_TRACE_AFFINE_SIZES==0 || storch::isAffineSize(cs.area.lwidth(), cs.area.lheight()))){
+  if(storch::sHEUR_originalTreeHeuristics==0 && storch::sTRACE_xCompressCU && storch::sTRACE_encodingModes && storch::sTRACE_tryModeDivergence && (storch::sTRACE_onlyAffineSizes==0 || storch::isAffineSize(cs.area.lwidth(), cs.area.lheight()))){
     if(cs.area.lx()==0 && cs.area.ly()==64 && cs.area.lwidth()==64 && cs.area.lheight()==64){
       printf("  tryMode ");
       translateEncTestModeType_BAK(encTestmode.type);
@@ -190,12 +190,12 @@ bool EncModeCtrl::tryModeMaster( const EncTestMode& encTestmode, const CodingStr
   if(tryMode_orig == tryMode_custom)
     return tryMode_orig;
   
-  if(NO_TREE_HEURISTICS) // When NO_TREE_HEURISTICS is enabled, we always return the custom tryMode (disable all early terminations for SPLIT and INTER_ME)
+  if(storch::sHEUR_noTreeHeuristics) // When NO_TREE_HEURISTICS is enabled, we always return the custom tryMode (disable all early terminations for SPLIT and INTER_ME)
     return tryMode_custom;
   
   // At this point we know that NO_TREE_HEURISTICS is disabled. If CUSTOMIZE_TREE_HEURISTICS is false as well, then we are conducting the original encoding
   // This is the "original" case
-  if (CUSTOMIZE_TREE_HEURISTICS==false && onlyAllowAffine==false)
+  if (storch::sHEUR_customizeTreeHeuristics==false && onlyAllowAffine==false)
       return tryMode_orig;
    
   
@@ -207,14 +207,14 @@ bool EncModeCtrl::tryModeMaster( const EncTestMode& encTestmode, const CodingStr
   // CUSTOMIZE_TREE_HEURISTICS will control if we will test the current partition or not, whereas onlyAllowAffine will control what encoding modes are available for children blocks
     
   if( isModeSplit(encTestmode) == true ){
-    if(CUSTOMIZE_TREE_HEURISTICS){ // This is guaranteed to be true. If it was false the encoder would not get to this point
+    if(storch::sHEUR_customizeTreeHeuristics){ // This is guaranteed to be true. If it was false the encoder would not get to this point
       if(onlyAllowAffine==1){ // If onlyAllowAffine is true, the children blocks will support ONLY AFFINE PREDICTION
         if(storch::skipNonAffineUnipred_Children==0) // If children is already enabled we should not overwrite it
         {
           storch::skipNonAffineUnipred_Children = 1;
           storch::skipNonAffineUnipred_Children_Area = cs.area; // Trace block are to know what CUs are its children and to know when to disable the skipping
           storch::skipNonAffineUnipred_Children_TriggerMode = encTestmode.type; // Store the split that triggered the condition. We may not interfere in other splits for the same root block
-          if(DEBUG_ENABLE_DISABLE_CHILDREN)
+          if(storch::sTRACE_debugEnableDisableChildren)
             printf(">> ENABLED CHILDREN AFFINE (tryModeMaster @(%dx%d [%dx%d])\n", cs.area.lx(), cs.area.ly(), cs.area.lwidth(), cs.area.lheight());          
         }
       }
@@ -234,7 +234,7 @@ bool EncModeCtrl::tryModeMaster( const EncTestMode& encTestmode, const CodingStr
     else if(onlyAllowAffine == true){ // If onlyAllowAffine is true, then we can test ONLY AFFINE for the current block
       storch::skipNonAffineUnipred_Current = 1;             // In case tryMode_custom has an intra/merge/skip mode, this assignment makes the encoder skip the prediction mode on the next iteration of xCompressCU
       storch::skipNonAffineUnipred_Current_Area = cs.area;  // Also, if the current mode is INTER, skipNonAffineUnipred_Current is used to choose between conducting only affine or all inter inside PredInterSearch
-      if(DEBUG_ENABLE_DISABLE_CHILDREN)
+      if(storch::sTRACE_debugEnableDisableChildren)
         printf(">> ENABLED CURRENT AFFINE  (EncModeCtrl)\n");
       return tryMode_custom;
     }
@@ -1599,8 +1599,8 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
     }
     
     // If applying a quadtree produces blocks smaller than 16x16, allow early termination
-    if((CUSTOMIZE_TREE_HEURISTICS && (cs.area.lwidth()<=CUSTOM_SIZE || cs.area.lheight()<=CUSTOM_SIZE)) || 
-        ORIGINAL_TREE_HEURISTICS || cs.picture->poc==0)
+    if((storch::sHEUR_customizeTreeHeuristics && (cs.area.lwidth()<=CUSTOM_SIZE || cs.area.lheight()<=CUSTOM_SIZE)) || 
+        storch::sHEUR_originalTreeHeuristics || cs.picture->poc==0)
     {
       // enforce QT
       return encTestmode.type == ETM_SPLIT_QT;
@@ -1610,8 +1610,8 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
   {
     // don't check this QT depth
     // If applying a quadtree produces blocks smaller than 16x16, allow early termination
-    if((CUSTOMIZE_TREE_HEURISTICS && (cs.area.lwidth()<=CUSTOM_SIZE || cs.area.lheight()<=CUSTOM_SIZE)) || // The resulting block is smaller than 16x16, therefore it is not supported by affine
-        ORIGINAL_TREE_HEURISTICS || cs.picture->poc==0)
+    if((storch::sHEUR_customizeTreeHeuristics && (cs.area.lwidth()<=CUSTOM_SIZE || cs.area.lheight()<=CUSTOM_SIZE)) || // The resulting block is smaller than 16x16, therefore it is not supported by affine
+        storch::sHEUR_originalTreeHeuristics || cs.picture->poc==0)
     {
       return false;
     }
@@ -1781,8 +1781,8 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
         {
           if( relatedCU.isSkip || relatedCU.isIntra )
           {
-            if((CUSTOMIZE_TREE_HEURISTICS && (cs.area.lwidth()<CUSTOM_SIZE || cs.area.lheight()<CUSTOM_SIZE)) || // If any block dimension is smaller than 16, the block is not supported by affine
-                ORIGINAL_TREE_HEURISTICS || cs.picture->poc==0)
+            if((storch::sHEUR_customizeTreeHeuristics && (cs.area.lwidth()<CUSTOM_SIZE || cs.area.lheight()<CUSTOM_SIZE)) || // If any block dimension is smaller than 16, the block is not supported by affine
+                storch::sHEUR_originalTreeHeuristics || cs.picture->poc==0)
             {
               return false;
             }
@@ -1814,8 +1814,8 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
         {
           if ( !m_pcEncCfg->getUseAffineAmvr() )
           {
-            if((CUSTOMIZE_TREE_HEURISTICS && (cs.area.lwidth()<CUSTOM_SIZE || cs.area.lheight()<CUSTOM_SIZE)) || // If any block dimension is smaller than 16, the block is not supported by affine
-                ORIGINAL_TREE_HEURISTICS || cs.picture->poc==0)
+            if((storch::sHEUR_customizeTreeHeuristics && (cs.area.lwidth()<CUSTOM_SIZE || cs.area.lheight()<CUSTOM_SIZE)) || // If any block dimension is smaller than 16, the block is not supported by affine
+                storch::sHEUR_originalTreeHeuristics || cs.picture->poc==0)
             {
               return false;
             }
@@ -1868,10 +1868,10 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
 
     // If the current block size is partitioned with encTesmode, the resulting block size is not supported by affine prediction. Therefore we conduct an early skip as the original VTM would do
     if(
-        (CUSTOMIZE_TREE_HEURISTICS &&
+        (storch::sHEUR_customizeTreeHeuristics &&
             !isChildrenAffineCompatible(cs, encTestmode.type)
         )   
-        || ORIGINAL_TREE_HEURISTICS || cs.picture->poc==0
+        || storch::sHEUR_originalTreeHeuristics || cs.picture->poc==0
       )
     {
       // Allows early termination. Do nothing...
@@ -1955,10 +1955,10 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
     {
       // If the current block size is partitioned with encTesmode, the resulting block size is not supported by affine prediction. Therefore we conduct an early skip as the original VTM would do
       if(
-          (CUSTOMIZE_TREE_HEURISTICS && !isChildrenAffineCompatible(cs, encTestmode.type)
+          (storch::sHEUR_customizeTreeHeuristics && !isChildrenAffineCompatible(cs, encTestmode.type)
             
           )   
-          || ORIGINAL_TREE_HEURISTICS || cs.picture->poc==0
+          || storch::sHEUR_originalTreeHeuristics || cs.picture->poc==0
         )
       {
         return false;
@@ -1969,8 +1969,8 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
 
     // If the current block is partitioned with the current encTestmode, the children blocks will not be compatible with affine. Therefore we can conduct early terminaiton
     bool allowEarlyTerminationCondition = // The same condition used in the previous tests. Summarized here to improve readability inside the switch/case
-              ((CUSTOMIZE_TREE_HEURISTICS && !isChildrenAffineCompatible(cs, encTestmode.type))
-              || ORIGINAL_TREE_HEURISTICS || cs.picture->poc==0
+              ((storch::sHEUR_customizeTreeHeuristics && !isChildrenAffineCompatible(cs, encTestmode.type))
+              || storch::sHEUR_originalTreeHeuristics || cs.picture->poc==0
                   );
     
     switch( getPartSplit( encTestmode ) )
@@ -2153,8 +2153,8 @@ bool EncModeCtrlMTnoRQT::tryMode( const EncTestMode& encTestmode, const CodingSt
     if( !bestCS || ( bestCS && isModeSplit( bestMode ) ) )
     {
       // This doesnt make much sense... If it is not best, OR if it is best and is a split mode, then we skip the current mode?
-      if((CUSTOMIZE_TREE_HEURISTICS && (cs.area.lwidth()<CUSTOM_SIZE || cs.area.lheight()<CUSTOM_SIZE)) || 
-          ORIGINAL_TREE_HEURISTICS || cs.picture->poc==0)
+      if((storch::sHEUR_customizeTreeHeuristics && (cs.area.lwidth()<CUSTOM_SIZE || cs.area.lheight()<CUSTOM_SIZE)) || 
+          storch::sHEUR_originalTreeHeuristics || cs.picture->poc==0)
       {
         return false;
       }

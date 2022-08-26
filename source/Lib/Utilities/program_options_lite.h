@@ -86,6 +86,7 @@ namespace df
     };
 
     void doHelp(std::ostream& out, Options& opts, unsigned columns = 80);
+    void doStorchHelp(std::ostream& out);
     std::list<const char*> scanArgv(Options& opts, unsigned argc, const char* argv[], ErrorReporter& error_reporter = default_error_reporter);
     void setDefaults(Options& opts);
     void parseConfigFile(Options& opts, const std::string& filename, ErrorReporter& error_reporter = default_error_reporter);
