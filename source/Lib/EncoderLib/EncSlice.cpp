@@ -1523,9 +1523,6 @@ void EncSlice::encodeCtus( Picture* pcPic, const bool bCompressEntireSlice, cons
   const int iQPIndex              = pcSlice->getSliceQpBase();
 #endif
 
-  if(pcPic->getPOC()==0){
-    storch::setPROF(cs.sps->getUsePROF());
-  }
   
   CABACWriter*    pCABACWriter    = pEncLib->getCABACEncoder()->getCABACEstimator( pcSlice->getSPS() );
   TrQuant*        pTrQuant        = pEncLib->getTrQuant();

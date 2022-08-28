@@ -1477,7 +1477,7 @@ bool EncAppCfg::parseCfg( int argc, char* argv[] )
     ("TemporalFilterStrengthFrame*",                  m_gopBasedTemporalFilterStrengths, std::map<int, double>(), "Strength for every * frame in GOP based temporal filter, where * is an integer."
                                                                                                                   " E.g. --TemporalFilterStrengthFrame8 0.95 will enable GOP based temporal filter at every 8th frame with strength 0.95");
   // clang-format on
-
+  
 #if EXTENSION_360_VIDEO
   TExt360AppEncCfg::TExt360AppEncCfgContext ext360CfgContext;
   m_ext360.addOptions(opts, ext360CfgContext);
@@ -2517,6 +2517,8 @@ bool EncAppCfg::parseCfg( int argc, char* argv[] )
 
   m_uiMaxCUWidth = m_uiMaxCUHeight = m_uiCTUSize;
 
+  storch::setPROF(m_PROF);
+  
   // check validity of input parameters
   if( xCheckParameter() )
   {
