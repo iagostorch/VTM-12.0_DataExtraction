@@ -56,6 +56,10 @@ extern int target;
 
 #include "../CommonLib/storchmain.h"
 
+#if TRACE_ENERGY
+  #include "rapl.h"
+#endif
+
  //! \ingroup EncoderLib
  //! \{
 
@@ -4669,6 +4673,15 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
 {
   
   
+  #if TRACE_ENERGY
+      if(included==0){
+        rapl_monitor_start();   // CALLED ONCE
+        included=1;
+      }
+
+      double e0_pkg, e1_pkg;
+  #endif
+  
   if(pu.cu->affineType==AFFINEMODEL_4PARAM)
     storch::testedAffine2CP = true;
   else if(pu.cu->affineType==AFFINEMODEL_6PARAM)
@@ -4746,6 +4759,11 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
   // Affine is performed for all reference pictures
   // Uni-directional prediction
   // Probe START of Affine Uniprediction
+#if TRACE_ENERGY
+  // We can measure the CORE energy as well
+  e0_pkg= rapl_monitor_report_pkg();
+#endif
+  
   storch::startAffineUnipred(AFFINE_PARAMS, UNIPRED);
   storch::startAffineUnipred_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu));
   
@@ -5119,6 +5137,12 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
 
   storch::finishAffineUnipred_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu), pu); 
   storch::finishAffineUnipred(AFFINE_PARAMS, UNIPRED);
+  
+#if TRACE_ENERGY
+  // We can measure the CORE energy as well
+  e1_pkg= rapl_monitor_report_pkg();
+  storch::incEnergy_pkg(AFFINE_PARAMS, UNIPRED, e1_pkg-e0_pkg);
+#endif
 
   if ( pu.cu->affineType == AFFINEMODEL_4PARAM )
   {

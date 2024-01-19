@@ -80,6 +80,7 @@
 // When disabled: the original condition for testing 3 CPs is maintained (RD reasonably good when compared to translational ME)
 #define ALWAYS_ENFORCE_3_CPS 1
 
+#define TRACE_ENERGY 1
 
 // This typedef is used to control what type of samples are being exported from the encoder
 typedef enum
@@ -231,7 +232,11 @@ public:
     
     // Counts the number of times that the Gradient-ME was early terminated because the deltaCPMVs are zero
     static int ET_aligned2CPs, ET_aligned3CPs, ET_half2CPs, ET_half3CPs;
-        
+       
+    // Increments the total energy counter    
+    static void incEnergy_pkg(EAffineModel param, EAffinePred pred, double newVal);
+    static void incEnergy_core(EAffineModel param, EAffinePred pred, double newVal);
+    
     storch();
     static void printSummary();
     static void printDetailedTimeSummary(bool isCommaSep, Alignment alignment);
@@ -335,6 +340,9 @@ public:
     static int extractedFrames[EXT_NUM][500]; // Maks what frame were already extracted   
     
 private:    
+    // Used to track the energy consumption of the CPU
+    static double affUnip6pEnergy_core, affUnip6pEnergy_pkg, affUnip4pEnergy_core, affUnip4pEnergy_pkg;
+    
     // Used to track the processing time of different affine stages (initialization, AMVP, ME, refinement/simplification) as a whole considering all block sizes and alignments
     static double aff4pTime, aff6pTime, aff4pAMVPTime, aff6pAMVPTime, affUnip4pTime, affBip4pTime, affUnip6pTime, affBip6pTime, affUnip4pInitTime, affBip4pInitTime, affUnip6pInitTime, affBip6pInitTime, affUnip4pMeTime, affBip4pMeTime, affUnip6pMeTime, affBip6pMeTime, affUnip4pMEGradTime, affBip4pMEGradTime, affUnip6pMEGradTime, affBip6pMEGradTime, affUnip4pMERefTime, affBip4pMERefTime, affUnip6pMERefTime, affBip6pMERefTime, affUnip4pMeInitTime, affBip4pMeInitTime, affUnip6pMeInitTime, affBip6pMeInitTime;
     static double affUnip4pMEGradTime_pred, affBip4pMEGradTime_pred, affUnip6pMEGradTime_pred, affBip6pMEGradTime_pred, affUnip4pMEGradTime_eq, affBip4pMEGradTime_eq, affUnip6pMEGradTime_eq, affBip6pMEGradTime_eq, affUnip4pMEGradTime_eq_build, affUnip4pMEGradTime_eq_solve, affBip4pMEGradTime_eq_build, affBip4pMEGradTime_eq_solve, affUnip6pMEGradTime_eq_build, affUnip6pMEGradTime_eq_solve, affBip6pMEGradTime_eq_build, affBip6pMEGradTime_eq_solve;

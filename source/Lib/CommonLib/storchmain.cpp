@@ -71,6 +71,10 @@ std::ofstream storch::affine_me_2cps_file, storch::affine_me_3cps_file;
 
 int storch::prof; // Keep the value of the PROF parameter
 
+
+double storch::affUnip6pEnergy_core, storch::affUnip6pEnergy_pkg, storch::affUnip4pEnergy_core, storch::affUnip4pEnergy_pkg;
+
+
 storch::storch() {
     aff4pTime = 0.0;
     aff6pTime = 0.0;
@@ -170,7 +174,13 @@ storch::storch() {
     
     fillerChar = 'x';
     
-    // Print the header of the file
+    
+    affUnip4pEnergy_core = 0.0;
+    affUnip4pEnergy_pkg = 0.0;
+    affUnip6pEnergy_core = 0.0;
+    affUnip6pEnergy_pkg = 0.0;
+    
+        // Print the header of the file
     if(EXTRACT_AFFINE_MV){
         string affineFileName = (string) "affine_mv.csv";
         affine_file.open(affineFileName);    
@@ -246,6 +256,13 @@ void storch::printSummary() {
     printf("ET_FULL_3CPs %d\n", storch::ET_aligned3CPs);
     printf("ET_HALF_2CPs %d\n", storch::ET_half2CPs);
     printf("ET_HALF_3CPs %d\n", storch::ET_half3CPs);
+    cout << endl << endl;
+    
+    cout << "###      Affine Energy" << endl;
+    cout << "CORE unipred 4 params:  " << affUnip4pEnergy_core << endl;
+    cout << "CORE unipred 6 params:  " << affUnip6pEnergy_core << endl;
+    cout << "PKG unipred 4 params:   " << affUnip4pEnergy_pkg<< endl;
+    cout << "PKG unipred 6 params:   " << affUnip6pEnergy_pkg << endl;
     cout << endl << endl;
     
     cout << "###      Affine encoding time:" << endl;
@@ -1589,6 +1606,44 @@ void storch::resetUnipredUniqControl(){
       cusTestedWithAffine[AFFINEMODEL_4PARAM][size][align].clear();
       cusTestedWithAffine[AFFINEMODEL_6PARAM][size][align].clear();
     }
+  }
+}
+
+// Used to increment the total energy counter
+void storch::incEnergy_pkg(EAffineModel param, EAffinePred pred, double newVal){
+  
+  assert(((param==AFFINEMODEL_4PARAM) || (param==AFFINEMODEL_6PARAM)) 
+            && (pred==UNIPRED)); 
+
+
+  if(param == AFFINEMODEL_4PARAM && pred == UNIPRED){
+      affUnip4pEnergy_pkg += newVal;
+  }else if(param == AFFINEMODEL_4PARAM && pred == BIPRED){
+      cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
+  }else if(param == AFFINEMODEL_6PARAM && pred == UNIPRED){
+      affUnip6pEnergy_pkg += newVal;
+  }else if(param == AFFINEMODEL_6PARAM && pred == BIPRED){
+      cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
+  }else{
+      cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
+  }     
+}
+void storch::incEnergy_core(EAffineModel param, EAffinePred pred, double newVal){
+
+  assert(((param==AFFINEMODEL_4PARAM) || (param==AFFINEMODEL_6PARAM)) 
+            && (pred==UNIPRED)); 
+
+
+  if(param == AFFINEMODEL_4PARAM && pred == UNIPRED){
+      affUnip4pEnergy_core += newVal;
+  }else if(param == AFFINEMODEL_4PARAM && pred == BIPRED){
+      cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
+  }else if(param == AFFINEMODEL_6PARAM && pred == UNIPRED){
+      affUnip6pEnergy_core += newVal;
+  }else if(param == AFFINEMODEL_6PARAM && pred == BIPRED){
+      cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
+  }else{
+      cout << "ERROR :: Incorrect affine number of parameters or pred type" << endl;
   }
 }
 
