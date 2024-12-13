@@ -232,6 +232,7 @@ void storch::printParamsSummary(){
   cout << "GPU_ME_2CPs:              " << storch::sGPU_gpuMe2Cps << endl;
   cout << "GPU_ME_3CPs:              " << storch::sGPU_gpuMe3Cps << endl;
   cout << "PREDICT_3CPs_FROM_2CPs    " << storch::sGPU_predict3CpsFrom2Cps << endl;
+  cout << "SKIP_UNALIGNED_CUs        " << storch::sGPU_skipUnalignedCusAffine << endl;
   cout << "SIMD_ENABLE:              " << SIMD_ENABLE << endl;
   cout << "PROF:                     " << prof << endl;
   cout << "ORIGINAL TREE HEURISTICS: " << storch::sHEUR_originalTreeHeuristics << endl;
@@ -1349,7 +1350,7 @@ void storch::startAffineAmvpInit_size(EAffineModel param, EAffinePred pred, CuSi
 }
 
 void storch::finishAffineAmvpInit_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu){
-  assert((param==AFFINEMODEL_4PARAM || param==AFFINEMODEL_6PARAM) && (pred==UNIPRED)); 
+//  assert((param==AFFINEMODEL_4PARAM || param==AFFINEMODEL_6PARAM) && (pred==UNIPRED)); 
   
   gettimeofday(&amvpInit_target_2, NULL);
 
@@ -1370,7 +1371,7 @@ void storch::startAffineGradRefSimp_size(EAffineModel param, EAffinePred pred, C
 }
 
 void storch::finishAffineGradRefSimp_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu){
-  assert((param==AFFINEMODEL_4PARAM || param==AFFINEMODEL_6PARAM) && (pred==UNIPRED)); 
+//  assert((param==AFFINEMODEL_4PARAM || param==AFFINEMODEL_6PARAM) && (pred==UNIPRED)); 
   
   gettimeofday(&gradRefSimp_target_2, NULL);
   
@@ -1389,7 +1390,7 @@ void storch::startAffineGradME_size(EAffineModel param, EAffinePred pred){
 }
 
 void storch::finishAffineGradME_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu){
-  assert((param==AFFINEMODEL_4PARAM || param==AFFINEMODEL_6PARAM) && (pred==UNIPRED)); 
+//  assert((param==AFFINEMODEL_4PARAM || param==AFFINEMODEL_6PARAM) && (pred==UNIPRED)); 
     
   // For now, we are not intereseted in tracking the bipred time
   if(pred==BIPRED)
@@ -1412,7 +1413,7 @@ void storch::startAffineRefSimp_size(EAffineModel param, EAffinePred pred){
 }
 
 void storch::finishAffineRefSimp_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu){
-  assert((param==AFFINEMODEL_4PARAM || param==AFFINEMODEL_6PARAM) && (pred==UNIPRED)); 
+//  assert((param==AFFINEMODEL_4PARAM || param==AFFINEMODEL_6PARAM) && (pred==UNIPRED)); 
   
   // For now, we are not intereseted in tracking the bipred time
   if(pred==BIPRED)

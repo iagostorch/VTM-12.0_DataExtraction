@@ -2117,15 +2117,7 @@ void PU::xInheritedAffineMv( const PredictionUnit &pu, const PredictionUnit* puN
 // This function generates the list of candidates for AMVP
 void PU::fillAffineMvpCand(PredictionUnit &pu, const RefPicList &eRefPicList, const int &refIdx, AffineAMVPInfo &affiAMVPInfo)
 {
-  int forceZeroMVP;
-  // This variable controls if we are going to check the availability of AMVP candidates. When forcing zeroMVP, all availability tests are skipped
-  // If GPU_ME is enabled, we disable the Affine AMVP and use a zero-MV as MVP
-  if( ( storch::sGPU_gpuMe2Cps && pu.cu->affineType==AFFINEMODEL_4PARAM)
-    ||( storch::sGPU_gpuMe3Cps && pu.cu->affineType==AFFINEMODEL_6PARAM))
-    forceZeroMVP = 1;
-  else
-    forceZeroMVP = 0;
-  
+
   affiAMVPInfo.numCand = 0;
 
   if (refIdx < 0)
@@ -2139,189 +2131,496 @@ void PU::fillAffineMvpCand(PredictionUnit &pu, const RefPicList &eRefPicList, co
   Position posRT = pu.Y().topRight();
   Position posLB = pu.Y().bottomLeft();
   
-  if(!forceZeroMVP){ // Check all inherited AMVP candidates
-    // This set of if !func() statements implement the idea that, for a given direction (left or above neighbors), only the first available neighbor is added to the candidate list. This is discussed in the VTM description in T-2002.
-    // It tests the left neighbors in a given order and only the first is added to the list, then tests the above neighbors and adds the first available. This way, the list has at most 2 dandidates
-    // The original if/else structure was modified to allow counting when candidates are available, but the same candidates are added
-    // check left neighbor
-    /*
-    if ( !addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_BELOW_LEFT, affiAMVPInfo ) )
-    {
-      addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_LEFT, affiAMVPInfo );
-    }
-    //*/
-    if ( addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_BELOW_LEFT, affiAMVPInfo ) )
-    {
-        // printf("    +1 inherited\n");
-        inheritedCands++;
+  // This set of if !func() statements implement the idea that, for a given direction (left or above neighbors), only the first available neighbor is added to the candidate list. This is discussed in the VTM description in T-2002.
+  // It tests the left neighbors in a given order and only the first is added to the list, then tests the above neighbors and adds the first available. This way, the list has at most 2 dandidates
+  // The original if/else structure was modified to allow counting when candidates are available, but the same candidates are added
+  // check left neighbor
+  /*
+  if ( !addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_BELOW_LEFT, affiAMVPInfo ) )
+  {
+    addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_LEFT, affiAMVPInfo );
+  }
+  //*/
+  if ( addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_BELOW_LEFT, affiAMVPInfo ) )
+  {
+      // printf("    +1 inherited\n");
+      inheritedCands++;
 
-    }
-    else if(addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_LEFT, affiAMVPInfo )){
-        // printf("    +1 inherited\n");
-        inheritedCands++;
-    }
+  }
+  else if(addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_LEFT, affiAMVPInfo )){
+      // printf("    +1 inherited\n");
+      inheritedCands++;
+  }
 
-    // check above neighbor
-    /*
-    if ( !addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE_RIGHT, affiAMVPInfo ) )
+  // check above neighbor
+  /*
+  if ( !addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE_RIGHT, affiAMVPInfo ) )
+  {
+    if ( !addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE, affiAMVPInfo ) )
     {
-      if ( !addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE, affiAMVPInfo ) )
-      {
-        addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_ABOVE_LEFT, affiAMVPInfo );
-      }
+      addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_ABOVE_LEFT, affiAMVPInfo );
     }
-    //*/
+  }
+  //*/
 
-    if ( addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE_RIGHT, affiAMVPInfo ) )
+  if ( addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE_RIGHT, affiAMVPInfo ) )
+  {
+      // printf("    +1 inherited\n");
+      inheritedCands++;
+  }
+  else if(addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE, affiAMVPInfo )){
+      // printf("    +1 inherited\n");
+      inheritedCands++;
+  }
+  else if(addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_ABOVE_LEFT, affiAMVPInfo )){
+      // printf("    +1 inherited\n");
+      inheritedCands++;
+  }
+
+  if ( affiAMVPInfo.numCand >= AMVP_MAX_NUM_CANDS )
+  {
+    for (int i = 0; i < affiAMVPInfo.numCand; i++)
     {
-        // printf("    +1 inherited\n");
-        inheritedCands++;
+      affiAMVPInfo.mvCandLT[i].roundAffinePrecInternal2Amvr(pu.cu->imv);
+      affiAMVPInfo.mvCandRT[i].roundAffinePrecInternal2Amvr(pu.cu->imv);
+      affiAMVPInfo.mvCandLB[i].roundAffinePrecInternal2Amvr(pu.cu->imv);
     }
-    else if(addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE, affiAMVPInfo )){
-        // printf("    +1 inherited\n");
-        inheritedCands++;
-    }
-    else if(addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_ABOVE_LEFT, affiAMVPInfo )){
-        // printf("    +1 inherited\n");
-        inheritedCands++;
-    }
-  
-    if ( affiAMVPInfo.numCand >= AMVP_MAX_NUM_CANDS )
-    {
-      for (int i = 0; i < affiAMVPInfo.numCand; i++)
-      {
-        affiAMVPInfo.mvCandLT[i].roundAffinePrecInternal2Amvr(pu.cu->imv);
-        affiAMVPInfo.mvCandRT[i].roundAffinePrecInternal2Amvr(pu.cu->imv);
-        affiAMVPInfo.mvCandLB[i].roundAffinePrecInternal2Amvr(pu.cu->imv);
-      }
-      return;
-    }
+    return;
   }
   
   int cornerMVPattern = 0;
-  if(!forceZeroMVP){ // Check all constructed AMVP candidates
-    // The constructed MVs are generated after the translational MVs of neighboring blocks. This is also discussed in T-2002  
-    // insert constructed affine candidates
-    
-    //-------------------  V0 (START) -------------------//
-    AMVPInfo amvpInfo0;
-    amvpInfo0.numCand = 0;
+  // The constructed MVs are generated after the translational MVs of neighboring blocks. This is also discussed in T-2002  
+  // insert constructed affine candidates
 
-    // The position of blocks A, B, ..., F is described in Fig 3 of document K-0337
-    // A->C: Above Left, Above, Left
-    addMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_ABOVE_LEFT, amvpInfo0 );
-    if ( amvpInfo0.numCand < 1 )
-    {
-      addMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_ABOVE, amvpInfo0 );
-    }
-    if ( amvpInfo0.numCand < 1 )
-    {
-      addMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_LEFT, amvpInfo0 );
-    }
-    cornerMVPattern = cornerMVPattern | amvpInfo0.numCand;
+  //-------------------  V0 (START) -------------------//
+  AMVPInfo amvpInfo0;
+  amvpInfo0.numCand = 0;
 
-    //-------------------  V1 (START) -------------------//
-    AMVPInfo amvpInfo1;
-    amvpInfo1.numCand = 0;
+  // The position of blocks A, B, ..., F is described in Fig 3 of document K-0337
+  // A->C: Above Left, Above, Left
+  addMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_ABOVE_LEFT, amvpInfo0 );
+  if ( amvpInfo0.numCand < 1 )
+  {
+    addMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_ABOVE, amvpInfo0 );
+  }
+  if ( amvpInfo0.numCand < 1 )
+  {
+    addMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_LEFT, amvpInfo0 );
+  }
+  cornerMVPattern = cornerMVPattern | amvpInfo0.numCand;
 
-    // D->E: Above, Above Right
-    addMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE, amvpInfo1 );
-    if ( amvpInfo1.numCand < 1 )
-    {
-      addMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE_RIGHT, amvpInfo1 );
-    }
-    cornerMVPattern = cornerMVPattern | (amvpInfo1.numCand << 1);
+  //-------------------  V1 (START) -------------------//
+  AMVPInfo amvpInfo1;
+  amvpInfo1.numCand = 0;
 
-    //-------------------  V2 (START) -------------------//
-    AMVPInfo amvpInfo2;
-    amvpInfo2.numCand = 0;
+  // D->E: Above, Above Right
+  addMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE, amvpInfo1 );
+  if ( amvpInfo1.numCand < 1 )
+  {
+    addMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE_RIGHT, amvpInfo1 );
+  }
+  cornerMVPattern = cornerMVPattern | (amvpInfo1.numCand << 1);
 
-    // F->G: Left, Below Left
-    addMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_LEFT, amvpInfo2 );
-    if ( amvpInfo2.numCand < 1 )
-    {
-      addMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_BELOW_LEFT, amvpInfo2 );
-    }
-    cornerMVPattern = cornerMVPattern | (amvpInfo2.numCand << 2);
+  //-------------------  V2 (START) -------------------//
+  AMVPInfo amvpInfo2;
+  amvpInfo2.numCand = 0;
 
-    outputAffineMv[0] = amvpInfo0.mvCand[0];
-    outputAffineMv[1] = amvpInfo1.mvCand[0];
-    outputAffineMv[2] = amvpInfo2.mvCand[0];
+  // F->G: Left, Below Left
+  addMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_LEFT, amvpInfo2 );
+  if ( amvpInfo2.numCand < 1 )
+  {
+    addMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_BELOW_LEFT, amvpInfo2 );
+  }
+  cornerMVPattern = cornerMVPattern | (amvpInfo2.numCand << 2);
 
-    outputAffineMv[0].roundAffinePrecInternal2Amvr(pu.cu->imv);
-    outputAffineMv[1].roundAffinePrecInternal2Amvr(pu.cu->imv);
-    outputAffineMv[2].roundAffinePrecInternal2Amvr(pu.cu->imv);
+  outputAffineMv[0] = amvpInfo0.mvCand[0];
+  outputAffineMv[1] = amvpInfo1.mvCand[0];
+  outputAffineMv[2] = amvpInfo2.mvCand[0];
 
-    // This IF tests if (1) the MV of three neighbors are available or (2) if it is 4 params affine and the MV of two neighbors are available
-    // i.e., we have the required information to construct MVs
-    if ( cornerMVPattern == 7 || (cornerMVPattern == 3 && pu.cu->affineType == AFFINEMODEL_4PARAM) )
-    {
-      affiAMVPInfo.mvCandLT[affiAMVPInfo.numCand] = outputAffineMv[0];
-      affiAMVPInfo.mvCandRT[affiAMVPInfo.numCand] = outputAffineMv[1];
-      affiAMVPInfo.mvCandLB[affiAMVPInfo.numCand] = outputAffineMv[2];
-      affiAMVPInfo.numCand++;
-  //    printf("    +1 constructed\n");
-      constructedCands++;
+  outputAffineMv[0].roundAffinePrecInternal2Amvr(pu.cu->imv);
+  outputAffineMv[1].roundAffinePrecInternal2Amvr(pu.cu->imv);
+  outputAffineMv[2].roundAffinePrecInternal2Amvr(pu.cu->imv);
 
-    }
+  // This IF tests if (1) the MV of three neighbors are available or (2) if it is 4 params affine and the MV of two neighbors are available
+  // i.e., we have the required information to construct MVs
+  if ( cornerMVPattern == 7 || (cornerMVPattern == 3 && pu.cu->affineType == AFFINEMODEL_4PARAM) )
+  {
+    affiAMVPInfo.mvCandLT[affiAMVPInfo.numCand] = outputAffineMv[0];
+    affiAMVPInfo.mvCandRT[affiAMVPInfo.numCand] = outputAffineMv[1];
+    affiAMVPInfo.mvCandLB[affiAMVPInfo.numCand] = outputAffineMv[2];
+    affiAMVPInfo.numCand++;
+//    printf("    +1 constructed\n");
+    constructedCands++;
+
   }
   
   if ( affiAMVPInfo.numCand < 2 )
   {
-    if(!forceZeroMVP){ // Check all translational and temporal AMVP candidates
-      // check corner MVs
-      for ( int i = 2; i >= 0 && affiAMVPInfo.numCand < AMVP_MAX_NUM_CANDS; i-- )
+    // check corner MVs
+    for ( int i = 2; i >= 0 && affiAMVPInfo.numCand < AMVP_MAX_NUM_CANDS; i-- )
+    {
+      if ( cornerMVPattern & (1 << i) ) // MV i exist
       {
-        if ( cornerMVPattern & (1 << i) ) // MV i exist
+        affiAMVPInfo.mvCandLT[affiAMVPInfo.numCand] = outputAffineMv[i];
+        affiAMVPInfo.mvCandRT[affiAMVPInfo.numCand] = outputAffineMv[i];
+        affiAMVPInfo.mvCandLB[affiAMVPInfo.numCand] = outputAffineMv[i];
+        affiAMVPInfo.numCand++;
+        // printf("    +1 translational\n");
+        translationalCands++;
+      }
+    }
+
+    // Get Temporal Motion Predictor
+    if ( affiAMVPInfo.numCand < 2 && pu.cs->picHeader->getEnableTMVPFlag() )
+    {
+      const int refIdxCol = refIdx;
+
+      Position posRB = pu.Y().bottomRight().offset( -3, -3 );
+
+      const PreCalcValues& pcv = *pu.cs->pcv;
+
+      Position posC0;
+      bool C0Avail = false;
+      Position posC1 = pu.Y().center();
+      Mv cColMv;
+      bool boundaryCond = ((posRB.x + pcv.minCUWidth) < pcv.lumaWidth) && ((posRB.y + pcv.minCUHeight) < pcv.lumaHeight);
+      const SubPic &curSubPic = pu.cs->slice->getPPS()->getSubPicFromPos(pu.lumaPos());
+      if (curSubPic.getTreatedAsPicFlag())
+      {
+        boundaryCond = ((posRB.x + pcv.minCUWidth) <= curSubPic.getSubPicRight() &&
+          (posRB.y + pcv.minCUHeight) <= curSubPic.getSubPicBottom());
+      }
+      if (boundaryCond)
+      {
+        int posYInCtu = posRB.y & pcv.maxCUHeightMask;
+        if (posYInCtu + 4 < pcv.maxCUHeight)
         {
-          affiAMVPInfo.mvCandLT[affiAMVPInfo.numCand] = outputAffineMv[i];
-          affiAMVPInfo.mvCandRT[affiAMVPInfo.numCand] = outputAffineMv[i];
-          affiAMVPInfo.mvCandLB[affiAMVPInfo.numCand] = outputAffineMv[i];
-          affiAMVPInfo.numCand++;
-          // printf("    +1 translational\n");
-          translationalCands++;
+          posC0 = posRB.offset(4, 4);
+          C0Avail = true;
         }
       }
-
-      // Get Temporal Motion Predictor
-      if ( affiAMVPInfo.numCand < 2 && pu.cs->picHeader->getEnableTMVPFlag() )
+      if ( ( C0Avail && getColocatedMVP( pu, eRefPicList, posC0, cColMv, refIdxCol, false ) ) || getColocatedMVP( pu, eRefPicList, posC1, cColMv, refIdxCol, false ) )
       {
-        const int refIdxCol = refIdx;
+        cColMv.roundAffinePrecInternal2Amvr(pu.cu->imv);
+        affiAMVPInfo.mvCandLT[affiAMVPInfo.numCand] = cColMv;
+        affiAMVPInfo.mvCandRT[affiAMVPInfo.numCand] = cColMv;
+        affiAMVPInfo.mvCandLB[affiAMVPInfo.numCand] = cColMv;
+        affiAMVPInfo.numCand++;
+        // printf("    +1 temporal\n");
+        temporalCands++;
+      }
+    }
+    if ( affiAMVPInfo.numCand < 2 ) // When forceZeroMVP==1, it only enters on this if
+    {
+      // add zero MV
+      for ( int i = affiAMVPInfo.numCand; i < AMVP_MAX_NUM_CANDS; i++ )
+      {
+        affiAMVPInfo.mvCandLT[affiAMVPInfo.numCand].setZero();
+        affiAMVPInfo.mvCandRT[affiAMVPInfo.numCand].setZero();
+        affiAMVPInfo.mvCandLB[affiAMVPInfo.numCand].setZero();
+        affiAMVPInfo.numCand++;
+        // printf("    +1 zero\n");
+        zeroMvCands++;
+      }
+    }
+  }
 
-        Position posRB = pu.Y().bottomRight().offset( -3, -3 );
+  for (int i = 0; i < affiAMVPInfo.numCand; i++)
+  {
+    affiAMVPInfo.mvCandLT[i].roundAffinePrecInternal2Amvr(pu.cu->imv);
+    affiAMVPInfo.mvCandRT[i].roundAffinePrecInternal2Amvr(pu.cu->imv);
+    affiAMVPInfo.mvCandLB[i].roundAffinePrecInternal2Amvr(pu.cu->imv);
+  }
+}
 
-        const PreCalcValues& pcv = *pu.cs->pcv;
+void PU::fillAffineMvpCand_onlyZeros(PredictionUnit &pu, const RefPicList &eRefPicList, const int &refIdx, AffineAMVPInfo &affiAMVPInfo)
+{
+  
+  // GPU: Here we only add zeroCPMVs such that the ME starts at the collocated block
 
-        Position posC0;
-        bool C0Avail = false;
-        Position posC1 = pu.Y().center();
-        Mv cColMv;
-        bool boundaryCond = ((posRB.x + pcv.minCUWidth) < pcv.lumaWidth) && ((posRB.y + pcv.minCUHeight) < pcv.lumaHeight);
-        const SubPic &curSubPic = pu.cs->slice->getPPS()->getSubPicFromPos(pu.lumaPos());
-        if (curSubPic.getTreatedAsPicFlag())
+  affiAMVPInfo.numCand = 0;
+
+  if (refIdx < 0)
+  {
+    return;
+  }
+
+  if ( affiAMVPInfo.numCand < 2 )
+  {
+    if ( affiAMVPInfo.numCand < 2 ) 
+    {
+      // add zero MV
+      for ( int i = affiAMVPInfo.numCand; i < AMVP_MAX_NUM_CANDS; i++ )
+      {
+        affiAMVPInfo.mvCandLT[affiAMVPInfo.numCand].setZero();
+        affiAMVPInfo.mvCandRT[affiAMVPInfo.numCand].setZero();
+        affiAMVPInfo.mvCandLB[affiAMVPInfo.numCand].setZero();
+        affiAMVPInfo.numCand++;
+        // printf("    +1 zero\n");
+        zeroMvCands++;
+      }
+    }
+  }
+
+  for (int i = 0; i < affiAMVPInfo.numCand; i++)
+  {
+    affiAMVPInfo.mvCandLT[i].roundAffinePrecInternal2Amvr(pu.cu->imv);
+    affiAMVPInfo.mvCandRT[i].roundAffinePrecInternal2Amvr(pu.cu->imv);
+    affiAMVPInfo.mvCandLB[i].roundAffinePrecInternal2Amvr(pu.cu->imv);
+  }
+}
+
+void PU::fillAffineMvpCand_onlyFirstCand(PredictionUnit &pu, const RefPicList &eRefPicList, const int &refIdx, AffineAMVPInfo &affiAMVPInfo)
+{
+  
+  // GPU: Here we add the first available candidate in both AMVP positions. This way we guarantee that the first index will be chosen
+
+  affiAMVPInfo.numCand = 0;
+
+  if (refIdx < 0)
+  {
+    return;
+  }
+  
+  // insert inherited affine candidates
+  Mv outputAffineMv[3];
+  Position posLT = pu.Y().topLeft();
+  Position posRT = pu.Y().topRight();
+  Position posLB = pu.Y().bottomLeft();
+  
+
+  // This set of if !func() statements implement the idea that, for a given direction (left or above neighbors), only the first available neighbor is added to the candidate list. This is discussed in the VTM description in T-2002.
+  // It tests the left neighbors in a given order and only the first is added to the list, then tests the above neighbors and adds the first available. This way, the list has at most 2 dandidates
+  // The original if/else structure was modified to allow counting when candidates are available, but the same candidates are added
+  // check left neighbor
+  /*
+  if ( !addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_BELOW_LEFT, affiAMVPInfo ) )
+  {
+    addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_LEFT, affiAMVPInfo );
+  }
+  //*/
+  if ( addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_BELOW_LEFT, affiAMVPInfo ) )
+  {
+      // printf("    +1 inherited\n");
+      inheritedCands++;
+
+      if(addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_BELOW_LEFT, affiAMVPInfo )){
+        inheritedCands++;
+      }
+
+  }
+  else if(addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_LEFT, affiAMVPInfo )){
+      // printf("    +1 inherited\n");
+      inheritedCands++;
+
+      if(addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_LEFT, affiAMVPInfo )){
+      // printf("    +1 inherited\n");
+        inheritedCands++;
+      }
+
+  }
+
+
+  // check above neighbor
+  /*
+  if ( !addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE_RIGHT, affiAMVPInfo ) )
+  {
+    if ( !addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE, affiAMVPInfo ) )
+    {
+      addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_ABOVE_LEFT, affiAMVPInfo );
+    }
+  }
+  //*/
+  if ( addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE_RIGHT, affiAMVPInfo ) )
+  {
+      // printf("    +1 inherited\n");
+      inheritedCands++;
+
+      if ( addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE_RIGHT, affiAMVPInfo ) )
+      {
+      // printf("    +1 inherited\n");
+      inheritedCands++;
+      }
+
+  }
+  else if(addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE, affiAMVPInfo )){
+      // printf("    +1 inherited\n");
+      inheritedCands++;
+
+      if(addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE, affiAMVPInfo )){
+        // printf("    +1 inherited\n");
+        inheritedCands++;
+      }
+
+  }
+  else if(addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_ABOVE_LEFT, affiAMVPInfo )){
+      // printf("    +1 inherited\n");
+      inheritedCands++;
+
+      if(addAffineMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_ABOVE_LEFT, affiAMVPInfo )){
+      // printf("    +1 inherited\n");
+        inheritedCands++;
+      }
+  }
+
+  if ( affiAMVPInfo.numCand >= AMVP_MAX_NUM_CANDS )
+  {
+    for (int i = 0; i < affiAMVPInfo.numCand; i++)
+    {
+      affiAMVPInfo.mvCandLT[i].roundAffinePrecInternal2Amvr(pu.cu->imv);
+      affiAMVPInfo.mvCandRT[i].roundAffinePrecInternal2Amvr(pu.cu->imv);
+      affiAMVPInfo.mvCandLB[i].roundAffinePrecInternal2Amvr(pu.cu->imv);
+    }
+    return;
+  }
+  
+  int cornerMVPattern = 0;
+  // The constructed MVs are generated after the translational MVs of neighboring blocks. This is also discussed in T-2002  
+  // insert constructed affine candidates
+
+  //-------------------  V0 (START) -------------------//
+  AMVPInfo amvpInfo0;
+  amvpInfo0.numCand = 0;
+
+  // The position of blocks A, B, ..., F is described in Fig 3 of document K-0337
+  // A->C: Above Left, Above, Left
+  addMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_ABOVE_LEFT, amvpInfo0 );
+  if ( amvpInfo0.numCand < 1 )
+  {
+    addMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_ABOVE, amvpInfo0 );
+  }
+  if ( amvpInfo0.numCand < 1 )
+  {
+    addMVPCandUnscaled( pu, eRefPicList, refIdx, posLT, MD_LEFT, amvpInfo0 );
+  }
+  cornerMVPattern = cornerMVPattern | amvpInfo0.numCand;
+
+  //-------------------  V1 (START) -------------------//
+  AMVPInfo amvpInfo1;
+  amvpInfo1.numCand = 0;
+
+  // D->E: Above, Above Right
+  addMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE, amvpInfo1 );
+  if ( amvpInfo1.numCand < 1 )
+  {
+    addMVPCandUnscaled( pu, eRefPicList, refIdx, posRT, MD_ABOVE_RIGHT, amvpInfo1 );
+  }
+  cornerMVPattern = cornerMVPattern | (amvpInfo1.numCand << 1);
+
+  //-------------------  V2 (START) -------------------//
+  AMVPInfo amvpInfo2;
+  amvpInfo2.numCand = 0;
+
+  // F->G: Left, Below Left
+  addMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_LEFT, amvpInfo2 );
+  if ( amvpInfo2.numCand < 1 )
+  {
+    addMVPCandUnscaled( pu, eRefPicList, refIdx, posLB, MD_BELOW_LEFT, amvpInfo2 );
+  }
+  cornerMVPattern = cornerMVPattern | (amvpInfo2.numCand << 2);
+
+  outputAffineMv[0] = amvpInfo0.mvCand[0];
+  outputAffineMv[1] = amvpInfo1.mvCand[0];
+  outputAffineMv[2] = amvpInfo2.mvCand[0];
+
+  outputAffineMv[0].roundAffinePrecInternal2Amvr(pu.cu->imv);
+  outputAffineMv[1].roundAffinePrecInternal2Amvr(pu.cu->imv);
+  outputAffineMv[2].roundAffinePrecInternal2Amvr(pu.cu->imv);
+
+  // This IF tests if (1) the MV of three neighbors are available or (2) if it is 4 params affine and the MV of two neighbors are available
+  // i.e., we have the required information to construct MVs
+  if ( cornerMVPattern == 7 || (cornerMVPattern == 3 && pu.cu->affineType == AFFINEMODEL_4PARAM) )
+  {
+    affiAMVPInfo.mvCandLT[affiAMVPInfo.numCand] = outputAffineMv[0];
+    affiAMVPInfo.mvCandRT[affiAMVPInfo.numCand] = outputAffineMv[1];
+    affiAMVPInfo.mvCandLB[affiAMVPInfo.numCand] = outputAffineMv[2];
+    affiAMVPInfo.numCand++;
+//    printf("    +1 constructed\n");
+    constructedCands++;
+
+
+    // 2nd add
+    affiAMVPInfo.mvCandLT[affiAMVPInfo.numCand] = outputAffineMv[0];
+    affiAMVPInfo.mvCandRT[affiAMVPInfo.numCand] = outputAffineMv[1];
+    affiAMVPInfo.mvCandLB[affiAMVPInfo.numCand] = outputAffineMv[2];
+    affiAMVPInfo.numCand++;
+//    printf("    +1 constructed\n");
+    constructedCands++;
+
+  }
+  
+  if ( affiAMVPInfo.numCand < 2 )
+  {
+    // check corner MVs
+    for ( int i = 2; i >= 0 && affiAMVPInfo.numCand < AMVP_MAX_NUM_CANDS; i-- )
+    {
+      if ( cornerMVPattern & (1 << i) ) // MV i exist
+      {
+        affiAMVPInfo.mvCandLT[affiAMVPInfo.numCand] = outputAffineMv[i];
+        affiAMVPInfo.mvCandRT[affiAMVPInfo.numCand] = outputAffineMv[i];
+        affiAMVPInfo.mvCandLB[affiAMVPInfo.numCand] = outputAffineMv[i];
+        affiAMVPInfo.numCand++;
+        // printf("    +1 translational\n");
+        translationalCands++;
+
+
+        // 2nd add
+        affiAMVPInfo.mvCandLT[affiAMVPInfo.numCand] = outputAffineMv[i];
+        affiAMVPInfo.mvCandRT[affiAMVPInfo.numCand] = outputAffineMv[i];
+        affiAMVPInfo.mvCandLB[affiAMVPInfo.numCand] = outputAffineMv[i];
+        affiAMVPInfo.numCand++;
+        // printf("    +1 translational\n");
+        translationalCands++;
+      }
+    }
+
+    // Get Temporal Motion Predictor
+    if ( affiAMVPInfo.numCand < 2 && pu.cs->picHeader->getEnableTMVPFlag() )
+    {
+      const int refIdxCol = refIdx;
+
+      Position posRB = pu.Y().bottomRight().offset( -3, -3 );
+
+      const PreCalcValues& pcv = *pu.cs->pcv;
+
+      Position posC0;
+      bool C0Avail = false;
+      Position posC1 = pu.Y().center();
+      Mv cColMv;
+      bool boundaryCond = ((posRB.x + pcv.minCUWidth) < pcv.lumaWidth) && ((posRB.y + pcv.minCUHeight) < pcv.lumaHeight);
+      const SubPic &curSubPic = pu.cs->slice->getPPS()->getSubPicFromPos(pu.lumaPos());
+      if (curSubPic.getTreatedAsPicFlag())
+      {
+        boundaryCond = ((posRB.x + pcv.minCUWidth) <= curSubPic.getSubPicRight() &&
+          (posRB.y + pcv.minCUHeight) <= curSubPic.getSubPicBottom());
+      }
+      if (boundaryCond)
+      {
+        int posYInCtu = posRB.y & pcv.maxCUHeightMask;
+        if (posYInCtu + 4 < pcv.maxCUHeight)
         {
-          boundaryCond = ((posRB.x + pcv.minCUWidth) <= curSubPic.getSubPicRight() &&
-            (posRB.y + pcv.minCUHeight) <= curSubPic.getSubPicBottom());
+          posC0 = posRB.offset(4, 4);
+          C0Avail = true;
         }
-        if (boundaryCond)
-        {
-          int posYInCtu = posRB.y & pcv.maxCUHeightMask;
-          if (posYInCtu + 4 < pcv.maxCUHeight)
-          {
-            posC0 = posRB.offset(4, 4);
-            C0Avail = true;
-          }
-        }
-        if ( ( C0Avail && getColocatedMVP( pu, eRefPicList, posC0, cColMv, refIdxCol, false ) ) || getColocatedMVP( pu, eRefPicList, posC1, cColMv, refIdxCol, false ) )
-        {
-          cColMv.roundAffinePrecInternal2Amvr(pu.cu->imv);
-          affiAMVPInfo.mvCandLT[affiAMVPInfo.numCand] = cColMv;
-          affiAMVPInfo.mvCandRT[affiAMVPInfo.numCand] = cColMv;
-          affiAMVPInfo.mvCandLB[affiAMVPInfo.numCand] = cColMv;
-          affiAMVPInfo.numCand++;
-          // printf("    +1 temporal\n");
-          temporalCands++;
-        }
+      }
+      if ( ( C0Avail && getColocatedMVP( pu, eRefPicList, posC0, cColMv, refIdxCol, false ) ) || getColocatedMVP( pu, eRefPicList, posC1, cColMv, refIdxCol, false ) )
+      {
+        cColMv.roundAffinePrecInternal2Amvr(pu.cu->imv);
+        affiAMVPInfo.mvCandLT[affiAMVPInfo.numCand] = cColMv;
+        affiAMVPInfo.mvCandRT[affiAMVPInfo.numCand] = cColMv;
+        affiAMVPInfo.mvCandLB[affiAMVPInfo.numCand] = cColMv;
+        affiAMVPInfo.numCand++;
+        // printf("    +1 temporal\n");
+        temporalCands++;
+
+
+        // 2nd add
+        affiAMVPInfo.mvCandLT[affiAMVPInfo.numCand] = cColMv;
+        affiAMVPInfo.mvCandRT[affiAMVPInfo.numCand] = cColMv;
+        affiAMVPInfo.mvCandLB[affiAMVPInfo.numCand] = cColMv;
+        affiAMVPInfo.numCand++;
+        // printf("    +1 temporal\n");
+        temporalCands++;
       }
     }
     if ( affiAMVPInfo.numCand < 2 ) // When forceZeroMVP==1, it only enters on this if

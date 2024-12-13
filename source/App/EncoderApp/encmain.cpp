@@ -85,10 +85,7 @@ static void printMacroSettings()
 
 int main(int argc, char* argv[])
 {
-  #if STORCHMAIN_H
-    storch();
-  #endif
-  
+
   // print information
   fprintf( stdout, "\n" );
   fprintf( stdout, "VVCSoftware: VTM Encoder Version %s ", VTM_VERSION );
@@ -183,6 +180,10 @@ int main(int argc, char* argv[])
       return 1;
     }
 
+    #if STORCHMAIN_H
+      storch();
+    #endif
+    
     // Verify if the combination of macros is allowed
     #if STORCHMAIN_H
       storch::printParamsSummary();

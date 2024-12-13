@@ -80,7 +80,7 @@
 // When disabled: the original condition for testing 3 CPs is maintained (RD reasonably good when compared to translational ME)
 #define ALWAYS_ENFORCE_3_CPS 1
 
-#define TRACE_ENERGY 1
+#define TRACE_ENERGY 0
 
 // This typedef is used to control what type of samples are being exported from the encoder
 typedef enum

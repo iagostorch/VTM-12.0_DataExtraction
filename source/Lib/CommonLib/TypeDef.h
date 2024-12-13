@@ -114,7 +114,7 @@ typedef std::pair<int, int>  TrCost;
 #if ENABLE_TRACING
 #define K0149_BLOCK_STATISTICS                            1 // enables block statistics, which can be analysed with YUView (https://github.com/IENT/YUView)
 #if K0149_BLOCK_STATISTICS
-#define BLOCK_STATS_AS_CSV                                1 // statistics will be written in a comma separated value format. this is not supported by YUView
+#define BLOCK_STATS_AS_CSV                                0 // statistics will be written in a comma separated value format. this is not supported by YUView
 #endif
 #endif
 

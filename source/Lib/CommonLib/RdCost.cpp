@@ -400,7 +400,7 @@ void RdCost::setDistParam( DistParam &rcDP, const Pel* pOrg, const Pel* piRefY, 
 // Modified function that allows signaling if the computed distortion should be printed or not
 Distortion RdCost::getDistPart_target( const CPelBuf &org, const CPelBuf &cur, int bitDepth, const ComponentID compID, DFunc eDFunc, int target, const CPelBuf *orgLuma)
 
-{
+{  
   DistParam cDtParam;
 
   cDtParam.extract_rd = target; // When target is true, we should print the distortion
@@ -436,6 +436,10 @@ Distortion RdCost::getDistPart_target( const CPelBuf &org, const CPelBuf &cur, i
   {
     cDtParam.distFunc = m_afpDistortFunc[eDFunc];
   }
+   
+  if (eDFunc==GPU_ME_DISTORTION)
+    cDtParam.distFunc = xGetHAD4;
+  
   if (isChroma(compID))
   {
     return ((Distortion) (m_distortionWeight[ MAP_CHROMA(compID) ] * cDtParam.distFunc( cDtParam )));
@@ -490,7 +494,7 @@ Distortion RdCost::getDistPart( const CPelBuf &org, const CPelBuf &cur, int bitD
   
   if (eDFunc==GPU_ME_DISTORTION)
     cDtParam.distFunc = xGetHAD4;
-
+  
   if (isChroma(compID))
   {
     return ((Distortion) (m_distortionWeight[ MAP_CHROMA(compID) ] * cDtParam.distFunc( cDtParam )));

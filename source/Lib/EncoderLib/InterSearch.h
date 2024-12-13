@@ -541,7 +541,25 @@ protected:
                                     Mv               acMvPred[3],
                                     Distortion*      puiDistBiP
                                   );
-
+    
+    void xEstimateAffineAMVP_afterME        ( PredictionUnit&  pu,
+                                    AffineAMVPInfo&  affineAMVPInfo,
+                                    PelUnitBuf&      origBuf,
+                                    RefPicList       eRefPicList,
+                                    int              iRefIdx,
+                                    Mv               acMvPred[3],
+                                    Distortion*      puiDistBiP
+                                  );
+    
+    void xEstimateAffineAMVP_gpuBeforeME  ( PredictionUnit&  pu,
+                                    AffineAMVPInfo&  affineAMVPInfo,
+                                    PelUnitBuf&      origBuf,
+                                    RefPicList       eRefPicList,
+                                    int              iRefIdx,
+                                    Mv               acMvPred[3],
+                                    Distortion*      puiDistBiP
+                                  );
+   
   Distortion xGetAffineTemplateCost( PredictionUnit& pu, PelUnitBuf& origBuf, PelUnitBuf& predBuf, Mv acMvCand[3], int iMVPIdx, int iMVPNum, RefPicList eRefPicList, int iRefIdx );
 
   void xCopyAffineAMVPInfo        ( AffineAMVPInfo& src, AffineAMVPInfo& dst );
