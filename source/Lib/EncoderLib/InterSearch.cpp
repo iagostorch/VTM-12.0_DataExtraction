@@ -6546,7 +6546,8 @@ void InterSearch::xEstimateAffineAMVP_gpuBeforeME(PredictionUnit&  pu,
   
   CHECK( affineAMVPInfo.numCand == 0, "Assertion failed." );
 
-  PelUnitBuf predBuf = m_tmpStorageLCU.getBuf( UnitAreaRelative(*pu.cu, pu) );
+  // GPU: We always select the first candidate so there is no need to check the performance
+  // PelUnitBuf predBuf = m_tmpStorageLCU.getBuf( UnitAreaRelative(*pu.cu, pu) );
 
   iBestIdx = 0;
   
@@ -6555,10 +6556,13 @@ void InterSearch::xEstimateAffineAMVP_gpuBeforeME(PredictionUnit&  pu,
     
   for( int i = 0 ; i < numCand; i++ )
   {
-    Mv mv[3] = { affineAMVPInfo.mvCandLT[i], affineAMVPInfo.mvCandRT[i], affineAMVPInfo.mvCandLB[i] };
+    // GPU: We always select the first candidate so there is no need to check the performance
+    //Mv mv[3] = { affineAMVPInfo.mvCandLT[i], affineAMVPInfo.mvCandRT[i], affineAMVPInfo.mvCandLB[i] };
 
-    
-    Distortion uiTmpCost = xGetAffineTemplateCost( pu, origBuf, predBuf, mv, i, AMVP_MAX_NUM_CANDS, eRefPicList, iRefIdx );
+    // GPU: We always select the first candidate so there is no need to check the performance
+    // Distortion uiTmpCost = xGetAffineTemplateCost( pu, origBuf, predBuf, mv, i, AMVP_MAX_NUM_CANDS, eRefPicList, iRefIdx );
+    // GPU: Suppose a large distortion to avoid leading to decisions, but DONT use maximum value because we add 1 to this result later
+    Distortion uiTmpCost = std::numeric_limits<Distortion>::max() - 1000; //
     
 //    printf("Affine %d CPs. Amvp Idx=%d -> : %dx%d   %dx%d   %dx%d    -> Cost=%ld\n", pu.cu->affineType ? 3 : 2, i, mv[0].hor, mv[0].ver, mv[1].hor, mv[1].ver, mv[2].hor, mv[2].ver, uiTmpCost);
     
