@@ -213,6 +213,13 @@ public:
     static int numberUniqBlocks[2][NUM_SIZES][NUM_ALIGNMENTS]; // Number of times affine unipred is conducted for each CP and CU Size with an UNIQUE SPLIT SERIES. If the sabe CU with the same split is tested a second time, it is not counted here
     static double unipredTimeUniqueBlocks[2][NUM_SIZES][NUM_ALIGNMENTS];
     
+    static double xPredAffineInterSearch_time, xPredAffineInterSearchUnipred_time;
+    static double gpuAme_time, gpuNonAmeUseful_time, gpuNonAmeUseless_time, gpuNonAmeVariableCreation_time, gpuNonAmeOthers_time, gpuNonAmeFinalizing_time;
+    static struct timeval xPredAffineInterSearch_tv1, xPredAffineInterSearch_tv2, xPredAffineInterSearchUnipred_tv1, xPredAffineInterSearchUnipred_tv2;
+    static struct timeval gpuAme_tv1, gpuAme_tv2, gpuNonAmeUseful_tv1, gpuNonAmeUseful_tv2, gpuNonAmeUseless_tv1, gpuNonAmeUseless_tv2;
+    static struct timeval gpuNonAmeVariableCreation_tv1, gpuNonAmeVariableCreation_tv2, gpuNonAmeOthers_tv1, gpuNonAmeOthers_tv2, gpuNonAmeFinalizing_tv1, gpuNonAmeFinalizing_tv2;
+    
+    
     static SplitSeries currSplitSeries;
     
     static set<positionAndSplitseries> cusTestedWithAffine[2][NUM_SIZES][NUM_ALIGNMENTS]; // Used to track if a block with SIZE, at position @(x,y), was already encoded with a specific split series
@@ -330,7 +337,40 @@ public:
     
     static void startAffineUnipred_size(EAffineModel param, EAffinePred pred, CuSize size);
     static void finishAffineUnipred_size(EAffineModel param, EAffinePred pred, CuSize size, PredictionUnit& pu);
-        
+    
+    // Computation that is performed by the GPU. We must substitute this measure by the GPU running time
+    static void startGpuPartAffineME_size();
+    static void finishGpuPartAffineME_size();
+    
+    // Computation performed by the CPU (inside xPredAffineInterInterSearch) that MUST be done even with GPU acceleration
+    static void startNonGpuUsefulAffineME_size();
+    static void finishNonGpuUsefulAffineME_size();
+    
+    // Computation performed by the CPU (inside xPredAffineInterInterSearch) that is useless when using GPU acceleration
+    static void startNonGpuUselessAffineME_size();
+    static void finishNonGpuUselessAffineME_size();
+    
+    // Computation performed by the CPU for creating the variables for the xPredAffineInterInterSearch variables
+    static void startNonGpuVariableCreation_size();
+    static void finishNonGpuVariableCreation_size();
+    
+    // Computation performed by the CPU for other tasks (not useless but maybe not that useful) in the xPredAffineInterInterSearch method
+    static void startNonGpuOthers_size();
+    static void finishNonGpuOthers_size();
+    
+    // Computation performed by the CPU for finalizing the uniprediciton inside xPredAffineInterInterSearch, i.e., setting the motion field and so on
+    static void startNonGpuFinalizing_size();
+    static void finishNonGpuFinalizing_size();
+    
+    // Computation performed by the CPU for xPredAffineInterInterSearch method
+    static void startxPredAffineInterInterSearch_size();
+    static void finishxPredAffineInterInterSearch_size();
+    
+    // Computation performed by the CPU for xPredAffineInterInterSearch method considering only the uniprediction stage
+    static void startxPredAffineInterInterSearchUnipred_size();
+    static void finishxPredAffineInterInterSearchUnipred_size();
+    
+    
     // Returns an ENUM based on block size for easier handling
     static CuSize getSizeEnum(PredictionUnit pu);
     static CuSize getSizeEnum(UnitArea area);

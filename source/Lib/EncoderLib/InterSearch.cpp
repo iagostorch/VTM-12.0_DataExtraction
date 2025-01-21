@@ -4673,6 +4673,20 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
 {
   
   
+  // [!] Non-GPU USELESS time:       Time spent doing things that are only useful when Baseline AME is employed. It is useless for our GPU-based Affine ME, so it should be subtracted from the total processing time
+  // [!] Non-GPU USEFUL time:        Time to set the variables that are required for Affine ME and write the decisions. This should be kept for the final AME time. It can be considered the CPU-side pre-processing before GPU-based Affine ME
+  // [!] GPU AME time:               Time to run Affine ME (Gradient ME) and generate initial 3 CPMVs out of previous 2 CPs. This time should be substituted by the GPU running time
+  // [!] Non-GPU variable creation:  Time to declare and initialize variables of Affine ME
+  // [!] Non-GPU others:             Other stages of uniprediction that are not considered in previous timers
+
+  // Total processing time when GPU-based Affine ME is employed: Reported CPU time - Non-GPU USELESS time - GPU AME time + reported GPU time
+  
+  EAffineModel AFFINE_PARAMS = pu.cu->affineType? AFFINEMODEL_6PARAM : AFFINEMODEL_4PARAM;
+  storch::startxPredAffineInterInterSearchUnipred_size();
+  storch::startxPredAffineInterInterSearch_size();
+  
+  storch::startNonGpuVariableCreation_size();
+  
   #if TRACE_ENERGY
       if(included==0){
         rapl_monitor_start();   // CALLED ONCE
@@ -4700,7 +4714,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
 
   int mvNum = 2;
   mvNum = pu.cu->affineType ? 3 : 2;
-  EAffineModel AFFINE_PARAMS = pu.cu->affineType? AFFINEMODEL_6PARAM : AFFINEMODEL_4PARAM;
+
   // Mvp
   Mv        cMvPred[2][33][3];
   Mv        cMvPredBi[2][33][3];
@@ -4764,6 +4778,8 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
   e0_pkg= rapl_monitor_report_pkg();
 #endif
   
+  storch::finishNonGpuVariableCreation_size();
+  
   storch::startAffineUnipred(AFFINE_PARAMS, UNIPRED);
   storch::startAffineUnipred_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu));
   
@@ -4808,11 +4824,15 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       
       // Generates AMVP using the baseline algorithm or only zeros, based on GPU parameters
       
+      storch::startNonGpuUsefulAffineME_size();
+
       if(gpuAffineAmvp)
         xEstimateAffineAMVP_gpuBeforeME(pu, affiAMVPInfoTemp[eRefPicList], origBuf, eRefPicList, iRefIdxTemp, cMvPred[iRefList][iRefIdxTemp], &biPDistTemp );      
       else
         xEstimateAffineAMVP(pu, affiAMVPInfoTemp[eRefPicList], origBuf, eRefPicList, iRefIdxTemp, cMvPred[iRefList][iRefIdxTemp], &biPDistTemp );      
-           
+      
+      storch::finishNonGpuUsefulAffineME_size();
+      
       storch::finishAffineAMVP(AFFINE_PARAMS, UNIPRED);
             
       if(storch::sEXTRACT_ameProgress && pu.cu->imv==0){
@@ -4821,7 +4841,8 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         // AMVP
         storch::exportAmeProgressMVs(pu.cu->affineType, cMvPred[iRefList][iRefIdxTemp], NOT_FILLER, NOT_FINAL);
       }
-      
+            
+      storch::startNonGpuOthers_size();
       if ( affineAmvrEnabled )
       {
         biPDistTemp += m_pcRdCost->getCost( xCalcAffineMVBits( pu, cMvPred[iRefList][iRefIdxTemp], cMvPred[iRefList][iRefIdxTemp] ) );
@@ -4859,7 +4880,11 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         
       }
       
+      storch::finishNonGpuOthers_size();
+      
       storch::startAffineInit(AFFINE_PARAMS, UNIPRED);
+      storch::startNonGpuUselessAffineME_size();
+
       // set hevc ME result as start search position when it is best than mvp
       for ( int i=0; i<3; i++ )
       {
@@ -4888,8 +4913,10 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       
       // This is true when: (1) We are in the second or third pass of AMVR, and (2) the optimal affine in last pass was in the same ref index as now
       // This IF selects if current pass will start at HEVC MV or the best MV from last pass (pass of AMVR)
+      // Does not enter here
       if ( savedParaAvail )
       { 
+        printf("savedParaAvail\n");
         storch::startAffineInit(AFFINE_PARAMS, UNIPRED);
         Mv mvFour[3];
         for ( int i = 0; i < mvNum; i++ )
@@ -4978,6 +5005,10 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         }
       }      
       
+      storch::finishNonGpuUselessAffineME_size();
+      
+      storch::startGpuPartAffineME_size();
+
       // This part will use the best CPMVs from 2 CPs to generate a set of Predicted CPMVs for 3 CPs. It may overwrite the Affine AMVP result depending on the RD
       if ( pu.cu->affineType == AFFINEMODEL_6PARAM					// When GpuME for 3 CPs is disabled we conduct the standard procedure
 	  && ( ( storch::sGPU_gpuMe3Cps==0 ) || ( storch::sGPU_gpuMe3Cps==1 && storch::sGPU_predict3CpsFrom2Cps==1 ) )	// When GpuME for 3 CPs is enabled, the Predicted CPMVs can be forced to be zero (PREDICT_3CPs_FROM_2CPs==0) or can be generated out of the best results for 2 CPs (PREDICT_3CPs_FROM_2CPs==1)
@@ -5019,23 +5050,29 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       }
       storch::finishAffineInit(AFFINE_PARAMS, UNIPRED);
       
+      storch::finishGpuPartAffineME_size();
+      
       // Substitute the MV from AMVP by a MV generated after the HEVC MV
       // Standard VTM decision
+      
+      storch::startNonGpuUselessAffineME_size();
       if ( uiCandCost < biPDistTemp ) // biPDistTemp is the cost obtained from Affine AMVP
       {
         ::memcpy( cMvTemp[iRefList][iRefIdxTemp], mvHevc, sizeof(Mv)*3 );
       }
       // Forced decision when we have 3 CPs and we are using GPU_ME_3CPs while inheriting best 2 CPs as predicted 3 CPs
       else if(pu.cu->affineType == AFFINEMODEL_6PARAM && storch::sGPU_gpuMe3Cps && storch::sGPU_predict3CpsFrom2Cps){
-	// Forces the inherited CPMVs to be used as initial CPMVs in Gradient-ME
-	// These inherited CPMVs may be worse than the CPMVs obtained by AMVP but we must conduct always the same decision based on PREDICT_3CPs_FROM_2CPs
-	::memcpy( cMvTemp[iRefList][iRefIdxTemp], mvHevc, sizeof(Mv)*3 );
+        // Forces the inherited CPMVs to be used as initial CPMVs in Gradient-ME
+        // These inherited CPMVs may be worse than the CPMVs obtained by AMVP but we must conduct always the same decision based on PREDICT_3CPs_FROM_2CPs
+        ::memcpy( cMvTemp[iRefList][iRefIdxTemp], mvHevc, sizeof(Mv)*3 );
       }
       else
       {
         ::memcpy( cMvTemp[iRefList][iRefIdxTemp], cMvPred[iRefList][iRefIdxTemp], sizeof(Mv)*3 );
       }
-      
+    
+      storch::finishNonGpuUselessAffineME_size();
+
       // Probe FINISH INIT+AMVP
       storch::finishAffineAmvpInit_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu), pu);
            
@@ -5059,6 +5096,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       {
         if ( slice.getList1IdxToList0Idx( iRefIdxTemp ) >= 0 && (pu.cu->affineType != AFFINEMODEL_6PARAM || slice.getList1IdxToList0Idx( iRefIdxTemp ) == refIdx4Para[0]) )
         {
+          
             if(storch::sEXTRACT_ameProgress && pu.cu->imv==0){
                 // Filler for gradient
                 storch::exportAmeProgressFlag(pu.cu->affineType,0);
@@ -5068,6 +5106,8 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
                 storch::exportAmeProgressMVs(pu.cu->affineType, cMvTemp[iRefList][iRefIdxTemp], IS_FILLER, IS_FINAL);
             }
                       
+          storch::startNonGpuUsefulAffineME_size();
+            
           // If we are testing the same reference frame but in another reference list (i.e., frame 1 appears in L0 and L1), the distortion is the same but the cost is different. Copy the MV information and re-computed the cost
           int iList1ToList0Idx = slice.getList1IdxToList0Idx( iRefIdxTemp );
           ::memcpy( cMvTemp[1][iRefIdxTemp], cMvTemp[0][iList1ToList0Idx], sizeof(Mv)*3 );
@@ -5086,6 +5126,8 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
           /*calculate the correct cost*/
           uiCostTemp += m_pcRdCost->getCost( uiBitsTemp );
           DTRACE( g_trace_ctx, D_COMMON, " (%d) uiCostTemp=%d\n", DTRACE_GET_COUNTER(g_trace_ctx,D_COMMON), uiCostTemp );
+          
+          storch::finishNonGpuUsefulAffineME_size();
         }
         else
         {          
@@ -5099,10 +5141,13 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
           
 //          printf("POC=%d, baseQp=%d, currQp=%d, L=%d, refIdx=%d, ruiBits=%d, motionLambda=%f\n", pu.cs->picture->poc, pu.cs->baseQP, pu.cs->currQP[CHANNEL_TYPE_LUMA], eRefPicList, iRefIdxTemp, uiBitsTemp, m_pcRdCost->getMotionLambda());
           
+          storch::startGpuPartAffineME_size();
           xAffineMotionEstimation( pu, origBuf, eRefPicList, cMvPred[iRefList][iRefIdxTemp], iRefIdxTemp, cMvTemp[iRefList][iRefIdxTemp], uiBitsTemp, uiCostTemp
                                    , aaiMvpIdx[iRefList][iRefIdxTemp], affiAMVPInfoTemp[eRefPicList]
           );
+          storch::finishGpuPartAffineME_size();
           
+          storch::startNonGpuUsefulAffineME_size();
           
           if(gpuAffineAmvp){
             // This version of xEstimateAffineAMVP is VERY LIMITED: it only updates the predicted CPMV with valid candidates so that we can compute the bitrate properly
@@ -5118,6 +5163,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
 
             // No need to modify the deltas. Bitrate is computed based on predicted and initial CPMVs
           }
+          storch::finishNonGpuUsefulAffineME_size();
           
           // Probe END of Gradient-ME, Refinement and Simplification stage
           storch::finishAffineGradRefSimp_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu), pu);
@@ -5136,11 +5182,14 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         
 //        printf("POC=%d, baseQp=%d, currQp=%d, L=%d, refIdx=%d, ruiBits=%d, motionLambda=%f\n", pu.cs->picture->poc, pu.cs->baseQP, pu.cs->currQP[CHANNEL_TYPE_LUMA], eRefPicList, iRefIdxTemp, uiBitsTemp, m_pcRdCost->getMotionLambda());
         
+        storch::startGpuPartAffineME_size();
         xAffineMotionEstimation( pu, origBuf, eRefPicList, cMvPred[iRefList][iRefIdxTemp], iRefIdxTemp, cMvTemp[iRefList][iRefIdxTemp], uiBitsTemp, uiCostTemp
                                  , aaiMvpIdx[iRefList][iRefIdxTemp], affiAMVPInfoTemp[eRefPicList]
         );
-        
+        storch::finishGpuPartAffineME_size();
 
+        storch::startNonGpuUsefulAffineME_size();
+        
         if(gpuAffineAmvp){
           // This version of xEstimateAffineAMVP is VERY LIMITED: it only updates the predicted CPMV with valid candidates so that we can compute the bitrate properly
           xEstimateAffineAMVP_afterME( pu, affiAMVPInfoTemp[eRefPicList], origBuf, eRefPicList, iRefIdxTemp, cMvPred[iRefList][iRefIdxTemp], &biPDistTemp );                  
@@ -5155,6 +5204,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
 
           // No need to modify the deltas. Bitrate is computed based on predicted and initial CPMVs
         }
+        storch::finishNonGpuUsefulAffineME_size();
         // Probe END of Gradient-ME, Refinement and Simplification stage
         storch::finishAffineGradRefSimp_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu), pu);
         storch::finishAffineME(AFFINE_PARAMS, UNIPRED);
@@ -5166,6 +5216,8 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
 //      xCopyAffineAMVPInfo( affiAMVPInfoTemp[eRefPicList], aacAffineAMVPInfo[iRefList][iRefIdxTemp] );
 //      
       
+      storch::startNonGpuFinalizing_size();
+      
       if(pu.cu->cs->sps->getUseBcw() && pu.cu->BcwIdx == BCW_DEFAULT && pu.cu->slice->isInterB())
       {
         m_uniMotions.setReadModeAffine(true, (uint8_t)iRefList, (uint8_t)iRefIdxTemp, pu.cu->affineType);
@@ -5176,9 +5228,10 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       // Set best AMVP Index
       xCopyAffineAMVPInfo( affiAMVPInfoTemp[eRefPicList], aacAffineAMVPInfo[iRefList][iRefIdxTemp] );
       // Doc M-0247: When AMVR is using precision 1-pel for affine, and AffineAmvrEncOpt is enabled, the MV predictor can be selected AFTER the motion estimation (for signaling MVD)
-      if ( pu.cu->imv != 2 || !m_pcEncCfg->getUseAffineAmvrEncOpt() )
+      if ( pu.cu->imv != 2 || !m_pcEncCfg->getUseAffineAmvrEncOpt() ){
         xCheckBestAffineMVP( pu, affiAMVPInfoTemp[eRefPicList], eRefPicList, cMvTemp[iRefList][iRefIdxTemp], cMvPred[iRefList][iRefIdxTemp], aaiMvpIdx[iRefList][iRefIdxTemp], uiBitsTemp, uiCostTemp );
-      
+      }
+        
       if ( iRefList == 0 )
       {
         uiCostTempL0[iRefIdxTemp] = uiCostTemp;
@@ -5203,13 +5256,16 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
         // set motion
         memcpy( mvValidList1, cMvTemp[iRefList][iRefIdxTemp], sizeof(Mv)*3 );
         refIdxValidList1 = iRefIdxTemp;
-      }  
+      }
+      
+      storch::finishNonGpuFinalizing_size();
     } // End refIdx loop
   } // end Uni-prediction
   // Probe END of Affine Uniprediction
 
   storch::finishAffineUnipred_size(AFFINE_PARAMS, UNIPRED, storch::getSizeEnum(pu), pu); 
   storch::finishAffineUnipred(AFFINE_PARAMS, UNIPRED);
+  storch::finishxPredAffineInterInterSearchUnipred_size();
   
 #if TRACE_ENERGY
   // We can measure the CORE energy as well
@@ -5610,6 +5666,9 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
   if(storch::sTRACE_xCompressCU && storch::sTRACE_encodingModes && storch::sTRACE_innerResultsFromPred && (storch::sTRACE_onlyAffineSizes==0 || storch::isAffineSize(pu.cs->area.lwidth(), pu.cs->area.lheight()))){
     printf("    Cost final affine %d params: %ld\n", pu.cu->affineType == AFFINEMODEL_4PARAM ? 4 : 6, affineCost );
   }
+  
+  storch::finishxPredAffineInterInterSearch_size();
+  
 }
 
 void solveEqual(double dEqualCoeff[7][7], int iOrder, double *dAffinePara)
@@ -5727,6 +5786,7 @@ void InterSearch::xCheckBestAffineMVP( PredictionUnit &pu, AffineAMVPInfo &affin
 
   if (iBestMVPIdx != riMVPIdx)  // if changed
   {
+//    printf("Updated AMVP after Affine ME!!\n");
     acMvPred[0] = affineAMVPInfo.mvCandLT[iBestMVPIdx];
     acMvPred[1] = affineAMVPInfo.mvCandRT[iBestMVPIdx];
     acMvPred[2] = affineAMVPInfo.mvCandLB[iBestMVPIdx];
@@ -5909,9 +5969,8 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   }
   // Use _extract() function to print the lambdas
   uiCostBest = (Distortion)( floor( fWeight * (double)uiCostBest ) + (double)m_pcRdCost->getCost( uiBitsBest ) );
+  //  uiCostBest = (Distortion)( floor( fWeight * (double)uiCostBest ) + (double)m_pcRdCost->getCost_extract( uiBitsBest ) );
   LAST_cost = uiCostBest;
-//  uiCostBest = (Distortion)( floor( fWeight * (double)uiCostBest ) + (double)m_pcRdCost->getCost_extract( uiBitsBest ) );
-  
   storch::finishAffineMEInit(AFFINE_PARAMS, PRED);
   
   DTRACE( g_trace_ctx, D_COMMON, " (%d) uiBitsBest=%d, uiCostBest=%d\n", DTRACE_GET_COUNTER(g_trace_ctx,D_COMMON), uiBitsBest, uiCostBest );
@@ -6602,7 +6661,6 @@ void InterSearch::xEstimateAffineAMVP_afterME( PredictionUnit&  pu,
 
   // Fill AMVP list with two identical CPMVs. This is the first available candidate used for differential signaling
   PU::fillAffineMvpCand_onlyFirstCand( pu, eRefPicList, iRefIdx, affineAMVPInfo );
- 
   storch::inheritedCand += PU::getAndResetInheritedCands();
   storch::constructedCand += PU::getAndResetConstructedCands();
   storch::translationalCand += PU::getAndResetTranslationalCands();

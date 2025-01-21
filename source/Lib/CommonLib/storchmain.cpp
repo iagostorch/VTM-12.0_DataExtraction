@@ -34,6 +34,9 @@ int storch::calls_unipred[2][NUM_SIZES][NUM_ALIGNMENTS]; // Number of times affi
 int storch::numberUniqBlocks[2][NUM_SIZES][NUM_ALIGNMENTS]; // Number of times affine unipred is conducted for each CP and CU Size with unique split series(multiple INTER_ME on the same CU count only once, if the same split series is aplied a second time it is not computed here)
 double storch::unipredTimeUniqueBlocks[2][NUM_SIZES][NUM_ALIGNMENTS]; // Affine time for each CP and cu size considering only unique blocks
 
+ double storch::xPredAffineInterSearch_time, storch::xPredAffineInterSearchUnipred_time, storch::gpuNonAmeVariableCreation_time, storch::gpuNonAmeOthers_time, storch::gpuNonAmeFinalizing_time;;
+ double storch::gpuAme_time, storch::gpuNonAmeUseful_time, storch::gpuNonAmeUseless_time;
+
 // positionAndSplitseries is a struct that holds the block position and splitSeries
 set<positionAndSplitseries> storch::cusTestedWithAffine[2][NUM_SIZES][NUM_ALIGNMENTS]; // Used to track if a block with SIZE, at position @(x,y), was already encoded with a SPECIFIC split series
 
@@ -60,6 +63,10 @@ struct timeval storch::amvpInit_128x128_1, storch::amvpInit_128x128_2, storch::g
 // Used to probe the begin/finish times of affine predicitn in each block size
 struct timeval storch::amvpInit_target_1, storch::amvpInit_target_2, storch::gradRefSimp_target_1, storch::gradRefSimp_target_2, storch::affunip_target_1, storch::affunip_target_2;
 struct timeval storch::gradProbe1, storch::gradProbe2, storch::refSimpProbeProbe1, storch::refSimpProbeProbe2;
+
+struct timeval storch::xPredAffineInterSearch_tv1, storch::xPredAffineInterSearch_tv2, storch::xPredAffineInterSearchUnipred_tv1, storch::xPredAffineInterSearchUnipred_tv2;
+struct timeval storch::gpuAme_tv1, storch::gpuAme_tv2, storch::gpuNonAmeUseful_tv1, storch::gpuNonAmeUseful_tv2, storch::gpuNonAmeUseless_tv1, storch::gpuNonAmeUseless_tv2;
+struct timeval storch::gpuNonAmeVariableCreation_tv1, storch::gpuNonAmeVariableCreation_tv2, storch::gpuNonAmeOthers_tv1, storch::gpuNonAmeOthers_tv2, storch::gpuNonAmeFinalizing_tv1, storch::gpuNonAmeFinalizing_tv2;
 
 clock_t storch::clock_agp1, storch::clock_agp2, storch::clock_age1, storch::clock_age2, storch::clock_ageb1, storch::clock_ageb2, storch::clock_ages1, storch::clock_ages2;
 int storch::extractedFrames[EXT_NUM][500];
@@ -117,6 +124,11 @@ storch::storch() {
     affUnip6pMEGradTime_eq_solve = 0.0;
     affBip6pMEGradTime_eq_build = 0.0;
     affBip6pMEGradTime_eq_solve = 0.0;
+    
+    xPredAffineInterSearch_time = 0.0;
+    gpuAme_time = 0.0;
+    gpuNonAmeUseful_time = 0.0;
+    gpuNonAmeUseless_time = 0.0;
     
     targetAffine = 0;
     testedAffine2CP = false;
@@ -267,6 +279,16 @@ void storch::printSummary() {
     cout << endl << endl;
     
     cout << "###      Affine encoding time:" << endl;
+    
+    cout << "xPredAffineInterSearch:     " << xPredAffineInterSearch_time << endl;
+    cout << "xPredAffineInterSearchUnip: " << xPredAffineInterSearchUnipred_time << endl;
+    cout << "Non-AME Useless time:       " << gpuNonAmeUseless_time << endl;
+    cout << "Non-AME Useful time:        " << gpuNonAmeUseful_time << endl;
+    cout << "Variable creation time:     " << gpuNonAmeVariableCreation_time << endl;
+    cout << "Others time:                " << gpuNonAmeOthers_time << endl;
+    cout << "Finalizing time:            " << gpuNonAmeFinalizing_time << endl;
+    cout << "AME time:                   " << gpuAme_time << endl << endl;        
+            
     
     cout << "Complete 4 parameters:  " << (affUnip4pTime + affBip4pTime) << endl;
     cout << "Complete 6 parameters:  " << (affUnip6pTime + affBip6pTime) << endl;
@@ -1430,7 +1452,78 @@ void storch::finishAffineRefSimp_size(EAffineModel param, EAffinePred pred, CuSi
   refSimpMeTime[param][size][align] += (double) (refSimpProbeProbe2.tv_usec - refSimpProbeProbe1.tv_usec)/1000000 + (double) (refSimpProbeProbe2.tv_sec - refSimpProbeProbe1.tv_sec);
 }
 
-// Allows an easier handling of block sizes with meaninful names and less conditionals
+// Computation that is performed by the GPU. We must substitute this measure by the GPU running time
+void storch::startGpuPartAffineME_size(){
+  gettimeofday(&gpuAme_tv1, NULL);
+}
+void storch::finishGpuPartAffineME_size(){
+  gettimeofday(&gpuAme_tv2, NULL);
+  storch::gpuAme_time += (double) (storch::gpuAme_tv2.tv_usec - storch::gpuAme_tv1.tv_usec)/1000000 + (double) (storch::gpuAme_tv2.tv_sec - storch::gpuAme_tv1.tv_sec);
+}
+// Computation performed by the CPU (inside xPredAffineInterInterSearch) that MUST be done even with GPU acceleration
+void storch::startNonGpuUsefulAffineME_size(){
+  gettimeofday(&gpuNonAmeUseful_tv1, NULL);
+}
+void storch::finishNonGpuUsefulAffineME_size(){
+  gettimeofday(&gpuNonAmeUseful_tv2, NULL);
+  storch::gpuNonAmeUseful_time += (double) (storch::gpuNonAmeUseful_tv2.tv_usec - storch::gpuNonAmeUseful_tv1.tv_usec)/1000000 + (double) (storch::gpuNonAmeUseful_tv2.tv_sec - storch::gpuNonAmeUseful_tv1.tv_sec);
+}
+// Computation performed by the CPU (inside xPredAffineInterInterSearch) that is useless when using GPU acceleration
+void storch::startNonGpuUselessAffineME_size(){
+  gettimeofday(&gpuNonAmeUseless_tv1, NULL);
+}
+void storch::finishNonGpuUselessAffineME_size(){
+  gettimeofday(&gpuNonAmeUseless_tv2, NULL);
+  storch::gpuNonAmeUseless_time += (double) (storch::gpuNonAmeUseless_tv2.tv_usec - storch::gpuNonAmeUseless_tv1.tv_usec)/1000000 + (double) (storch::gpuNonAmeUseless_tv2.tv_sec - storch::gpuNonAmeUseless_tv1.tv_sec);
+}
+
+// Computation performed by the CPU for creating the variables for the xPredAffineInterInterSearch variables
+void storch::startNonGpuVariableCreation_size(){
+  gettimeofday(&gpuNonAmeVariableCreation_tv1, NULL);
+}
+void storch::finishNonGpuVariableCreation_size(){
+  gettimeofday(&gpuNonAmeVariableCreation_tv2, NULL);
+  storch::gpuNonAmeVariableCreation_time += (double) (storch::gpuNonAmeVariableCreation_tv2.tv_usec - storch::gpuNonAmeVariableCreation_tv1.tv_usec)/1000000 + (double) (storch::gpuNonAmeVariableCreation_tv2.tv_sec - storch::gpuNonAmeVariableCreation_tv1.tv_sec);
+}
+
+// Computation performed by the CPU for other tasks (not useless but maybe not that useful) in the xPredAffineInterInterSearch method
+void storch::startNonGpuOthers_size(){
+  gettimeofday(&gpuNonAmeOthers_tv1, NULL);
+}
+void storch::finishNonGpuOthers_size(){
+  gettimeofday(&gpuNonAmeOthers_tv2, NULL);
+  storch::gpuNonAmeOthers_time += (double) (storch::gpuNonAmeOthers_tv2.tv_usec - storch::gpuNonAmeOthers_tv1.tv_usec)/1000000 + (double) (storch::gpuNonAmeOthers_tv2.tv_sec - storch::gpuNonAmeOthers_tv1.tv_sec);
+}
+
+// Computation performed by the CPU for finalizing the uniprediciton inside xPredAffineInterInterSearch, i.e., setting the motion field and so on
+void storch::startNonGpuFinalizing_size(){
+  gettimeofday(&gpuNonAmeFinalizing_tv1, NULL);
+}
+void storch::finishNonGpuFinalizing_size(){
+  gettimeofday(&gpuNonAmeFinalizing_tv2, NULL);
+  storch::gpuNonAmeFinalizing_time += (double) (storch::gpuNonAmeFinalizing_tv2.tv_usec - storch::gpuNonAmeFinalizing_tv1.tv_usec)/1000000 + (double) (storch::gpuNonAmeFinalizing_tv2.tv_sec - storch::gpuNonAmeFinalizing_tv1.tv_sec);
+}
+
+
+
+// Computation performed by the CPU for xPredAffineInterInterSearch method
+void storch::startxPredAffineInterInterSearch_size(){
+  gettimeofday(&xPredAffineInterSearch_tv1, NULL);
+}
+void storch::finishxPredAffineInterInterSearch_size(){
+  gettimeofday(&xPredAffineInterSearch_tv2, NULL);
+  storch::xPredAffineInterSearch_time += (double) (storch::xPredAffineInterSearch_tv2.tv_usec - storch::xPredAffineInterSearch_tv1.tv_usec)/1000000 + (double) (storch::xPredAffineInterSearch_tv2.tv_sec - storch::xPredAffineInterSearch_tv1.tv_sec);
+}
+// Computation performed by the CPU for xPredAffineInterInterSearch method considering only the uniprediction stage
+void storch::startxPredAffineInterInterSearchUnipred_size(){
+  gettimeofday(&xPredAffineInterSearchUnipred_tv1, NULL);
+}
+void storch::finishxPredAffineInterInterSearchUnipred_size(){
+  gettimeofday(&xPredAffineInterSearchUnipred_tv2, NULL);
+  storch::xPredAffineInterSearchUnipred_time += (double) (storch::xPredAffineInterSearchUnipred_tv2.tv_usec - storch::xPredAffineInterSearchUnipred_tv1.tv_usec)/1000000 + (double) (storch::xPredAffineInterSearchUnipred_tv2.tv_sec - storch::xPredAffineInterSearchUnipred_tv1.tv_sec);
+}
+
+// Allows an easier handling of block sizes with meaningful names and less conditionals
 // There are two of these with different input parameters
 CuSize storch::getSizeEnum(UnitArea area){ 
   if(area.lwidth()==128 && area.lheight()==128)
