@@ -314,6 +314,12 @@ public:
   }
   Distortion     getCostOfVectorWithPredictor( const int x, const int y, const unsigned imvShift )  { return Distortion( m_motionLambda * getBitsOfVectorWithPredictor(x, y, imvShift )); }
   uint32_t           getBitsOfVectorWithPredictor( const int x, const int y, const unsigned imvShift )  { return xGetExpGolombNumberOfBits(((x << m_iCostScale) - m_mvPredictor.getHor())>>imvShift) + xGetExpGolombNumberOfBits(((y << m_iCostScale) - m_mvPredictor.getVer())>>imvShift); }
+  uint32_t           getBitsOfVectorWithPredictor_target( const int x, const int y, const unsigned imvShift )  
+  { 
+      printf("    m_iCostScale %d\n", m_iCostScale);
+      printf("    m_mvPredictor %dx%d\n", m_mvPredictor.hor, m_mvPredictor.ver);
+      
+      return xGetExpGolombNumberOfBits(((x << m_iCostScale) - m_mvPredictor.getHor())>>imvShift) + xGetExpGolombNumberOfBits(((y << m_iCostScale) - m_mvPredictor.getVer())>>imvShift); }
 #if WCG_EXT
          void    saveUnadjustedLambda       ();
 #if PRINT_WPSNR

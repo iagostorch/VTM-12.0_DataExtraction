@@ -3197,6 +3197,35 @@ uint32_t InterSearch::xCalcAffineMVBits( PredictionUnit& pu, Mv acMvTemp[3], Mv 
   return bitsTemp;
 }
 
+uint32_t InterSearch::xCalcAffineMVBits_target( PredictionUnit& pu, Mv acMvTemp[3], Mv acMvPred[3] )
+{
+  int mvNum  = pu.cu->affineType ? 3 : 2;
+  m_pcRdCost->setCostScale( 0 );
+  uint32_t bitsTemp = 0;
+
+  printf("Bits from xCalcAffineMVBits_target...\n");
+  printf("Predicted. LT %dx%d   RT %dx%d   LB %dx%d\n", acMvPred[0].hor, acMvPred[0].ver, acMvPred[1].hor, acMvPred[1].ver, acMvPred[2].hor, acMvPred[2].ver );
+  printf("Current.   LT %dx%d   RT %dx%d   LB %dx%d\n", acMvTemp[0].hor, acMvTemp[0].ver, acMvTemp[1].hor, acMvTemp[1].ver, acMvTemp[2].hor, acMvTemp[2].ver );
+  for ( int verIdx = 0; verIdx < mvNum; verIdx++ )
+  {
+    printf("verIdx=%d\n", verIdx);
+    Mv pred = verIdx == 0 ? acMvPred[verIdx] : acMvPred[verIdx] + acMvTemp[0] - acMvPred[0];
+    printf("  pred from ? = %dx%d\n", pred.hor, pred.ver);
+    pred.changeAffinePrecInternal2Amvr(pu.cu->imv);
+    printf("  pred with changed precision i.e. predictor = %dx%d\n", pred.hor, pred.ver);
+    m_pcRdCost->setPredictor( pred );
+    Mv mv = acMvTemp[verIdx];
+    mv.changeAffinePrecInternal2Amvr(pu.cu->imv);
+    printf("  MVwith changed precision = %dx%d\n", mv.hor, mv.ver);
+        
+    printf("  bitsOfVectorWithPredictor %d\n", m_pcRdCost->getBitsOfVectorWithPredictor( mv.getHor(), mv.getVer(), 0 ));
+    
+    bitsTemp += m_pcRdCost->getBitsOfVectorWithPredictor_target( mv.getHor(), mv.getVer(), 0 );
+  }
+
+  return bitsTemp;
+}
+
 // AMVP
 void InterSearch::xEstimateMvPredAMVP( PredictionUnit& pu, PelUnitBuf& origBuf, RefPicList eRefPicList, int iRefIdx, Mv& rcMvPred, AMVPInfo& rAMVPInfo, bool bFilled, Distortion* puiDistBiP )
 {
@@ -5814,6 +5843,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   uint32_t LAST_ruiBits = 0;
   uint32_t LAST_bits = 0;
   Distortion LAST_cost = 0;
+  double LAST_rate= 0.0;
   
   // When GPU_ME is true, we will skip the simplifications/refinements
   int skipRefinement;
@@ -5891,6 +5921,17 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   EAffineModel AFFINE_PARAMS = pu.cu->affineType? AFFINEMODEL_6PARAM : AFFINEMODEL_4PARAM;
   EAffinePred PRED = bBi? BIPRED : UNIPRED;
   
+  
+  target = 0;
+  target &= pu.cs->picture->poc==1;
+  target &= pu.lwidth()==128;
+  target &= pu.lheight()==64;
+  target &= (pu.lx()==640 || pu.lx()==640);
+  target &= (pu.ly()==384 || pu.ly()==384);
+  target &= pu.cu->affineType==0;
+  target &= bBi == false;
+  
+  
   double pdEqualCoeff[7][7];
 
   int64_t  i64EqualCoeff[7][7];
@@ -5934,7 +5975,10 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   // Compute the distortion part
   // Affine always use RdCost::xGetHADs;
   // get error
-  uiCostBest = m_pcRdCost->getDistPart(predBuf.Y(), pBuf->Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA), COMPONENT_Y, distFunc);
+  if(target)
+    uiCostBest = m_pcRdCost->getDistPart_target(predBuf.Y(), pBuf->Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA), COMPONENT_Y, distFunc, target);
+  else
+    uiCostBest = m_pcRdCost->getDistPart(predBuf.Y(), pBuf->Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA), COMPONENT_Y, distFunc);
   LAST_distortion = uiCostBest;
   
   // get cost with mv
@@ -5942,14 +5986,7 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   uiBitsBest = ruiBits;
   LAST_ruiBits = ruiBits;
   
-  target = 0;
-  target &= pu.cs->picture->poc==1;
-  target &= pu.lwidth()==32;
-  target &= pu.lheight()==64;
-  target &= (pu.lx()==1536 || pu.lx()==1536);
-  target &= (pu.ly()==0 || pu.ly()==0);
-  target &= pu.cu->affineType==1;
-  target &= bBi == false;
+
 
   // Doc M-0247: When AMVR is using precision 1-pel for affine, and AffineAmvrEncOpt is enabled, the MV predictor can be selected AFTER the motion estimation (for signaling MVD)
   if ( pu.cu->imv == 2 && m_pcEncCfg->getUseAffineAmvrEncOpt() )
@@ -5962,15 +5999,23 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   else
   {
     DTRACE( g_trace_ctx, D_COMMON, " (%d) xx uiBitsBest=%d\n", DTRACE_GET_COUNTER(g_trace_ctx,D_COMMON), uiBitsBest );
-    uiBitsBest += xCalcAffineMVBits( pu, acMvTemp, acMvPred );
+    if(target)
+      uiBitsBest += xCalcAffineMVBits_target( pu, acMvTemp, acMvPred );
+    else
+      uiBitsBest += xCalcAffineMVBits( pu, acMvTemp, acMvPred );
+    
     LAST_bits = uiBitsBest - ruiBits;
     
     DTRACE( g_trace_ctx, D_COMMON, " (%d) yy uiBitsBest=%d\n", DTRACE_GET_COUNTER(g_trace_ctx,D_COMMON), uiBitsBest );
   }
   // Use _extract() function to print the lambdas
-  uiCostBest = (Distortion)( floor( fWeight * (double)uiCostBest ) + (double)m_pcRdCost->getCost( uiBitsBest ) );
-  //  uiCostBest = (Distortion)( floor( fWeight * (double)uiCostBest ) + (double)m_pcRdCost->getCost_extract( uiBitsBest ) );
+  if(target)
+    uiCostBest = (Distortion)( floor( fWeight * (double)uiCostBest ) + (double)m_pcRdCost->getCost_extract( uiBitsBest ) );
+  else
+    uiCostBest = (Distortion)( floor( fWeight * (double)uiCostBest ) + (double)m_pcRdCost->getCost( uiBitsBest ) );
+  
   LAST_cost = uiCostBest;
+  LAST_rate = (double)m_pcRdCost->getCost( uiBitsBest );
   storch::finishAffineMEInit(AFFINE_PARAMS, PRED);
   
   DTRACE( g_trace_ctx, D_COMMON, " (%d) uiBitsBest=%d, uiCostBest=%d\n", DTRACE_GET_COUNTER(g_trace_ctx,D_COMMON), uiBitsBest, uiCostBest );
@@ -6048,7 +6093,8 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
      
       printf("Distortion %ld\n", LAST_distortion);
       printf("ruiBits %d\n", LAST_ruiBits);
-      printf("uiBitsTemp %ud (discard ruiBits)\n", LAST_bits);
+      printf("uiBitsTemp %ud (discarding ruiBits)\n", LAST_bits);
+      printf("Bitrate from lambda*bits %f\n", LAST_rate);
       printf("uiCostTemp %ld\n", LAST_cost);
     
       printf("Prediction SIGNAL for CU XY %dx%d     WH %dx%d\n", pu.lx(), pu.ly(), pu.lwidth(), pu.lheight());
@@ -6326,12 +6372,20 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
     }
     else
     {
-      uiBitsTemp += xCalcAffineMVBits( pu, acMvTemp, acMvPred );
+      if(target)
+        uiBitsTemp += xCalcAffineMVBits_target( pu, acMvTemp, acMvPred );
+      else
+        uiBitsTemp += xCalcAffineMVBits( pu, acMvTemp, acMvPred );
+      
       LAST_bits = uiBitsTemp - ruiBits;
     }
     
-    uiCostTemp = (Distortion)( floor( fWeight * (double)uiCostTemp ) + (double)m_pcRdCost->getCost( uiBitsTemp ) );
+    if(target)
+      uiCostTemp = (Distortion)( floor( fWeight * (double)uiCostTemp ) + (double)m_pcRdCost->getCost_extract( uiBitsTemp ) );
+    else
+      uiCostTemp = (Distortion)( floor( fWeight * (double)uiCostTemp ) + (double)m_pcRdCost->getCost( uiBitsTemp ) );
     LAST_cost = uiCostTemp;
+    LAST_rate = (double)m_pcRdCost->getCost( uiBitsTemp );
     // store best cost and mv
     if ( uiCostTemp < uiCostBest )
     {
