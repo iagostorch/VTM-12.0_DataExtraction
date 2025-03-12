@@ -5259,6 +5259,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       // Doc M-0247: When AMVR is using precision 1-pel for affine, and AffineAmvrEncOpt is enabled, the MV predictor can be selected AFTER the motion estimation (for signaling MVD)
       if ( pu.cu->imv != 2 || !m_pcEncCfg->getUseAffineAmvrEncOpt() ){
         xCheckBestAffineMVP( pu, affiAMVPInfoTemp[eRefPicList], eRefPicList, cMvTemp[iRefList][iRefIdxTemp], cMvPred[iRefList][iRefIdxTemp], aaiMvpIdx[iRefList][iRefIdxTemp], uiBitsTemp, uiCostTemp );
+        
       }
         
       if ( iRefList == 0 )
@@ -6713,8 +6714,10 @@ void InterSearch::xEstimateAffineAMVP_afterME( PredictionUnit&  pu,
   Mv         bestMvLT, bestMvRT, bestMvLB;
   int        iBestIdx = 0;
 
-  // Fill AMVP list with two identical CPMVs. This is the first available candidate used for differential signaling
-  PU::fillAffineMvpCand_onlyFirstCand( pu, eRefPicList, iRefIdx, affineAMVPInfo );
+  // Fill AMVP list with two regular candidates. The best candidate will be selected AFTER Affine ME to minimize bitrate in signaling the CPMV differences.
+  // Check Doc M-0247 in xPredAffineInterSearch
+  PU::fillAffineMvpCand( pu, eRefPicList, iRefIdx, affineAMVPInfo );
+    
   storch::inheritedCand += PU::getAndResetInheritedCands();
   storch::constructedCand += PU::getAndResetConstructedCands();
   storch::translationalCand += PU::getAndResetTranslationalCands();
