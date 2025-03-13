@@ -6045,6 +6045,11 @@ void InterSearch::xAffineMotionEstimation( PredictionUnit& pu,
   storch::startAffineMEGradient(AFFINE_PARAMS, PRED);
   storch::startAffineGradME_size(AFFINE_PARAMS, PRED);
   
+  
+  if( !bBi )  {
+    iIterTime += storch::sGPU_extraGradientIterations;
+  }
+  
   for ( int iter=0; iter<iIterTime; iter++ )    // iterate loop
   {
     // These are used specifically to measure the time of building and solving the system of linear equations during ME

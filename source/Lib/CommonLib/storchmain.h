@@ -199,6 +199,7 @@ public:
     static int sGPU_skipUnalignedCusAffine; // SKIP_UNALIGNED_CUS: When this is enabled, the affine prediction (both unipred and bipred) are skipped for unaligned blocks. Affine MERGE is not modified
     static int sGPU_enforceAffineOnExtraBlocks; // ENFORCE_AFFINE_ON_EXTRA_BLOCKS 0
     static int sGPU_alwaysEnforce3Cps; // ALWAYS_ENFORCE_3_CPS 1
+    static int sGPU_extraGradientIterations; // Additional iterations in Gradient-based Motion Estimation
     
     static int skipNonAffineUnipred_Current;
     static UnitArea skipNonAffineUnipred_Current_Area;

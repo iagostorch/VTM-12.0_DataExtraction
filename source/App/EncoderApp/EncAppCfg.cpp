@@ -740,6 +740,7 @@ bool EncAppCfg::parseCfg( int argc, char* argv[] )
   ("sGPU_skipUnalignedCusAffine",                     storch::sGPU_skipUnalignedCusAffine,                   0, "Affine prediction (both unipred and bipred) is skipped for unaligned blocks. Affine MERGE is not modified")
   ("sGPU_enforceAffineOnExtraBlocks",                 storch::sGPU_enforceAffineOnExtraBlocks,               0, "Only works with CUSTOMIZE_TREE_HEURISTICS. Blocks that would not be tested due to heuristics but we are testing anyway can only be predicted by affine uniprediction")
   ("sGPU_alwaysEnforce3Cps",                          storch::sGPU_alwaysEnforce3Cps,                        0, "Whenever affine with 2 CPs is conducted, affine with 3 CPs is tested as well")
+  ("sGPU_extraGradientIterations",                    storch::sGPU_extraGradientIterations,                  0, "Additional iterations in Gradient-based Motion Estimation")
   
   // File, I/O and source parameters
   ("InputFile,i",                                     m_inputFileName,                             string(""), "Original YUV input file name")
