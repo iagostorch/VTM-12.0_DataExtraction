@@ -1607,13 +1607,6 @@ void storch::verifyTreeHeuristicsGpuMeMacros(){
     errors++;
   }
   
-  if(SIMD_ENABLE && (storch::sGPU_gpuMe2Cps || storch::sGPU_gpuMe3Cps)){
-    printf("MACRO ERROR: GPU_ME ONLY WORKS WHEN SIMD OPTIMIZATIONS ARE DISABLED\n");
-    printf("  SIMD_ENABLE=%d\n", SIMD_ENABLE);
-    printf("  GPU_ME_2CPs=%d\n", storch::sGPU_gpuMe2Cps);
-    printf("  GPU_ME_3CPs=%d\n", storch::sGPU_gpuMe3Cps);
-    errors++;
-  }
   if(errors)
     exit(0);
   
