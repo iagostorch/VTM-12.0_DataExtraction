@@ -20,7 +20,7 @@ using namespace std;
 
 int storch::sTRACE_xCompressCU, storch::sTRACE_ctuCosts, storch::sTRACE_cuCosts, storch::sTRACE_encodingModes, storch::sTRACE_onlyAffineSizes, storch::sTRACE_innerResultsFromPred, storch::sTRACE_debugEnableDisableChildren, storch::sTRACE_tryModeDivergence;
 int storch::sEXTRACT_frame, storch::sEXTRACT_ameProgress;
-int storch::sHEUR_originalTreeHeuristics, storch::sHEUR_customizeTreeHeuristics, storch::sHEUR_noTreeHeuristics, storch::sGPU_gpuMe2Cps, storch::sGPU_gpuMe3Cps, storch::sGPU_predict3CpsFrom2Cps, storch::sGPU_skipUnalignedCusAffine, storch::sGPU_enforceAffineOnExtraBlocks, storch::sGPU_alwaysEnforce3Cps, storch::sGPU_extraGradientIterations;
+int storch::sHEUR_originalTreeHeuristics, storch::sHEUR_customizeTreeHeuristics, storch::sHEUR_noTreeHeuristics, storch::sGPU_gpuMe2Cps, storch::sGPU_gpuMe3Cps, storch::sGPU_predict3CpsFrom2Cps, storch::sGPU_skipUnalignedCusAffine, storch::sGPU_enforceAffineOnExtraBlocks, storch::sGPU_alwaysEnforce3Cps, storch::sGPU_extraGradientIterations, storch::sGPU_skipAffineMe;
 
 double storch::aff4pTime, storch::aff6pTime, storch::aff4pAMVPTime, storch::aff6pAMVPTime, storch::affUnip4pTime, storch::affBip4pTime, storch::affUnip6pTime, storch::affBip6pTime, storch::affUnip4pInitTime, storch::affBip4pInitTime, storch::affUnip6pInitTime, storch::affBip6pInitTime, storch::affUnip4pMeTime, storch::affBip4pMeTime, storch::affUnip6pMeTime, storch::affBip6pMeTime, storch::affUnip4pMEGradTime, storch::affBip4pMEGradTime, storch::affUnip6pMEGradTime, storch::affBip6pMEGradTime, storch::affUnip4pMERefTime, storch::affBip4pMERefTime, storch::affUnip6pMERefTime, storch::affBip6pMERefTime, storch::affUnip4pMeInitTime, storch::affBip4pMeInitTime, storch::affUnip6pMeInitTime, storch::affBip6pMeInitTime;
 double storch::affUnip4pMEGradTime_pred, storch::affBip4pMEGradTime_pred, storch::affUnip6pMEGradTime_pred, storch::affBip6pMEGradTime_pred, storch::affUnip4pMEGradTime_eq, storch::affBip4pMEGradTime_eq, storch::affUnip6pMEGradTime_eq, storch::affBip6pMEGradTime_eq, storch::affUnip4pMEGradTime_eq_build, storch::affUnip4pMEGradTime_eq_solve, storch::affBip4pMEGradTime_eq_build, storch::affBip4pMEGradTime_eq_solve, storch::affUnip6pMEGradTime_eq_build, storch::affUnip6pMEGradTime_eq_solve, storch::affBip6pMEGradTime_eq_build, storch::affBip6pMEGradTime_eq_solve;
@@ -245,6 +245,7 @@ void storch::printParamsSummary(){
   cout << "GPU_ME_3CPs:              " << storch::sGPU_gpuMe3Cps << endl;
   cout << "PREDICT_3CPs_FROM_2CPs    " << storch::sGPU_predict3CpsFrom2Cps << endl;
   cout << "EXTRA_GRAD_ITER           " << storch::sGPU_extraGradientIterations << endl;
+  cout << "SKIP_AFFINE_ME:           " << storch::sGPU_skipAffineMe << endl;
   cout << "SKIP_UNALIGNED_CUs        " << storch::sGPU_skipUnalignedCusAffine << endl;
   cout << "SIMD_ENABLE:              " << SIMD_ENABLE << endl;
   cout << "PROF:                     " << prof << endl;

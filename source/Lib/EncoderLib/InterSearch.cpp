@@ -2335,6 +2335,11 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
     checkAffine = !( bestCU->firstPU->mergeFlag || !bestCU->affine );
   }
    
+  if( storch::sGPU_skipAffineMe ){
+    checkAffine = 0;
+  }
+  
+  
   if ( pu.cu->imv == 2 && checkNonAffine && pu.cu->slice->getSPS()->getAffineAmvrEnabledFlag() )
   {
     checkNonAffine = m_affineMotion.hevcCost[1] < m_affineMotion.hevcCost[0] * 1.06f;

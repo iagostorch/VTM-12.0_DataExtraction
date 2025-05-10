@@ -200,6 +200,7 @@ public:
     static int sGPU_enforceAffineOnExtraBlocks; // ENFORCE_AFFINE_ON_EXTRA_BLOCKS 0
     static int sGPU_alwaysEnforce3Cps; // ALWAYS_ENFORCE_3_CPS 1
     static int sGPU_extraGradientIterations; // Additional iterations in Gradient-based Motion Estimation
+    static int sGPU_skipAffineMe;  // When enabled, Affine ME is completely bypassed. Affine Merge is still tested. It's used for ablation studies
     
     static int skipNonAffineUnipred_Current;
     static UnitArea skipNonAffineUnipred_Current_Area;
